@@ -59,7 +59,7 @@ struct _AutoarExtractClass
                        gdouble fraction_files);
   void (* completed)  (AutoarExtract *arextract);
   void (* error)      (AutoarExtract *arextract,
-                       gint error_code);
+                       GError* error);
 };
 
 GType           autoar_extract_get_type            (void) G_GNUC_CONST;

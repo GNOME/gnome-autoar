@@ -27,6 +27,7 @@
 #define AUTOAR_EXTRACT_H
 
 #include <glib-object.h>
+#include <gio/gio.h>
 
 G_BEGIN_DECLS
 
@@ -52,14 +53,16 @@ struct _AutoarExtractClass
 {
   GObjectClass parent_class;
 
-  void (* scaned)     (AutoarExtract *arextract,
+  void (* scanned)    (AutoarExtract *arextract,
                        guint files);
+  void (* decide_dest)(AutoarExtract *arextract,
+                       GFile *destination);
   void (* progress)   (AutoarExtract *arextract,
                        gdouble fraction_size,
                        gdouble fraction_files);
   void (* completed)  (AutoarExtract *arextract);
   void (* error)      (AutoarExtract *arextract,
-                       GError* error);
+                       GError *error);
 };
 
 GType           autoar_extract_get_type            (void) G_GNUC_CONST;

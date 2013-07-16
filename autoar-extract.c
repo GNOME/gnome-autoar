@@ -31,6 +31,8 @@
 #include <archive_entry.h>
 #include <fcntl.h>
 #include <gio/gio.h>
+#include <grp.h>
+#include <pwd.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -387,9 +389,11 @@ autoar_extract_do_pattern_check (const char *pathname)
 
 static void
 autoar_extract_do_write_entry (AutoarExtract *arextract,
-                                struct archive *a,
-                                struct archive_entry *entry,
-                                GFile *dest)
+                               struct archive *a,
+                               struct archive_entry *entry,
+                               GFile *dest,
+                               GHashTable *userhash,
+                               GHashTable *grouphash)
 {
   GOutputStream *ostream;
   GFileInfo *info;
@@ -399,6 +403,16 @@ autoar_extract_do_write_entry (AutoarExtract *arextract,
   size_t size, written;
   off_t offset;
   int r;
+
+#ifdef HAVE_GETPWNAM
+  const char *uname;
+#endif
+
+#ifdef HAVE_GETGRNAM
+  const char *gname;
+#endif
+
+  guint32 uid, gid;
 
   parent = g_file_get_parent (dest);
   if (!g_file_query_exists (parent, NULL))
@@ -442,17 +456,60 @@ autoar_extract_do_write_entry (AutoarExtract *arextract,
                                       archive_entry_mtime_nsec (entry) / 1000);
   }
 
+  /* user */
+  g_debug ("autoar_extract_do_write_entry: user");
+#ifdef HAVE_GETPWNAM
+  if ((uname = archive_entry_uname (entry)) != NULL) {
+    void *got_uid;
+    if (g_hash_table_lookup_extended (userhash, uname, NULL, &got_uid) == TRUE) {
+      uid = GPOINTER_TO_UINT (got_uid);
+    } else {
+      struct passwd *pwd = getpwnam (uname);
+      if (pwd == NULL) {
+        uid = archive_entry_uid (entry);
+      } else {
+        uid = pwd->pw_uid;
+        g_hash_table_insert (userhash, g_strdup (uname), GUINT_TO_POINTER (uid));
+      }
+    }
+    g_file_info_set_attribute_uint32 (info, G_FILE_ATTRIBUTE_UNIX_UID, uid);
+  } else
+#endif
+  if ((uid = archive_entry_uid (entry)) != 0) {
+    g_file_info_set_attribute_uint32 (info, G_FILE_ATTRIBUTE_UNIX_UID, uid);
+  }
+
+  /* group */
+  g_debug ("autoar_extract_do_write_entry: group");
+#ifdef HAVE_GETGRNAM
+  if ((gname = archive_entry_gname (entry)) != NULL) {
+    void *got_gid;
+    if (g_hash_table_lookup_extended (grouphash, gname, NULL, &got_gid) == TRUE) {
+      gid = GPOINTER_TO_UINT (got_gid);
+    } else {
+      struct group *grp = getgrnam (gname);
+      if (grp == NULL) {
+        gid = archive_entry_gid (entry);
+      } else {
+        gid = grp->gr_gid;
+        g_hash_table_insert (grouphash, g_strdup (gname), GUINT_TO_POINTER (gid));
+      }
+    }
+    g_file_info_set_attribute_uint32 (info, G_FILE_ATTRIBUTE_UNIX_GID, gid);
+  } else
+#endif
+  if ((gid = archive_entry_gid (entry)) != 0) {
+    g_file_info_set_attribute_uint32 (info, G_FILE_ATTRIBUTE_UNIX_GID, gid);
+  }
+
   /* permissions */
   g_debug ("autoar_extract_do_write_entry: permissions");
   g_file_info_set_attribute_uint32 (info,
                                     G_FILE_ATTRIBUTE_UNIX_MODE,
                                     archive_entry_mode (entry));
 
-
-
-
-
   g_debug ("autoar_extract_do_write_entry: writing");
+  r = 0;
   switch (filetype = archive_entry_filetype (entry)) {
     case AE_IFREG:
       ostream = (GOutputStream*)g_file_replace (dest,
@@ -564,7 +621,14 @@ autoar_extract_do_write_entry (AutoarExtract *arextract,
                                    info,
                                    G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
                                    NULL,
-                                   NULL);
+                                   &(arextract->priv->error));
+
+  if (arextract->priv->error != NULL) {
+    g_debug ("autoar_extract_do_write_entry: %s\n", arextract->priv->error->message);
+    g_error_free (arextract->priv->error);
+    arextract->priv->error = NULL;
+  }
+
   g_object_unref (info);
 }
 
@@ -746,6 +810,9 @@ autoar_extract_start (AutoarExtract* arextract)
   GFile *top_level_parent_dir;
   GFile *top_level_dir;
 
+  GHashTable *userhash;
+  GHashTable *grouphash;
+
   GFile *source;
 
   int i, r;
@@ -790,6 +857,7 @@ autoar_extract_start (AutoarExtract* arextract)
     return;
   }
   pathname_prefix = NULL;
+  pathname_prefix_len = 0;
   has_top_level_dir = TRUE;
   while (archive_read_next_header (a, &entry) == ARCHIVE_OK) {
     const char *pathname, *dir_sep_location;
@@ -892,6 +960,8 @@ autoar_extract_start (AutoarExtract* arextract)
     archive_read_free (a);
     return;
   }
+  userhash = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
+  grouphash = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
   while (archive_read_next_header (a, &entry) == ARCHIVE_OK) {
     const char *pathname;
     const char *pathname_skip_prefix;
@@ -938,13 +1008,19 @@ autoar_extract_start (AutoarExtract* arextract)
     /* TODO: Add file name pattern check here */
     autoar_extract_do_pattern_check (pathname_skip_prefix);
 
-    /* TODO: Write entry to disk */
-    autoar_extract_do_write_entry (arextract, a, entry, extracted_filename);
+    autoar_extract_do_write_entry (arextract,
+                                   a,
+                                   entry,
+                                   extracted_filename,
+                                   userhash,
+                                   grouphash);
 
     if (arextract->priv->error != NULL) {
       g_signal_emit (arextract, autoar_extract_signals[ERROR], 0, arextract->priv->error);
       g_object_unref (extracted_filename);
       g_object_unref (top_level_dir);
+      g_hash_table_unref (userhash);
+      g_hash_table_unref (grouphash);
       archive_read_close (a);
       archive_read_free (a);
       return;
@@ -960,6 +1036,8 @@ autoar_extract_start (AutoarExtract* arextract)
   }
 
   g_object_unref (top_level_dir);
+  g_hash_table_unref (userhash);
+  g_hash_table_unref (grouphash);
   archive_read_close (a);
   archive_read_free (a);
   if (arextract->priv->error != NULL) {

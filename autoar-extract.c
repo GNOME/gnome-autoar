@@ -275,7 +275,6 @@ libarchive_read_open_cb (struct archive *ar_read,
 {
   AutoarExtract *arextract;
   GFile *file;
-  GFileInfo *fileinfo;
 
   g_debug ("libarchive_read_open_cb: called");
 
@@ -285,16 +284,6 @@ libarchive_read_open_cb (struct archive *ar_read,
   }
 
   file = g_file_new_for_commandline_arg (arextract->priv->source);
-
-  fileinfo = g_file_query_info (file,
-                                G_FILE_ATTRIBUTE_STANDARD_SIZE,
-                                G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
-                                NULL,
-                                &(arextract->priv->error));
-  g_return_val_if_fail (arextract->priv->error == NULL, ARCHIVE_FATAL);
-
-  arextract->priv->size = g_file_info_get_size (fileinfo);
-  g_object_unref (fileinfo);
 
   arextract->priv->istream = (GInputStream*)g_file_read (file,
                                                          NULL,
@@ -350,8 +339,6 @@ libarchive_read_read_cb (struct archive *ar_read,
                                    NULL,
                                    &(arextract->priv->error));
   g_return_val_if_fail (arextract->priv->error == NULL, -1);
-
-  arextract->priv->completed_size += read_size;
 
   g_debug ("libarchive_read_read_cb: %lu", read_size);
   return read_size;
@@ -481,6 +468,11 @@ autoar_extract_do_write_entry (AutoarExtract *arextract,
       if (ostream != NULL) {
         if (archive_entry_size(entry) > 0) {
           while (archive_read_data_block (a, &buffer, &size, &offset) == ARCHIVE_OK) {
+            /* buffer == NULL occurs in some zip archives when an entry is
+             * completely read. We just skip this situation to prevent GIO
+             * warnings. */
+            if (buffer == NULL)
+              continue;
             g_output_stream_write_all (ostream,
                                        buffer,
                                        size,
@@ -493,6 +485,12 @@ autoar_extract_do_write_entry (AutoarExtract *arextract,
               g_object_unref (info);
               return;
             }
+            arextract->priv->completed_size += written;
+            g_signal_emit (arextract,
+                           autoar_extract_signals[PROGRESS],
+                           0,
+                           ((double)(arextract->priv->completed_size)) / ((double)(arextract->priv->size)),
+                           ((double)(arextract->priv->completed_files)) / ((double)(arextract->priv->files)));
           }
         }
         g_output_stream_close (ostream, NULL, NULL);
@@ -820,8 +818,9 @@ autoar_extract_start (AutoarExtract* arextract)
         has_top_level_dir = FALSE;
       }
     }
-    archive_read_data_skip (a);
     arextract->priv->files++;
+    arextract->priv->size += archive_entry_size (entry);
+    archive_read_data_skip (a);
   }
   g_free (pathname_prefix);
   archive_read_close (a);
@@ -874,9 +873,6 @@ autoar_extract_start (AutoarExtract* arextract)
   a = archive_read_new ();
   archive_read_support_filter_all (a);
   archive_read_support_format_all (a);
-
-  /* We have to reset completed_size because it have been modified in Step 1 */
-  arextract->priv->completed_size = 0;
 
   r = archive_read_open (a,
                          arextract,

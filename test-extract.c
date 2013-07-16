@@ -30,7 +30,7 @@ my_handler_progress (AutoarExtract *arextract,
                      gdouble fraction_files,
                      gpointer data)
 {
-  g_print ("Progress: Archive Size %.2lf %%, Files %.2lf %%\n",
+  g_print ("\rProgress: Archive Size %.2lf %%, Files %.2lf %%",
            fraction_size * 100,
            fraction_files * 100);
 }
@@ -40,7 +40,7 @@ my_handler_error (AutoarExtract *arextract,
                   GError *error,
                   gpointer data)
 {
-  g_printerr ("Error: %s\n", error->message);
+  g_printerr ("\nError: %s\n", error->message);
   g_error_free (error);
   exit (1);
 }
@@ -49,7 +49,7 @@ static void
 my_handler_completed (AutoarExtract *arextract,
                       gpointer data)
 {
-  g_print ("Completed!\n");
+  g_print ("\nCompleted!\n");
   exit (0);
 }
 

@@ -58,6 +58,12 @@ main (int argc,
       char *argv[])
 {
   AutoarExtract *arextract;
+  const char *pattern[] = {
+    "__MACOSX",
+    ".DS_Store",
+    "._.*",
+    NULL
+  };
 
   if (argc < 3) {
     g_printerr ("Usage: %s archive_file output_dir\n", argv[0]);
@@ -71,7 +77,7 @@ main (int argc,
   g_signal_connect (arextract, "error", G_CALLBACK (my_handler_error), NULL);
   g_signal_connect (arextract, "completed", G_CALLBACK (my_handler_completed), NULL);
 
-  autoar_extract_start (arextract);
+  autoar_extract_start (arextract, pattern);
 
   return 0;
 }

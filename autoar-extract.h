@@ -70,7 +70,8 @@ GType           autoar_extract_get_type            (void) G_GNUC_CONST;
 AutoarExtract  *autoar_extract_new                 (const char *source,
                                                     const char *output);
 
-void            autoar_extract_start               (AutoarExtract* arextract);
+void            autoar_extract_start               (AutoarExtract* arextract,
+                                                    const char **pattern);
 
 char           *autoar_extract_get_source          (AutoarExtract *arextract);
 char           *autoar_extract_get_output          (AutoarExtract *arextract);

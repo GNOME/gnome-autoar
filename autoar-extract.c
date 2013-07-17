@@ -381,9 +381,46 @@ _g_filename_basename_remove_extension (const char *filename)
   return basename;
 }
 
-static gboolean
-autoar_extract_do_pattern_check (const char *pathname)
+static void
+_g_pattern_spec_free (void *pattern_compiled)
 {
+  if (pattern_compiled != NULL)
+    g_pattern_spec_free (pattern_compiled);
+}
+
+static gboolean
+autoar_extract_do_pattern_check (const char *path,
+                                 GPtrArray *pattern)
+{
+  char **path_components;
+  GArray *path_components_len;
+
+  int i, j, len;
+
+  path_components = g_strsplit (path, "/", G_MAXINT);
+  path_components_len = g_array_new (FALSE, FALSE, sizeof(size_t));
+  for (i = 0; path_components[i] != NULL; i++) {
+    len = strlen (path_components[i]);
+    g_array_append_val (path_components_len, len);
+  }
+
+  for (i = 0; g_ptr_array_index (pattern, i) != NULL; i++) {
+    for (j = 0; path_components[j] != NULL; j++) {
+      if (g_pattern_match (g_ptr_array_index (pattern, i),
+                           g_array_index (path_components_len, size_t, j),
+                           path_components[j],
+                           NULL)) {
+        g_debug ("autoar_extract_do_pattern_check: ### %s", path_components[j]);
+        g_strfreev (path_components);
+        g_array_unref (path_components_len);
+        return FALSE;
+      }
+    }
+  }
+
+  g_strfreev (path_components);
+  g_array_unref (path_components_len);
+
   return TRUE;
 }
 
@@ -796,7 +833,8 @@ autoar_extract_new (const char *source,
 }
 
 void
-autoar_extract_start (AutoarExtract* arextract)
+autoar_extract_start (AutoarExtract* arextract,
+                      const char **pattern)
 {
   struct archive *a;
   struct archive_entry *entry;
@@ -812,6 +850,9 @@ autoar_extract_start (AutoarExtract* arextract)
 
   GHashTable *userhash;
   GHashTable *grouphash;
+  GHashTable *bad_filename;
+
+  GPtrArray *pattern_compiled;
 
   GFile *source;
 
@@ -830,6 +871,13 @@ autoar_extract_start (AutoarExtract* arextract)
   arextract->priv->completed_size = 0;
   arextract->priv->files = 0;
   arextract->priv->completed_files = 0;
+
+  pattern_compiled = g_ptr_array_new_with_free_func (_g_pattern_spec_free);
+  if (pattern != NULL) {
+    for (i = 0; pattern[i] != NULL; i++)
+      g_ptr_array_add (pattern_compiled, g_pattern_spec_new (pattern[i]));
+  }
+  g_ptr_array_add (pattern_compiled, NULL);
 
   /* Step 1: Scan all file names in the archive
    * We have to check whether the archive contains a top-level directory
@@ -854,11 +902,13 @@ autoar_extract_start (AutoarExtract* arextract)
     }
     g_signal_emit (arextract, autoar_extract_signals[ERROR], 0, arextract->priv->error);
     archive_read_free (a);
+    g_ptr_array_unref (pattern_compiled);
     return;
   }
   pathname_prefix = NULL;
   pathname_prefix_len = 0;
   has_top_level_dir = TRUE;
+  bad_filename = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
   while (archive_read_next_header (a, &entry) == ARCHIVE_OK) {
     const char *pathname, *dir_sep_location;
     size_t skip_len, prefix_len;
@@ -868,7 +918,13 @@ autoar_extract_start (AutoarExtract* arextract)
              arextract->priv->files,
              pathname);
 
-    /* TODO: Add file name pattern check here */
+    if (!autoar_extract_do_pattern_check (pathname, pattern_compiled)) {
+      g_hash_table_insert (bad_filename, g_strdup (pathname), GUINT_TO_POINTER (TRUE));
+      continue;
+    }
+
+    g_debug ("autoar_extract_start: %d: pattern check passed",
+             arextract->priv->files);
 
     if (pathname_prefix == NULL) {
       skip_len = strspn (pathname, "./");
@@ -893,8 +949,10 @@ autoar_extract_start (AutoarExtract* arextract)
   g_free (pathname_prefix);
   archive_read_close (a);
   archive_read_free (a);
+  g_ptr_array_unref (pattern_compiled);
   if (arextract->priv->error != NULL) {
     g_signal_emit (arextract, autoar_extract_signals[ERROR], 0, arextract->priv->error);
+    g_hash_table_unref (bad_filename);
     archive_read_free (a);
     return;
   }
@@ -929,6 +987,7 @@ autoar_extract_start (AutoarExtract* arextract)
   if (arextract->priv->error != NULL) {
     g_signal_emit (arextract, autoar_extract_signals[ERROR], 0, arextract->priv->error);
     g_object_unref (top_level_dir);
+    g_hash_table_unref (bad_filename);
     archive_read_free (a);
     return;
   }
@@ -957,6 +1016,7 @@ autoar_extract_start (AutoarExtract* arextract)
     }
     g_signal_emit (arextract, autoar_extract_signals[ERROR], 0, arextract->priv->error);
     g_object_unref (top_level_dir);
+    g_hash_table_unref (bad_filename);
     archive_read_free (a);
     return;
   }
@@ -968,9 +1028,11 @@ autoar_extract_start (AutoarExtract* arextract)
     char **pathname_chunks;
 
     GFile *extracted_filename;
-    char *debug_filename;
 
     pathname = archive_entry_pathname (entry);
+    if (GPOINTER_TO_UINT (g_hash_table_lookup (bad_filename, pathname)))
+      continue;
+
     if (has_top_level_dir)
       pathname_skip_prefix = pathname + pathname_prefix_len;
     else
@@ -1001,13 +1063,6 @@ autoar_extract_start (AutoarExtract* arextract)
       g_strfreev (pathname_chunks);
     }
 
-    debug_filename = g_file_get_path (extracted_filename);
-    g_debug ("autoar_extract_start: destination = %s", debug_filename);
-    g_free (debug_filename);
-
-    /* TODO: Add file name pattern check here */
-    autoar_extract_do_pattern_check (pathname_skip_prefix);
-
     autoar_extract_do_write_entry (arextract,
                                    a,
                                    entry,
@@ -1021,6 +1076,7 @@ autoar_extract_start (AutoarExtract* arextract)
       g_object_unref (top_level_dir);
       g_hash_table_unref (userhash);
       g_hash_table_unref (grouphash);
+      g_hash_table_unref (bad_filename);
       archive_read_close (a);
       archive_read_free (a);
       return;
@@ -1038,6 +1094,7 @@ autoar_extract_start (AutoarExtract* arextract)
   g_object_unref (top_level_dir);
   g_hash_table_unref (userhash);
   g_hash_table_unref (grouphash);
+  g_hash_table_unref (bad_filename);
   archive_read_close (a);
   archive_read_free (a);
   if (arextract->priv->error != NULL) {

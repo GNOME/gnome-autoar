@@ -29,14 +29,24 @@
 
 #include <archive.h>
 #include <archive_entry.h>
-#include <fcntl.h>
 #include <gio/gio.h>
-#include <grp.h>
-#include <pwd.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+
+#if defined HAVE_MKFIFO || defined HAVE_MKNOD
+# include <fcntl.h>
+#endif
+
+#ifdef HAVE_GETPWNAM
+# include <pwd.h>
+#endif
+
+#ifdef HAVE_GETGRNAM
+# include <grp.h>
+#endif
+
 
 G_DEFINE_TYPE (AutoarExtract, autoar_extract, G_TYPE_OBJECT)
 

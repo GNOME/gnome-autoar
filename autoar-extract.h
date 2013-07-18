@@ -31,7 +31,7 @@
 
 G_BEGIN_DECLS
 
-#define AUTOAR_TYPE_EXTRACT             autoar_extract_get_type()
+#define AUTOAR_TYPE_EXTRACT             autoar_extract_get_type ()
 #define AUTOAR_EXTRACT(obj)             (G_TYPE_CHECK_INSTANCE_CAST ((obj), AUTOAR_TYPE_EXTRACT, AutoarExtract))
 #define AUTOAR_EXTRACT_CLASS(klass)     (G_TYPE_CHECK_CLASS_CAST ((klass), AUTOAR_TYPE_EXTRACT, AutoarExtractClass))
 #define AUTOAR_IS_EXTRACT(obj)          (G_TYPE_CHECK_INSTANCE_TYPE ((obj), AUTOAR_TYPE_EXTRACT))
@@ -91,4 +91,4 @@ void            autoar_extract_set_completed_files (AutoarExtract *arextract,
 
 G_END_DECLS
 
-#endif /* __AUTOARCHIVE_EXTRACT_H__ */
+#endif /* AUTOAR_EXTRACT_H */

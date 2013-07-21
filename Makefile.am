@@ -1,11 +1,13 @@
 # vim: set sw=8 ts=8 sts=8 noet:
 
 NULL =
+
 noinst_PROGRAMS =
-EXTRA_DIST =
 
-
-
+EXTRA_DIST = \
+	autoar-enum-types.h.template \
+	autoar-enum-types.c.template \
+	$(NULL)
 
 noinst_LTLIBRARIES = libautoarchive.la
 
@@ -54,6 +56,10 @@ test_extract_LDADD = \
 	libautoarchive.la	\
 	$(NULL)
 
-CLEANFILES = $(libautoarchive_generated_sources)
-DISTCLEANFILES = $(libautoarchive_generated_sources)
-MAINTAINERCLEANFILES = $(libautoarchive_generated_sources)
+BUILT_SOURCES = \
+	$(libautoarchive_generated_sources)	\
+	$(NULL)
+
+CLEANFILES = $(BUILT_SOURCES)
+DISTCLEANFILES = $(BUILT_SOURCES)
+MAINTAINERCLEANFILES = $(BUILT_SOURCES)

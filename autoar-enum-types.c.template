@@ -14,7 +14,7 @@ GType
 @enum_name@_get_type (void)
 {
   static GType type = 0;
-  if (!type)
+  if (G_UNLIKELY (!type))
   {
     static const G@Type@Value values[] = {
 /*** END value-header ***/

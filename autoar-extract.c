@@ -377,11 +377,10 @@ _g_filename_basename_remove_extension (const char *filename)
     return basename;
   }
 
-  if (dot_location - 4 > basename) {
-    if (strncmp (dot_location - 4, ".tar", 4) == 0) {
-      dot_location -= 4;
-    }
-  }
+  if (dot_location - 4 > basename && strncmp (dot_location - 4, ".tar", 4) == 0)
+    dot_location -= 4;
+  else if (dot_location - 5 > basename && strncmp (dot_location - 5, ".cpio", 5) == 0)
+    dot_location -= 5;
 
   *dot_location = '\0';
 

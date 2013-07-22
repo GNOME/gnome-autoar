@@ -5,9 +5,17 @@ NULL =
 noinst_PROGRAMS =
 
 EXTRA_DIST = \
-	autoar-enum-types.h.template \
-	autoar-enum-types.c.template \
+	autoar-enum-types.h.template		\
+	autoar-enum-types.c.template		\
+	org.gnome.desktop.archives.gschema.xml	\
 	$(NULL)
+
+gsettings_ENUM_NAMESPACE = org.gnome.desktop.archives
+gsettings_ENUM_FILES = $(top_srcdir)/autoarchive/autoar-pref.h
+
+gsettings_SCHEMAS = org.gnome.desktop.archives.gschema.xml
+
+@GSETTINGS_RULES@
 
 noinst_LTLIBRARIES = libautoarchive.la
 

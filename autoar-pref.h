@@ -31,6 +31,8 @@
 
 G_BEGIN_DECLS
 
+#define AUTOAR_PREF_DEFAULT_GSCHEMA_ID  "org.gnome.desktop.archives"
+
 typedef enum {
   AUTOAR_PREF_FORMAT_0, /*< skip >*/
   AUTOAR_PREF_FORMAT_ZIP,
@@ -80,7 +82,7 @@ GType              autoar_pref_get_type              (void) G_GNUC_CONST;
 AutoarPref        *autoar_pref_new                   (void);
 AutoarPref        *autoar_pref_new_with_gsettings    (GSettings *settings);
 
-gboolean           autoar_pref_read_gsettings        (AutoarPref *arpref,
+void               autoar_pref_read_gsettings        (AutoarPref *arpref,
                                                       GSettings *settings);
 gboolean           autoar_pref_write_gsettings       (AutoarPref *arpref,
                                                       GSettings *settings);
@@ -102,14 +104,11 @@ void               autoar_pref_set_default_format    (AutoarPref *arpref,
 void               autoar_pref_set_default_filter    (AutoarPref *arpref,
                                                       AutoarPrefFilter filter);
 void               autoar_pref_set_file_name_suffix  (AutoarPref *arpref,
-                                                      const char **strv,
-                                                      size_t len);
+                                                      const char **strv);
 void               autoar_pref_set_file_mime_type    (AutoarPref *arpref,
-                                                      const char **strv,
-                                                      size_t len);
+                                                      const char **strv);
 void               autoar_pref_set_pattern_to_ignore (AutoarPref *arpref,
-                                                      const char **strv,
-                                                      size_t len);
+                                                      const char **strv);
 void               autoar_pref_set_delete_if_succeed (AutoarPref *arpref,
                                                       gboolean delete_yes);
 

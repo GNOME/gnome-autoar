@@ -84,13 +84,18 @@ AutoarPref        *autoar_pref_new_with_gsettings    (GSettings *settings);
 
 void               autoar_pref_read_gsettings        (AutoarPref *arpref,
                                                       GSettings *settings);
-gboolean           autoar_pref_write_gsettings       (AutoarPref *arpref,
+void               autoar_pref_write_gsettings       (AutoarPref *arpref,
                                                       GSettings *settings);
-gboolean           autoar_pref_write_gsettings_all   (AutoarPref *arpref,
+void               autoar_pref_write_gsettings_force (AutoarPref *arpref,
                                                       GSettings *settings);
 
 gboolean           autoar_pref_has_changes           (AutoarPref *arpref);
 void               autoar_pref_forget_changes        (AutoarPref *arpref);
+
+gboolean           autoar_pref_check_file_name       (AutoarPref *arpref,
+                                                      const char *filepath);
+gboolean           autoar_pref_check_mime_type       (AutoarPref *arpref,
+                                                      const char *filepath);
 
 AutoarPrefFormat   autoar_pref_get_default_format    (AutoarPref *arpref);
 AutoarPrefFilter   autoar_pref_get_default_filter    (AutoarPref *arpref);

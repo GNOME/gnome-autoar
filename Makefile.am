@@ -64,6 +64,20 @@ test_extract_LDADD = \
 	libautoarchive.la	\
 	$(NULL)
 
+noinst_PROGRAMS += test-pref
+EXTRA_DIST += test-pref.c
+test_pref_SOURCES = \
+	test-pref.c		\
+	$(NULL)
+test_pref_CFLAGS = \
+	$(DEPENDENCIES_CFLAGS)	\
+	$(AM_CFLAGS)		\
+	$(NULL)
+test_pref_LDADD = \
+	$(DEPENDENCIES_LIBS)	\
+	libautoarchive.la	\
+	$(NULL)
+
 BUILT_SOURCES = \
 	$(libautoarchive_generated_sources)	\
 	$(NULL)

@@ -1,6 +1,7 @@
 /* vim: set sw=2 ts=2 sts=2 et: */
 
-#include "autoar-extract.h"
+#include <autoarchive/autoarchive.h>
+#include <gio/gio.h>
 #include <stdlib.h>
 
 static void
@@ -58,10 +59,13 @@ main (int argc,
       char *argv[])
 {
   AutoarExtract *arextract;
+  AutoarPref *arpref;
+  GSettings *settings;
   const char *pattern[] = {
     "__MACOSX",
     ".DS_Store",
     "._.*",
+    "*.in",
     NULL
   };
 
@@ -70,6 +74,15 @@ main (int argc,
     return 255;
   }
 
+  settings = g_settings_new (AUTOAR_PREF_DEFAULT_GSCHEMA_ID);
+
+  arpref = autoar_pref_new_with_gsettings (settings);
+  autoar_pref_set_delete_if_succeed (arpref, FALSE);
+  autoar_pref_set_pattern_to_ignore (arpref, pattern);
+
+  autoar_pref_forget_changes (arpref);
+  autoar_pref_write_gsettings (arpref, settings);
+
   arextract = autoar_extract_new (argv[1], argv[2]);
   g_signal_connect (arextract, "scanned", G_CALLBACK (my_handler_scanned), NULL);
   g_signal_connect (arextract, "decide-dest", G_CALLBACK (my_handler_decide_dest), NULL);
@@ -77,7 +90,11 @@ main (int argc,
   g_signal_connect (arextract, "error", G_CALLBACK (my_handler_error), NULL);
   g_signal_connect (arextract, "completed", G_CALLBACK (my_handler_completed), NULL);
 
-  autoar_extract_start (arextract, pattern);
+  autoar_extract_start (arextract, arpref);
+
+  g_object_unref (arextract);
+  g_object_unref (arpref);
+  g_object_unref (settings);
 
   return 0;
 }

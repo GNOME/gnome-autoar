@@ -28,9 +28,9 @@
 #include "autoar-pref.h"
 #include "autoar-enum-types.h"
 
-#include <glib.h>
 #include <gio/gio.h>
-
+#include <glib.h>
+#include <string.h>
 
 G_DEFINE_TYPE (AutoarPref, autoar_pref, G_TYPE_OBJECT)
 
@@ -437,10 +437,57 @@ autoar_pref_read_gsettings (AutoarPref *arpref,
   arpref->priv->modification_flags = MODIFIED_NONE;
 }
 
-gboolean           autoar_pref_write_gsettings       (AutoarPref *arpref,
-                                                      GSettings *settings);
-gboolean           autoar_pref_write_gsettings_all   (AutoarPref *arpref,
-                                                      GSettings *settings);
+void
+autoar_pref_write_gsettings (AutoarPref *arpref,
+                             GSettings *settings)
+{
+  g_return_if_fail (AUTOAR_IS_PREF (arpref));
+  g_return_if_fail (settings != NULL);
+
+  if (arpref->priv->modification_enabled) {
+    if (arpref->priv->modification_flags & MODIFIED_DEFAULT_FORMAT) {
+      if (g_settings_set_enum (settings, KEY_DEFAULT_FORMAT, arpref->priv->default_format))
+        arpref->priv->modification_flags ^= MODIFIED_DEFAULT_FORMAT;
+    }
+    if (arpref->priv->modification_flags & MODIFIED_DEFAULT_FILTER) {
+      if (g_settings_set_enum (settings, KEY_DEFAULT_FILTER, arpref->priv->default_filter))
+        arpref->priv->modification_flags ^= MODIFIED_DEFAULT_FILTER;
+    }
+    if (arpref->priv->modification_flags & MODIFIED_FILE_NAME_SUFFIX) {
+      if (g_settings_set_strv (settings, KEY_FILE_NAME_SUFFIX, (const char* const*)(arpref->priv->file_name_suffix)))
+        arpref->priv->modification_flags ^= MODIFIED_FILE_NAME_SUFFIX;
+    }
+    if (arpref->priv->modification_flags & MODIFIED_FILE_MIME_TYPE) {
+      if (g_settings_set_strv (settings, KEY_FILE_MIME_TYPE, (const char* const*)(arpref->priv->file_mime_type)))
+        arpref->priv->modification_flags ^= MODIFIED_FILE_MIME_TYPE;
+    }
+    if (arpref->priv->modification_flags & MODIFIED_PATTERN_TO_IGNORE) {
+      if (g_settings_set_strv (settings, KEY_PATTERN_TO_IGNORE, (const char* const*)(arpref->priv->pattern_to_ignore)))
+        arpref->priv->modification_flags ^= MODIFIED_PATTERN_TO_IGNORE;
+    }
+    if (arpref->priv->modification_flags & MODIFIED_DELETE_IF_SUCCEED) {
+      if (g_settings_set_boolean (settings, KEY_DELETE_IF_SUCCEED, arpref->priv->delete_if_succeed))
+        arpref->priv->modification_flags ^= MODIFIED_DELETE_IF_SUCCEED;
+    }
+  } else {
+    return autoar_pref_write_gsettings_force (arpref, settings);
+  }
+}
+
+void
+autoar_pref_write_gsettings_force (AutoarPref *arpref,
+                                   GSettings *settings)
+{
+  g_return_if_fail (AUTOAR_IS_PREF (arpref));
+  g_return_if_fail (settings != NULL);
+
+  g_settings_set_enum (settings, KEY_DEFAULT_FORMAT, arpref->priv->default_format);
+  g_settings_set_enum (settings, KEY_DEFAULT_FILTER, arpref->priv->default_filter);
+  g_settings_set_strv (settings, KEY_FILE_NAME_SUFFIX, (const char* const*)(arpref->priv->file_name_suffix));
+  g_settings_set_strv (settings, KEY_FILE_MIME_TYPE, (const char* const*)(arpref->priv->file_mime_type));
+  g_settings_set_strv (settings, KEY_PATTERN_TO_IGNORE, (const char* const*)(arpref->priv->pattern_to_ignore));
+  g_settings_set_boolean (settings, KEY_DELETE_IF_SUCCEED, arpref->priv->delete_if_succeed);
+}
 
 gboolean
 autoar_pref_has_changes (AutoarPref *arpref)
@@ -454,4 +501,66 @@ autoar_pref_forget_changes (AutoarPref *arpref)
 {
   g_return_if_fail (AUTOAR_IS_PREF (arpref));
   arpref->priv->modification_flags = MODIFIED_NONE;
+}
+
+gboolean
+autoar_pref_check_file_name (AutoarPref *arpref,
+                             const char *filepath)
+{
+  char *dot_location;
+  int i;
+
+  g_return_val_if_fail (AUTOAR_IS_PREF (arpref), FALSE);
+  g_return_val_if_fail (arpref->priv->file_name_suffix != NULL, FALSE);
+
+  dot_location = strrchr (filepath, '.');
+  if (dot_location == NULL)
+    return FALSE;
+
+  for (i = 0; arpref->priv->file_name_suffix[i] != NULL; i++) {
+    if (strcmp (dot_location + 1, arpref->priv->file_name_suffix[i]) == 0)
+      return TRUE;
+  }
+
+  return FALSE;
+}
+
+gboolean
+autoar_pref_check_mime_type (AutoarPref *arpref,
+                             const char *filepath)
+{
+  int i;
+  GFile *file;
+  GFileInfo *fileinfo;
+  const char *content_type;
+  const char *mime_type;
+
+  g_return_val_if_fail (AUTOAR_IS_PREF (arpref), FALSE);
+  g_return_val_if_fail (arpref->priv->file_mime_type != NULL, FALSE);
+
+  file = g_file_new_for_commandline_arg (filepath);
+  fileinfo = g_file_query_info (file,
+                                G_FILE_ATTRIBUTE_STANDARD_CONTENT_TYPE,
+                                G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
+                                NULL,
+                                NULL);
+  g_object_unref (file);
+
+  if (fileinfo == NULL)
+    return FALSE;
+
+  content_type = g_file_info_get_content_type (fileinfo);
+  g_debug ("Content Type: %s\n", content_type);
+  mime_type = g_content_type_get_mime_type (content_type);
+  g_debug ("MIME Type: %s\n", mime_type);
+
+  for (i = 0; arpref->priv->file_mime_type[i] != NULL; i++) {
+    if (strcmp (mime_type, arpref->priv->file_mime_type[i]) == 0) {
+      g_object_unref (fileinfo);
+      return TRUE;
+    }
+  }
+
+  g_object_unref (fileinfo);
+  return FALSE;
 }

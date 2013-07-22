@@ -26,6 +26,7 @@
 #include "config.h"
 
 #include "autoar-extract.h"
+#include "autoar-pref.h"
 
 #include <archive.h>
 #include <archive_entry.h>
@@ -842,8 +843,8 @@ autoar_extract_new (const char *source,
 }
 
 void
-autoar_extract_start (AutoarExtract* arextract,
-                      const char **pattern)
+autoar_extract_start (AutoarExtract *arextract,
+                      AutoarPref *arpref)
 {
   struct archive *a;
   struct archive_entry *entry;
@@ -861,6 +862,7 @@ autoar_extract_start (AutoarExtract* arextract,
   GHashTable *grouphash;
   GHashTable *bad_filename;
 
+  const char **pattern;
   GPtrArray *pattern_compiled;
 
   GFile *source;
@@ -881,6 +883,7 @@ autoar_extract_start (AutoarExtract* arextract,
   arextract->priv->files = 0;
   arextract->priv->completed_files = 0;
 
+  pattern = autoar_pref_get_pattern_to_ignore (arpref);
   pattern_compiled = g_ptr_array_new_with_free_func (_g_pattern_spec_free);
   if (pattern != NULL) {
     for (i = 0; pattern[i] != NULL; i++)
@@ -1114,9 +1117,12 @@ autoar_extract_start (AutoarExtract* arextract,
   /* If the extraction is completed successfully, remove the source file.
    * Errors are not fatal because we have completed our work. */
   g_signal_emit (arextract, autoar_extract_signals[PROGRESS], 0, 1.0, 1.0);
-  g_debug ("autoar_extract_start: Finalize, Delete");
-  source = g_file_new_for_commandline_arg (arextract->priv->source);
-  g_file_delete (source, NULL, NULL);
-  g_object_unref (source);
+  g_debug ("autoar_extract_start: Finalize");
+  if (autoar_pref_get_delete_if_succeed (arpref)) {
+    g_debug ("autoar_extract_start: Delete");
+    source = g_file_new_for_commandline_arg (arextract->priv->source);
+    g_file_delete (source, NULL, NULL);
+    g_object_unref (source);
+  }
   g_signal_emit (arextract, autoar_extract_signals[COMPLETED], 0);
 }

@@ -83,14 +83,14 @@ main (int argc,
   autoar_pref_forget_changes (arpref);
   autoar_pref_write_gsettings (arpref, settings);
 
-  arextract = autoar_extract_new (argv[1], argv[2]);
+  arextract = autoar_extract_new (argv[1], argv[2], arpref);
   g_signal_connect (arextract, "scanned", G_CALLBACK (my_handler_scanned), NULL);
   g_signal_connect (arextract, "decide-dest", G_CALLBACK (my_handler_decide_dest), NULL);
   g_signal_connect (arextract, "progress", G_CALLBACK (my_handler_progress), NULL);
   g_signal_connect (arextract, "error", G_CALLBACK (my_handler_error), NULL);
   g_signal_connect (arextract, "completed", G_CALLBACK (my_handler_completed), NULL);
 
-  autoar_extract_start (arextract, arpref);
+  autoar_extract_start (arextract);
 
   g_object_unref (arextract);
   g_object_unref (arpref);

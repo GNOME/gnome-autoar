@@ -31,6 +31,8 @@
 #include <archive.h>
 #include <archive_entry.h>
 #include <gio/gio.h>
+#include <gobject/gvaluecollector.h>
+#include <stdarg.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -56,6 +58,8 @@ G_DEFINE_TYPE (AutoarExtract, autoar_extract, G_TYPE_OBJECT)
 
 #define BUFFER_SIZE (64 * 1024)
 
+typedef struct _AutoarExtractSignalEmitData AutoarExtractSignalEmitData;
+
 struct _AutoarExtractPrivate
 {
   char *source;
@@ -67,10 +71,19 @@ struct _AutoarExtractPrivate
   guint files;
   guint completed_files;
 
+  AutoarPref *arpref;
+
   GInputStream *istream;
   void         *buffer;
   gssize        buffer_size;
   GError       *error;
+};
+
+struct _AutoarExtractSignalEmitData
+{
+  GValue instance_and_params[3]; /* Maximum number of parameters + 1 */
+  guint signal_id;
+  GQuark detail;
 };
 
 enum
@@ -250,6 +263,17 @@ autoar_extract_set_completed_files (AutoarExtract *arextract,
 }
 
 static void
+autoar_extract_dispose (GObject *object)
+{
+  AutoarExtract *arextract;
+  arextract = AUTOAR_EXTRACT (object);
+
+  g_clear_object (&(arextract->priv->arpref));
+
+  G_OBJECT_CLASS (autoar_extract_parent_class)->dispose (object);
+}
+
+static void
 autoar_extract_finalize (GObject *object)
 {
   AutoarExtract *arextract;
@@ -398,6 +422,92 @@ _g_pattern_spec_free (void *pattern_compiled)
     g_pattern_spec_free (pattern_compiled);
 }
 
+static void
+autoar_extract_signal_emit_data_free (AutoarExtractSignalEmitData *emit_data)
+{
+  g_value_unset (emit_data->instance_and_params + 0);
+  if (emit_data->signal_id == autoar_extract_signals[SCANNED]) {
+    g_value_unset (emit_data->instance_and_params + 1);
+  } else if (emit_data->signal_id == autoar_extract_signals[DECIDE_DEST]) {
+    g_value_unset (emit_data->instance_and_params + 1);
+  } else if (emit_data->signal_id == autoar_extract_signals[PROGRESS]) {
+    g_value_unset (emit_data->instance_and_params + 1);
+    g_value_unset (emit_data->instance_and_params + 2);
+  } else if (emit_data->signal_id == autoar_extract_signals[ERROR]) {
+    g_value_unset (emit_data->instance_and_params + 1);
+  }
+  g_free (emit_data);
+}
+
+static gboolean
+_g_signal_emit_main_context (void *data)
+{
+  AutoarExtractSignalEmitData *emit_data = data;
+  g_signal_emitv (emit_data->instance_and_params,
+                  emit_data->signal_id,
+                  emit_data->detail,
+                  NULL);
+  autoar_extract_signal_emit_data_free (emit_data);
+  return FALSE;
+}
+
+static void
+_g_signal_emit (gboolean in_thread,
+                gpointer instance,
+                guint signal_id,
+                GQuark detail,
+                ...)
+{
+  va_list ap;
+
+  va_start (ap, detail);
+  if (in_thread) {
+    gchar *error;
+    AutoarExtractSignalEmitData *emit_data;
+
+    error = NULL;
+    emit_data = g_new0 (AutoarExtractSignalEmitData, 1);
+    emit_data->signal_id = signal_id;
+    emit_data->detail = detail;
+    g_value_init (emit_data->instance_and_params, G_TYPE_FROM_INSTANCE (instance));
+    g_value_set_instance (emit_data->instance_and_params, instance);
+
+    if (signal_id == autoar_extract_signals[SCANNED]) {
+      G_VALUE_COLLECT_INIT (emit_data->instance_and_params + 1, G_TYPE_UINT, ap, 0, &error);
+    } else if (signal_id == autoar_extract_signals[DECIDE_DEST]) {
+      G_VALUE_COLLECT_INIT (emit_data->instance_and_params + 1, G_TYPE_FILE, ap, 0, &error);
+    } else if (signal_id == autoar_extract_signals[PROGRESS]) {
+      G_VALUE_COLLECT_INIT (emit_data->instance_and_params + 1, G_TYPE_DOUBLE, ap, 0, &error);
+      if (error != NULL)
+        goto invoke_end;
+      G_VALUE_COLLECT_INIT (emit_data->instance_and_params + 2, G_TYPE_DOUBLE, ap, 0, &error);
+    } else if (signal_id == autoar_extract_signals[ERROR]) {
+      G_VALUE_COLLECT_INIT (emit_data->instance_and_params + 1, G_TYPE_POINTER, ap, 0, &error);
+    } else {
+      /* "completed" signal does not have parameters. */
+      if (signal_id != autoar_extract_signals[COMPLETED])
+        goto invoke_end;
+    }
+
+    if (error != NULL)
+      goto invoke_end;
+
+    g_main_context_invoke (NULL, _g_signal_emit_main_context, emit_data);
+
+invoke_end:
+    if (error != NULL) {
+      autoar_extract_signal_emit_data_free (emit_data);
+      g_debug ("G_VALUE_COLLECT_INIT: Error: %s", error);
+      g_free (error);
+      va_end (ap);
+      return;
+    }
+  } else {
+    g_signal_emit_valist (instance, signal_id, detail, ap);
+  }
+  va_end (ap);
+}
+
 static gboolean
 autoar_extract_do_pattern_check (const char *path,
                                  GPtrArray *pattern)
@@ -440,7 +550,8 @@ autoar_extract_do_write_entry (AutoarExtract *arextract,
                                struct archive_entry *entry,
                                GFile *dest,
                                GHashTable *userhash,
-                               GHashTable *grouphash)
+                               GHashTable *grouphash,
+                               gboolean in_thread)
 {
   GOutputStream *ostream;
   GFileInfo *info;
@@ -590,11 +701,12 @@ autoar_extract_do_write_entry (AutoarExtract *arextract,
               return;
             }
             arextract->priv->completed_size += written;
-            g_signal_emit (arextract,
-                           autoar_extract_signals[PROGRESS],
-                           0,
-                           ((double)(arextract->priv->completed_size)) / ((double)(arextract->priv->size)),
-                           ((double)(arextract->priv->completed_files)) / ((double)(arextract->priv->files)));
+            _g_signal_emit (in_thread,
+                            arextract,
+                            autoar_extract_signals[PROGRESS],
+                            0,
+                            ((double)(arextract->priv->completed_size)) / ((double)(arextract->priv->size)),
+                            ((double)(arextract->priv->completed_files)) / ((double)(arextract->priv->files)));
           }
         }
         g_output_stream_close (ostream, NULL, NULL);
@@ -694,6 +806,7 @@ autoar_extract_class_init (AutoarExtractClass *klass)
 
   object_class->get_property = autoar_extract_get_property;
   object_class->set_property = autoar_extract_set_property;
+  object_class->dispose = autoar_extract_dispose;
   object_class->finalize = autoar_extract_finalize;
 
   g_object_class_install_property (object_class, PROP_SOURCE,
@@ -829,22 +942,26 @@ autoar_extract_init (AutoarExtract *arextract)
 
 AutoarExtract*
 autoar_extract_new (const char *source,
-                    const char *output)
+                    const char *output,
+                    AutoarPref *arpref)
 {
+  AutoarExtract* arextract;
+
   g_return_val_if_fail (source != NULL, NULL);
   g_return_val_if_fail (output != NULL, NULL);
 
-  return g_object_new (AUTOAR_TYPE_EXTRACT,
-                       "source",
-                       source,
-                       "output",
-                       output,
-                       NULL);
+  arextract = g_object_new (AUTOAR_TYPE_EXTRACT,
+                            "source", source,
+                            "output", output,
+                            NULL);
+  arextract->priv->arpref = g_object_ref (arpref);
+
+  return arextract;
 }
 
-void
-autoar_extract_start (AutoarExtract *arextract,
-                      AutoarPref *arpref)
+static void
+autoar_extract_run (AutoarExtract *arextract,
+                    gboolean in_thread)
 {
   struct archive *a;
   struct archive_entry *entry;
@@ -883,7 +1000,7 @@ autoar_extract_start (AutoarExtract *arextract,
   arextract->priv->files = 0;
   arextract->priv->completed_files = 0;
 
-  pattern = autoar_pref_get_pattern_to_ignore (arpref);
+  pattern = autoar_pref_get_pattern_to_ignore (arextract->priv->arpref);
   pattern_compiled = g_ptr_array_new_with_free_func (_g_pattern_spec_free);
   if (pattern != NULL) {
     for (i = 0; pattern[i] != NULL; i++)
@@ -912,7 +1029,7 @@ autoar_extract_start (AutoarExtract *arextract,
                                             arextract->priv->source,
                                             archive_error_string (a));
     }
-    g_signal_emit (arextract, autoar_extract_signals[ERROR], 0, arextract->priv->error);
+    _g_signal_emit (in_thread, arextract, autoar_extract_signals[ERROR], 0, arextract->priv->error);
     archive_read_free (a);
     g_ptr_array_unref (pattern_compiled);
     return;
@@ -963,14 +1080,14 @@ autoar_extract_start (AutoarExtract *arextract,
   archive_read_free (a);
   g_ptr_array_unref (pattern_compiled);
   if (arextract->priv->error != NULL) {
-    g_signal_emit (arextract, autoar_extract_signals[ERROR], 0, arextract->priv->error);
+    _g_signal_emit (in_thread, arextract, autoar_extract_signals[ERROR], 0, arextract->priv->error);
     g_hash_table_unref (bad_filename);
     archive_read_free (a);
     return;
   }
   g_debug ("autoar_extract_start: has_top_level_dir = %s",
            has_top_level_dir ? "TRUE" : "FALSE");
-  g_signal_emit (arextract, autoar_extract_signals[SCANNED], 0, arextract->priv->files);
+  _g_signal_emit (in_thread, arextract, autoar_extract_signals[SCANNED], 0, arextract->priv->files);
 
   /* Step 2: Create necessary directories */
   g_debug ("autoar_extract_start: Step 2, Mkdir-p");
@@ -989,7 +1106,6 @@ autoar_extract_start (AutoarExtract *arextract,
                                       top_level_dir_basename_modified);
   }
 
-  g_debug ("autoar_extract_start: %s", top_level_dir_basename_modified);
   g_file_make_directory_with_parents (top_level_dir, NULL, &(arextract->priv->error));
 
   g_free (top_level_dir_basename);
@@ -997,14 +1113,14 @@ autoar_extract_start (AutoarExtract *arextract,
   g_object_unref (top_level_parent_dir);
 
   if (arextract->priv->error != NULL) {
-    g_signal_emit (arextract, autoar_extract_signals[ERROR], 0, arextract->priv->error);
+    _g_signal_emit (in_thread, arextract, autoar_extract_signals[ERROR], 0, arextract->priv->error);
     g_object_unref (top_level_dir);
     g_hash_table_unref (bad_filename);
     archive_read_free (a);
     return;
   }
 
-  g_signal_emit (arextract, autoar_extract_signals[DECIDE_DEST], 0, top_level_dir);
+  _g_signal_emit (in_thread, arextract, autoar_extract_signals[DECIDE_DEST], 0, top_level_dir);
 
   /* Step 3: Extract files
    * We have to re-open the archive to extract files */
@@ -1026,7 +1142,7 @@ autoar_extract_start (AutoarExtract *arextract,
                                             arextract->priv->source,
                                             archive_error_string (a));
     }
-    g_signal_emit (arextract, autoar_extract_signals[ERROR], 0, arextract->priv->error);
+    _g_signal_emit (in_thread, arextract, autoar_extract_signals[ERROR], 0, arextract->priv->error);
     g_object_unref (top_level_dir);
     g_hash_table_unref (bad_filename);
     archive_read_free (a);
@@ -1080,10 +1196,11 @@ autoar_extract_start (AutoarExtract *arextract,
                                    entry,
                                    extracted_filename,
                                    userhash,
-                                   grouphash);
+                                   grouphash,
+                                   in_thread);
 
     if (arextract->priv->error != NULL) {
-      g_signal_emit (arextract, autoar_extract_signals[ERROR], 0, arextract->priv->error);
+      _g_signal_emit (in_thread, arextract, autoar_extract_signals[ERROR], 0, arextract->priv->error);
       g_object_unref (extracted_filename);
       g_object_unref (top_level_dir);
       g_hash_table_unref (userhash);
@@ -1095,11 +1212,12 @@ autoar_extract_start (AutoarExtract *arextract,
     }
 
     arextract->priv->completed_files++;
-    g_signal_emit (arextract,
-                   autoar_extract_signals[PROGRESS],
-                   0,
-                   ((double)(arextract->priv->completed_size)) / ((double)(arextract->priv->size)),
-                   ((double)(arextract->priv->completed_files)) / ((double)(arextract->priv->files)));
+    _g_signal_emit (in_thread,
+                    arextract,
+                    autoar_extract_signals[PROGRESS],
+                    0,
+                    ((double)(arextract->priv->completed_size)) / ((double)(arextract->priv->size)),
+                    ((double)(arextract->priv->completed_files)) / ((double)(arextract->priv->files)));
     g_object_unref (extracted_filename);
   }
 
@@ -1110,19 +1228,64 @@ autoar_extract_start (AutoarExtract *arextract,
   archive_read_close (a);
   archive_read_free (a);
   if (arextract->priv->error != NULL) {
-    g_signal_emit (arextract, autoar_extract_signals[ERROR], 0, arextract->priv->error);
+    _g_signal_emit (in_thread, arextract, autoar_extract_signals[ERROR], 0, arextract->priv->error);
     return;
   }
 
   /* If the extraction is completed successfully, remove the source file.
    * Errors are not fatal because we have completed our work. */
-  g_signal_emit (arextract, autoar_extract_signals[PROGRESS], 0, 1.0, 1.0);
+  _g_signal_emit (in_thread, arextract, autoar_extract_signals[PROGRESS], 0, 1.0, 1.0);
   g_debug ("autoar_extract_start: Finalize");
-  if (autoar_pref_get_delete_if_succeed (arpref)) {
+  if (autoar_pref_get_delete_if_succeed (arextract->priv->arpref)) {
     g_debug ("autoar_extract_start: Delete");
     source = g_file_new_for_commandline_arg (arextract->priv->source);
     g_file_delete (source, NULL, NULL);
     g_object_unref (source);
   }
-  g_signal_emit (arextract, autoar_extract_signals[COMPLETED], 0);
+  _g_signal_emit (in_thread, arextract, autoar_extract_signals[COMPLETED], 0);
+}
+
+void
+autoar_extract_start (AutoarExtract *arextract)
+{
+  autoar_extract_run (arextract, FALSE);
+}
+
+static void
+autoar_extract_start_async_data_free (AutoarExtractPrivate *data)
+{
+  g_free (data->source);
+  g_free (data->output);
+  g_free (data->buffer);
+  g_object_unref (data->arpref);
+  g_free (data);
+}
+
+static void
+autoar_extract_start_async_thread (GTask *task,
+                                   gpointer source_object,
+                                   gpointer task_data,
+                                   GCancellable *cancellable)
+{
+  AutoarExtract *arextract = source_object;
+  autoar_extract_run (arextract, TRUE);
+  g_task_return_pointer (task, NULL, g_free);
+}
+
+
+void
+autoar_extract_start_async (AutoarExtract *arextract)
+{
+  AutoarExtractPrivate *data;
+  GTask *task;
+
+  data = g_memdup (arextract->priv, sizeof (AutoarExtractPrivate));
+  data->source = g_strdup (data->source);
+  data->output = g_strdup (data->output);
+  data->arpref = g_object_ref (data->arpref);
+  data->buffer = g_new (char, data->buffer_size);
+
+  task = g_task_new (arextract, NULL, NULL, NULL);
+  g_task_set_task_data (task, data, (GDestroyNotify) autoar_extract_start_async_data_free);
+  g_task_run_in_thread (task, autoar_extract_start_async_thread);
 }

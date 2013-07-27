@@ -1025,7 +1025,7 @@ autoar_extract_run (AutoarExtract *arextract,
     if (arextract->priv->error == NULL) {
       arextract->priv->error = g_error_new (autoar_extract_quark,
                                             archive_errno (a),
-                                            "Error when opening the archive \'%s\': %s",
+                                            "\'%s\': %s",
                                             arextract->priv->source,
                                             archive_error_string (a));
     }
@@ -1138,7 +1138,7 @@ autoar_extract_run (AutoarExtract *arextract,
     if (arextract->priv->error == NULL) {
       arextract->priv->error = g_error_new (autoar_extract_quark,
                                             archive_errno (a),
-                                            "Error when opening the archive \'%s\': %s",
+                                            "\'%s\': %s",
                                             arextract->priv->source,
                                             archive_error_string (a));
     }

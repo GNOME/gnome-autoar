@@ -1047,6 +1047,7 @@ autoar_extract_run (AutoarExtract *arextract,
   struct archive_entry *entry;
 
   char *pathname_basename;
+  char *pathname_extension;
   char *pathname_prefix;
   int pathname_prefix_len;
 
@@ -1204,36 +1205,40 @@ autoar_extract_run (AutoarExtract *arextract,
   top_level_parent_dir = g_file_new_for_commandline_arg (arextract->priv->output);
   top_level_dir = g_file_get_child (top_level_parent_dir, top_level_dir_basename);
 
+  pathname_extension = _g_filename_get_extension (pathname_basename);
+  if (has_only_one_file && (pathname_extension != pathname_basename)) {
+    /* If we only have one file, we have to add the file extension.
+     * Although we use the variable `top_level_dir', it may be a regular
+     * file, so the extension is important. */
+    char *new_filename;
+    new_filename = g_strconcat (top_level_dir_basename, pathname_extension, NULL);
+    top_level_dir = g_file_get_child (top_level_parent_dir, new_filename);
+    g_free (new_filename);
+  } else {
+    top_level_dir = g_file_get_child (top_level_parent_dir, top_level_dir_basename);
+    pathname_extension = "";
+  }
+
   top_level_dir_basename_modified = NULL;
   for (i = 1; g_file_query_exists (top_level_dir, NULL); i++) {
     g_free (top_level_dir_basename_modified);
     g_object_unref (top_level_dir);
-    top_level_dir_basename_modified = g_strdup_printf ("%s (%d)",
-                                                       top_level_dir_basename,
-                                                       i);
+    if (has_only_one_file) {
+      top_level_dir_basename_modified = g_strdup_printf ("%s(%d)%s",
+                                                         top_level_dir_basename,
+                                                         i,
+                                                         pathname_extension);
+    } else {
+      top_level_dir_basename_modified = g_strdup_printf ("%s(%d)",
+                                                         top_level_dir_basename,
+                                                         i);
+    }
     top_level_dir = g_file_get_child (top_level_parent_dir,
                                       top_level_dir_basename_modified);
   }
 
-  if (!has_only_one_file) {
+  if (!has_only_one_file)
     g_file_make_directory_with_parents (top_level_dir, NULL, &(arextract->priv->error));
-  } else {
-    /* If we only have one file, we have to add the file extension.
-     * Although we reuse the variable `top_level_dir', it may be a regular
-     * file, so the extension is important. */
-    const char *extension;
-    char *basename, *newfile;
-
-    extension = _g_filename_get_extension (pathname_basename);
-    basename = g_file_get_basename (top_level_dir);
-    newfile = g_strconcat (basename, extension, NULL);
-
-    g_object_unref (top_level_dir);
-    top_level_dir = g_file_get_child (top_level_parent_dir, newfile);
-
-    g_free (basename);
-    g_free (newfile);
-  }
 
   g_free (pathname_basename);
   g_free (top_level_dir_basename);

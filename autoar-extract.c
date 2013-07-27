@@ -983,6 +983,7 @@ autoar_extract_run (AutoarExtract *arextract,
   GPtrArray *pattern_compiled;
 
   GFile *source;
+  char *source_basename;
 
   int i, r;
 
@@ -1091,7 +1092,10 @@ autoar_extract_run (AutoarExtract *arextract,
 
   /* Step 2: Create necessary directories */
   g_debug ("autoar_extract_run: Step 2, Mkdir-p");
-  top_level_dir_basename = _g_filename_basename_remove_extension (arextract->priv->source);
+  source = g_file_new_for_commandline_arg (arextract->priv->source);
+  source_basename = g_file_get_basename (source);
+  g_object_unref (source);
+  top_level_dir_basename = _g_filename_basename_remove_extension (source_basename);
   top_level_parent_dir = g_file_new_for_commandline_arg (arextract->priv->output);
   top_level_dir = g_file_get_child (top_level_parent_dir, top_level_dir_basename);
 

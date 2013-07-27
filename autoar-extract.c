@@ -268,6 +268,8 @@ autoar_extract_dispose (GObject *object)
   AutoarExtract *arextract;
   arextract = AUTOAR_EXTRACT (object);
 
+  g_debug ("AutoarExtract: dispose");
+
   g_clear_object (&(arextract->priv->arpref));
 
   G_OBJECT_CLASS (autoar_extract_parent_class)->dispose (object);
@@ -281,6 +283,8 @@ autoar_extract_finalize (GObject *object)
 
   arextract = AUTOAR_EXTRACT (object);
   priv = arextract->priv;
+
+  g_debug ("AutoarExtract: finalize");
 
   g_free (priv->source);
   priv->source = NULL;
@@ -379,6 +383,76 @@ libarchive_read_read_cb (struct archive *ar_read,
 
   g_debug ("libarchive_read_read_cb: %lu", read_size);
   return read_size;
+}
+
+static off_t
+libarchive_read_seek_cb (struct archive *ar_read,
+                         void *client_data,
+                         off_t request,
+                         int whence)
+{
+  AutoarExtract *arextract;
+  GSeekable *seekable;
+  GSeekType  seektype;
+  off_t new_offset;
+
+  g_debug ("libarchive_read_seek_cb: called");
+
+  arextract = (AutoarExtract*)client_data;
+  seekable = (GSeekable*)(arextract->priv->istream);
+  if (arextract->priv->error != NULL) {
+    return -1;
+  }
+
+  switch (whence) {
+    case SEEK_SET:
+      seektype = G_SEEK_SET;
+      break;
+    case SEEK_CUR:
+      seektype = G_SEEK_CUR;
+      break;
+    case SEEK_END:
+      seektype = G_SEEK_END;
+      break;
+    default:
+      return -1;
+  }
+
+  g_seekable_seek (seekable,
+                   request,
+                   seektype,
+                   NULL,
+                   &(arextract->priv->error));
+  new_offset = g_seekable_tell (seekable);
+  g_return_val_if_fail (arextract->priv->error == NULL, -1);
+
+  g_debug ("libarchive_read_seek_cb: %"G_GOFFSET_FORMAT, (goffset)new_offset);
+  return new_offset;
+}
+
+static off_t
+libarchive_read_skip_cb (struct archive *ar_read,
+                         void *client_data,
+                         off_t request)
+{
+  AutoarExtract *arextract;
+  GSeekable *seekable;
+  off_t old_offset, new_offset;
+
+  g_debug ("libarchive_read_skip_cb: called");
+
+  arextract = (AutoarExtract*)client_data;
+  seekable = (GSeekable*)(arextract->priv->istream);
+  if (arextract->priv->error != NULL) {
+    return -1;
+  }
+
+  old_offset = g_seekable_tell (seekable);
+  new_offset = libarchive_read_seek_cb (ar_read, client_data, request, SEEK_CUR);
+  if (new_offset > old_offset)
+    return (new_offset - old_offset);
+
+  return 0;
 }
 
 static char*
@@ -1017,11 +1091,13 @@ autoar_extract_run (AutoarExtract *arextract,
   a = archive_read_new ();
   archive_read_support_filter_all (a);
   archive_read_support_format_all (a);
-  r = archive_read_open (a,
-                         arextract,
-                         libarchive_read_open_cb,
-                         libarchive_read_read_cb,
-                         libarchive_read_close_cb);
+  archive_read_set_open_callback (a, libarchive_read_open_cb);
+  archive_read_set_read_callback (a, libarchive_read_read_cb);
+  archive_read_set_close_callback (a, libarchive_read_close_cb);
+  archive_read_set_seek_callback (a, libarchive_read_seek_cb);
+  archive_read_set_skip_callback (a, libarchive_read_skip_cb);
+  archive_read_set_callback_data (a, arextract);
+  r = archive_read_open1 (a);
   if (r != ARCHIVE_OK) {
     if (arextract->priv->error == NULL) {
       arextract->priv->error = g_error_new (autoar_extract_quark,
@@ -1076,14 +1152,30 @@ autoar_extract_run (AutoarExtract *arextract,
     arextract->priv->size += archive_entry_size (entry);
     archive_read_data_skip (a);
   }
+  if (r != ARCHIVE_EOF) {
+    if (arextract->priv->error == NULL) {
+      arextract->priv->error = g_error_new (autoar_extract_quark,
+                                            archive_errno (a),
+                                            "\'%s\': %s",
+                                            arextract->priv->source,
+                                            archive_error_string (a));
+    }
+    _g_signal_emit (in_thread, arextract, autoar_extract_signals[ERROR], 0, arextract->priv->error);
+    g_free (pathname_prefix);
+    g_ptr_array_unref (pattern_compiled);
+    g_hash_table_unref (bad_filename);
+    archive_read_close (a);
+    archive_read_free (a);
+    return;
+  }
+
   g_free (pathname_prefix);
+  g_ptr_array_unref (pattern_compiled);
   archive_read_close (a);
   archive_read_free (a);
-  g_ptr_array_unref (pattern_compiled);
   if (arextract->priv->error != NULL) {
     _g_signal_emit (in_thread, arextract, autoar_extract_signals[ERROR], 0, arextract->priv->error);
     g_hash_table_unref (bad_filename);
-    archive_read_free (a);
     return;
   }
   g_debug ("autoar_extract_run: has_top_level_dir = %s",
@@ -1100,7 +1192,7 @@ autoar_extract_run (AutoarExtract *arextract,
   top_level_dir = g_file_get_child (top_level_parent_dir, top_level_dir_basename);
 
   top_level_dir_basename_modified = NULL;
-  for (i=1; g_file_query_exists (top_level_dir, NULL); i++) {
+  for (i = 1; g_file_query_exists (top_level_dir, NULL); i++) {
     g_free (top_level_dir_basename_modified);
     g_object_unref (top_level_dir);
     top_level_dir_basename_modified = g_strdup_printf ("%s (%d)",
@@ -1132,12 +1224,13 @@ autoar_extract_run (AutoarExtract *arextract,
   a = archive_read_new ();
   archive_read_support_filter_all (a);
   archive_read_support_format_all (a);
-
-  r = archive_read_open (a,
-                         arextract,
-                         libarchive_read_open_cb,
-                         libarchive_read_read_cb,
-                         libarchive_read_close_cb);
+  archive_read_set_open_callback (a, libarchive_read_open_cb);
+  archive_read_set_read_callback (a, libarchive_read_read_cb);
+  archive_read_set_close_callback (a, libarchive_read_close_cb);
+  archive_read_set_seek_callback (a, libarchive_read_seek_cb);
+  archive_read_set_skip_callback (a, libarchive_read_skip_cb);
+  archive_read_set_callback_data (a, arextract);
+  r = archive_read_open1 (a);
   if (r != ARCHIVE_OK) {
     if (arextract->priv->error == NULL) {
       arextract->priv->error = g_error_new (autoar_extract_quark,
@@ -1154,7 +1247,7 @@ autoar_extract_run (AutoarExtract *arextract,
   }
   userhash = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
   grouphash = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
-  while (archive_read_next_header (a, &entry) == ARCHIVE_OK) {
+  while ((r = archive_read_next_header (a, &entry)) == ARCHIVE_OK) {
     const char *pathname;
     const char *pathname_skip_prefix;
     char **pathname_chunks;
@@ -1223,6 +1316,23 @@ autoar_extract_run (AutoarExtract *arextract,
                     ((double)(arextract->priv->completed_size)) / ((double)(arextract->priv->size)),
                     ((double)(arextract->priv->completed_files)) / ((double)(arextract->priv->files)));
     g_object_unref (extracted_filename);
+  }
+  if (r != ARCHIVE_EOF) {
+    if (arextract->priv->error == NULL) {
+      arextract->priv->error = g_error_new (autoar_extract_quark,
+                                            archive_errno (a),
+                                            "\'%s\': %s",
+                                            arextract->priv->source,
+                                            archive_error_string (a));
+    }
+    _g_signal_emit (in_thread, arextract, autoar_extract_signals[ERROR], 0, arextract->priv->error);
+    g_object_unref (top_level_dir);
+    g_hash_table_unref (userhash);
+    g_hash_table_unref (grouphash);
+    g_hash_table_unref (bad_filename);
+    archive_read_close (a);
+    archive_read_free (a);
+    return;
   }
 
   g_object_unref (top_level_dir);

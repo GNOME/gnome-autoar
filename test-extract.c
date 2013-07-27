@@ -41,9 +41,7 @@ my_handler_error (AutoarExtract *arextract,
                   GError *error,
                   gpointer data)
 {
-  g_printerr ("\nError: %s\n", error->message);
-  g_error_free (error);
-  exit (1);
+  g_printerr ("\nError %d: %s\n", error->code, error->message);
 }
 
 static void
@@ -51,7 +49,6 @@ my_handler_completed (AutoarExtract *arextract,
                       gpointer data)
 {
   g_print ("\nCompleted!\n");
-  exit (0);
 }
 
 int

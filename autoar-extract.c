@@ -456,6 +456,24 @@ libarchive_read_skip_cb (struct archive *ar_read,
 }
 
 static char*
+_g_filename_get_extension (const char *filename)
+{
+  char *dot_location;
+
+  dot_location = strrchr (filename, '.');
+  if (dot_location == NULL || dot_location == filename) {
+    return (char*)filename;
+  }
+
+  if (dot_location - 4 > filename && strncmp (dot_location - 4, ".tar", 4) == 0)
+    dot_location -= 4;
+  else if (dot_location - 5 > filename && strncmp (dot_location - 5, ".cpio", 5) == 0)
+    dot_location -= 5;
+
+  return dot_location;
+}
+
+static char*
 _g_filename_basename_remove_extension (const char *filename)
 {
   char *dot_location;
@@ -468,19 +486,7 @@ _g_filename_basename_remove_extension (const char *filename)
   /* filename must not be directory, so we do not get a bad basename. */
   basename = g_path_get_basename (filename);
 
-  dot_location = strrchr (basename, '.');
-  if (dot_location == NULL || dot_location == basename) {
-    g_debug ("_g_filename_basename_remove_extension: %s => %s, nothing is removed",
-             filename,
-             basename);
-    return basename;
-  }
-
-  if (dot_location - 4 > basename && strncmp (dot_location - 4, ".tar", 4) == 0)
-    dot_location -= 4;
-  else if (dot_location - 5 > basename && strncmp (dot_location - 5, ".cpio", 5) == 0)
-    dot_location -= 5;
-
+  dot_location = _g_filename_get_extension (basename);
   *dot_location = '\0';
 
   g_debug ("_g_filename_basename_remove_extension: %s => %s",
@@ -1040,10 +1046,12 @@ autoar_extract_run (AutoarExtract *arextract,
   struct archive *a;
   struct archive_entry *entry;
 
+  char *pathname_basename;
   char *pathname_prefix;
   int pathname_prefix_len;
 
   gboolean has_top_level_dir;
+  gboolean has_only_one_file;
   char *top_level_dir_basename;
   char *top_level_dir_basename_modified;
   GFile *top_level_parent_dir;
@@ -1114,6 +1122,7 @@ autoar_extract_run (AutoarExtract *arextract,
   pathname_prefix = NULL;
   pathname_prefix_len = 0;
   has_top_level_dir = TRUE;
+  has_only_one_file = TRUE;
   bad_filename = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
   while ((r = archive_read_next_header (a, &entry)) == ARCHIVE_OK) {
     const char *pathname, *dir_sep_location;
@@ -1133,6 +1142,7 @@ autoar_extract_run (AutoarExtract *arextract,
              arextract->priv->files);
 
     if (pathname_prefix == NULL) {
+      pathname_basename = g_path_get_basename (pathname);
       skip_len = strspn (pathname, "./");
       dir_sep_location = strchr (pathname + skip_len, '/');
       if (dir_sep_location == NULL) {
@@ -1144,6 +1154,7 @@ autoar_extract_run (AutoarExtract *arextract,
       pathname_prefix_len = prefix_len;
       g_debug ("autoar_extract_run: pathname_prefix = %s", pathname_prefix);
     } else {
+      has_only_one_file = FALSE;
       if (!g_str_has_prefix (pathname, pathname_prefix)) {
         has_top_level_dir = FALSE;
       }
@@ -1162,6 +1173,7 @@ autoar_extract_run (AutoarExtract *arextract,
     }
     _g_signal_emit (in_thread, arextract, autoar_extract_signals[ERROR], 0, arextract->priv->error);
     g_free (pathname_prefix);
+    g_free (pathname_basename);
     g_ptr_array_unref (pattern_compiled);
     g_hash_table_unref (bad_filename);
     archive_read_close (a);
@@ -1182,7 +1194,8 @@ autoar_extract_run (AutoarExtract *arextract,
            has_top_level_dir ? "TRUE" : "FALSE");
   _g_signal_emit (in_thread, arextract, autoar_extract_signals[SCANNED], 0, arextract->priv->files);
 
-  /* Step 2: Create necessary directories */
+  /* Step 2: Create necessary directories
+   * If the archive contains only one file, we don't create the directory */
   g_debug ("autoar_extract_run: Step 2, Mkdir-p");
   source = g_file_new_for_commandline_arg (arextract->priv->source);
   source_basename = g_file_get_basename (source);
@@ -1202,8 +1215,27 @@ autoar_extract_run (AutoarExtract *arextract,
                                       top_level_dir_basename_modified);
   }
 
-  g_file_make_directory_with_parents (top_level_dir, NULL, &(arextract->priv->error));
+  if (!has_only_one_file) {
+    g_file_make_directory_with_parents (top_level_dir, NULL, &(arextract->priv->error));
+  } else {
+    /* If we only have one file, we have to add the file extension.
+     * Although we reuse the variable `top_level_dir', it may be a regular
+     * file, so the extension is important. */
+    const char *extension;
+    char *basename, *newfile;
 
+    extension = _g_filename_get_extension (pathname_basename);
+    basename = g_file_get_basename (top_level_dir);
+    newfile = g_strconcat (basename, extension, NULL);
+
+    g_object_unref (top_level_dir);
+    top_level_dir = g_file_get_child (top_level_parent_dir, newfile);
+
+    g_free (basename);
+    g_free (newfile);
+  }
+
+  g_free (pathname_basename);
   g_free (top_level_dir_basename);
   g_free (top_level_dir_basename_modified);
   g_object_unref (top_level_parent_dir);
@@ -1258,34 +1290,38 @@ autoar_extract_run (AutoarExtract *arextract,
     if (GPOINTER_TO_UINT (g_hash_table_lookup (bad_filename, pathname)))
       continue;
 
-    if (has_top_level_dir)
-      pathname_skip_prefix = pathname + pathname_prefix_len;
-    else
-      pathname_skip_prefix = pathname + strspn (pathname, "./");
+    if (!has_only_one_file) {
+      if (has_top_level_dir)
+        pathname_skip_prefix = pathname + pathname_prefix_len;
+      else
+        pathname_skip_prefix = pathname + strspn (pathname, "./");
 
-    for (; *pathname_skip_prefix == '/'; pathname_skip_prefix++);
-    extracted_filename = g_file_get_child (top_level_dir, pathname_skip_prefix);
+      for (; *pathname_skip_prefix == '/'; pathname_skip_prefix++);
+      extracted_filename = g_file_get_child (top_level_dir, pathname_skip_prefix);
 
-    /* Extracted file should not be located outside the top level directory. */
-    if (!g_file_has_prefix (extracted_filename, top_level_dir)) {
-      pathname_chunks = g_strsplit (pathname_skip_prefix, "/", G_MAXINT);
-      for (i = 0; pathname_chunks[i] != NULL; i++) {
-        if (strcmp (pathname_chunks[i], "..") == 0) {
-          char *pathname_sanitized;
+      /* Extracted file should not be located outside the top level directory. */
+      if (!g_file_has_prefix (extracted_filename, top_level_dir)) {
+        pathname_chunks = g_strsplit (pathname_skip_prefix, "/", G_MAXINT);
+        for (i = 0; pathname_chunks[i] != NULL; i++) {
+          if (strcmp (pathname_chunks[i], "..") == 0) {
+            char *pathname_sanitized;
 
-          *pathname_chunks[i] = '\0';
-          pathname_sanitized = g_strjoinv ("/", pathname_chunks);
+            *pathname_chunks[i] = '\0';
+            pathname_sanitized = g_strjoinv ("/", pathname_chunks);
 
-          g_object_unref (extracted_filename);
-          extracted_filename = g_file_get_child (top_level_dir, pathname_sanitized);
+            g_object_unref (extracted_filename);
+            extracted_filename = g_file_get_child (top_level_dir, pathname_sanitized);
 
-          g_free (pathname_sanitized);
+            g_free (pathname_sanitized);
 
-          if (g_file_has_prefix (extracted_filename, top_level_dir))
-            break;
+            if (g_file_has_prefix (extracted_filename, top_level_dir))
+              break;
+          }
         }
+        g_strfreev (pathname_chunks);
       }
-      g_strfreev (pathname_chunks);
+    } else {
+      extracted_filename = g_object_ref (top_level_dir);
     }
 
     autoar_extract_do_write_entry (arextract,

@@ -57,6 +57,7 @@ G_DEFINE_TYPE (AutoarExtract, autoar_extract, G_TYPE_OBJECT)
   (G_TYPE_INSTANCE_GET_PRIVATE ((o), AUTOAR_TYPE_EXTRACT, AutoarExtractPrivate))
 
 #define BUFFER_SIZE (64 * 1024)
+#define NOT_AN_ARCHIVE_ERRNO 2013
 
 typedef struct _AutoarExtractSignalEmitData AutoarExtractSignalEmitData;
 
@@ -631,7 +632,8 @@ autoar_extract_do_write_entry (AutoarExtract *arextract,
                                GFile *dest,
                                GHashTable *userhash,
                                GHashTable *grouphash,
-                               gboolean in_thread)
+                               gboolean in_thread,
+                               gboolean use_raw_format)
 {
   GOutputStream *ostream;
   GFileInfo *info;
@@ -761,7 +763,8 @@ autoar_extract_do_write_entry (AutoarExtract *arextract,
         return;
       }
       if (ostream != NULL) {
-        if (archive_entry_size(entry) > 0) {
+        /* Archive entry size may be zero if we use raw format. */
+        if (archive_entry_size(entry) > 0 || use_raw_format) {
           while (archive_read_data_block (a, &buffer, &size, &offset) == ARCHIVE_OK) {
             /* buffer == NULL occurs in some zip archives when an entry is
              * completely read. We just skip this situation to prevent GIO
@@ -1053,6 +1056,7 @@ autoar_extract_run (AutoarExtract *arextract,
 
   gboolean has_top_level_dir;
   gboolean has_only_one_file;
+  gboolean use_raw_format;
   char *top_level_dir_basename;
   char *top_level_dir_basename_modified;
   GFile *top_level_parent_dir;
@@ -1092,6 +1096,12 @@ autoar_extract_run (AutoarExtract *arextract,
   }
   g_ptr_array_add (pattern_compiled, NULL);
 
+  pathname_prefix = NULL;
+  pathname_prefix_len = 0;
+  has_top_level_dir = TRUE;
+  has_only_one_file = TRUE;
+  use_raw_format = FALSE;
+
   /* Step 1: Scan all file names in the archive
    * We have to check whether the archive contains a top-level directory
    * before performing the extraction. We emit the "scanned" signal when
@@ -1108,22 +1118,43 @@ autoar_extract_run (AutoarExtract *arextract,
   archive_read_set_callback_data (a, arextract);
   r = archive_read_open1 (a);
   if (r != ARCHIVE_OK) {
-    if (arextract->priv->error == NULL) {
-      arextract->priv->error = g_error_new (autoar_extract_quark,
-                                            archive_errno (a),
-                                            "\'%s\': %s",
-                                            arextract->priv->source,
-                                            archive_error_string (a));
-    }
-    _g_signal_emit (in_thread, arextract, autoar_extract_signals[ERROR], 0, arextract->priv->error);
     archive_read_free (a);
-    g_ptr_array_unref (pattern_compiled);
-    return;
+    a = archive_read_new ();
+    archive_read_support_filter_all (a);
+    archive_read_support_format_raw (a);
+    archive_read_set_open_callback (a, libarchive_read_open_cb);
+    archive_read_set_read_callback (a, libarchive_read_read_cb);
+    archive_read_set_close_callback (a, libarchive_read_close_cb);
+    archive_read_set_seek_callback (a, libarchive_read_seek_cb);
+    archive_read_set_skip_callback (a, libarchive_read_skip_cb);
+    archive_read_set_callback_data (a, arextract);
+    r = archive_read_open1 (a);
+    if (r != ARCHIVE_OK || archive_filter_count (a) <= 1) {
+      if (arextract->priv->error == NULL) {
+        if (r != ARCHIVE_OK) {
+          arextract->priv->error = g_error_new (autoar_extract_quark,
+                                                archive_errno (a),
+                                                "\'%s\': %s",
+                                                arextract->priv->source,
+                                                archive_error_string (a));
+        } else {
+          /* If we only use raw format and filter count is one, libarchive will
+           * not do anything except for just copying the source file. We do not
+           * want this thing to happen because it does unnecesssary copying. */
+          arextract->priv->error = g_error_new (autoar_extract_quark,
+                                                NOT_AN_ARCHIVE_ERRNO,
+                                                "\'%s\': %s",
+                                                arextract->priv->source,
+                                                "not an archive");
+        }
+      }
+      _g_signal_emit (in_thread, arextract, autoar_extract_signals[ERROR], 0, arextract->priv->error);
+      archive_read_free (a);
+      g_ptr_array_unref (pattern_compiled);
+      return;
+    }
+    use_raw_format = TRUE;
   }
-  pathname_prefix = NULL;
-  pathname_prefix_len = 0;
-  has_top_level_dir = TRUE;
-  has_only_one_file = TRUE;
   bad_filename = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
   while ((r = archive_read_next_header (a, &entry)) == ARCHIVE_OK) {
     const char *pathname, *dir_sep_location;
@@ -1134,7 +1165,7 @@ autoar_extract_run (AutoarExtract *arextract,
              arextract->priv->files,
              pathname);
 
-    if (!autoar_extract_do_pattern_check (pathname, pattern_compiled)) {
+    if (!use_raw_format && !autoar_extract_do_pattern_check (pathname, pattern_compiled)) {
       g_hash_table_insert (bad_filename, g_strdup (pathname), GUINT_TO_POINTER (TRUE));
       continue;
     }
@@ -1260,7 +1291,10 @@ autoar_extract_run (AutoarExtract *arextract,
   g_debug ("autoar_extract_run: Step 3, Extract");
   a = archive_read_new ();
   archive_read_support_filter_all (a);
-  archive_read_support_format_all (a);
+  if (use_raw_format)
+    archive_read_support_format_raw (a);
+  else
+    archive_read_support_format_all (a);
   archive_read_set_open_callback (a, libarchive_read_open_cb);
   archive_read_set_read_callback (a, libarchive_read_read_cb);
   archive_read_set_close_callback (a, libarchive_read_close_cb);
@@ -1335,7 +1369,8 @@ autoar_extract_run (AutoarExtract *arextract,
                                    extracted_filename,
                                    userhash,
                                    grouphash,
-                                   in_thread);
+                                   in_thread,
+                                   use_raw_format);
 
     if (arextract->priv->error != NULL) {
       _g_signal_emit (in_thread, arextract, autoar_extract_signals[ERROR], 0, arextract->priv->error);

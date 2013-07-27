@@ -12,7 +12,7 @@
       <description>The default filter used to compress new archives.</description>
     </key>
     <key name="file-name-suffix" type="as">
-      <default>['zip', '7z', 'rar', 'lha', 'lzh', 'xar', 'Z', 'gz', 'bzip2', 'uue', 'xz', 'lzip', 'lzma']</default>
+      <default>['zip', 'tar', 'cpio', '7z', 'rar', 'lha', 'lzh', 'xar', 'Z', 'gz', 'bz2', 'uue', 'xz', 'lz', 'lzma']</default>
       <summary>File extensions of archives (archive extraction)</summary>
       <description>This list is used by applications to determine whether a file should be automatically extracted.</description>
     </key>

@@ -1012,7 +1012,7 @@ autoar_extract_run (AutoarExtract *arextract,
    * We have to check whether the archive contains a top-level directory
    * before performing the extraction. We emit the "scanned" signal when
    * the checking is completed. */
-  g_debug ("autoar_extract_start: Step 1, Scan");
+  g_debug ("autoar_extract_run: Step 1, Scan");
   a = archive_read_new ();
   archive_read_support_filter_all (a);
   archive_read_support_format_all (a);
@@ -1038,12 +1038,12 @@ autoar_extract_run (AutoarExtract *arextract,
   pathname_prefix_len = 0;
   has_top_level_dir = TRUE;
   bad_filename = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
-  while (archive_read_next_header (a, &entry) == ARCHIVE_OK) {
+  while ((r = archive_read_next_header (a, &entry)) == ARCHIVE_OK) {
     const char *pathname, *dir_sep_location;
     size_t skip_len, prefix_len;
 
     pathname = archive_entry_pathname (entry);
-    g_debug ("autoar_extract_start: %d: pathname = %s",
+    g_debug ("autoar_extract_run: %d: pathname = %s",
              arextract->priv->files,
              pathname);
 
@@ -1052,7 +1052,7 @@ autoar_extract_run (AutoarExtract *arextract,
       continue;
     }
 
-    g_debug ("autoar_extract_start: %d: pattern check passed",
+    g_debug ("autoar_extract_run: %d: pattern check passed",
              arextract->priv->files);
 
     if (pathname_prefix == NULL) {
@@ -1065,7 +1065,7 @@ autoar_extract_run (AutoarExtract *arextract,
       }
       pathname_prefix = g_strndup (pathname, prefix_len);
       pathname_prefix_len = prefix_len;
-      g_debug ("autoar_extract_start: pathname_prefix = %s", pathname_prefix);
+      g_debug ("autoar_extract_run: pathname_prefix = %s", pathname_prefix);
     } else {
       if (!g_str_has_prefix (pathname, pathname_prefix)) {
         has_top_level_dir = FALSE;
@@ -1085,12 +1085,12 @@ autoar_extract_run (AutoarExtract *arextract,
     archive_read_free (a);
     return;
   }
-  g_debug ("autoar_extract_start: has_top_level_dir = %s",
+  g_debug ("autoar_extract_run: has_top_level_dir = %s",
            has_top_level_dir ? "TRUE" : "FALSE");
   _g_signal_emit (in_thread, arextract, autoar_extract_signals[SCANNED], 0, arextract->priv->files);
 
   /* Step 2: Create necessary directories */
-  g_debug ("autoar_extract_start: Step 2, Mkdir-p");
+  g_debug ("autoar_extract_run: Step 2, Mkdir-p");
   top_level_dir_basename = _g_filename_basename_remove_extension (arextract->priv->source);
   top_level_parent_dir = g_file_new_for_commandline_arg (arextract->priv->output);
   top_level_dir = g_file_get_child (top_level_parent_dir, top_level_dir_basename);
@@ -1124,7 +1124,7 @@ autoar_extract_run (AutoarExtract *arextract,
 
   /* Step 3: Extract files
    * We have to re-open the archive to extract files */
-  g_debug ("autoar_extract_start: Step 3, Extract");
+  g_debug ("autoar_extract_run: Step 3, Extract");
   a = archive_read_new ();
   archive_read_support_filter_all (a);
   archive_read_support_format_all (a);
@@ -1235,9 +1235,9 @@ autoar_extract_run (AutoarExtract *arextract,
   /* If the extraction is completed successfully, remove the source file.
    * Errors are not fatal because we have completed our work. */
   _g_signal_emit (in_thread, arextract, autoar_extract_signals[PROGRESS], 0, 1.0, 1.0);
-  g_debug ("autoar_extract_start: Finalize");
+  g_debug ("autoar_extract_run: Finalize");
   if (autoar_pref_get_delete_if_succeed (arextract->priv->arpref)) {
-    g_debug ("autoar_extract_start: Delete");
+    g_debug ("autoar_extract_run: Delete");
     source = g_file_new_for_commandline_arg (arextract->priv->source);
     g_file_delete (source, NULL, NULL);
     g_object_unref (source);

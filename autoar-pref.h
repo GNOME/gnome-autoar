@@ -35,22 +35,33 @@ G_BEGIN_DECLS
 
 typedef enum {
   AUTOAR_PREF_FORMAT_0, /*< skip >*/
-  AUTOAR_PREF_FORMAT_ZIP,
-  AUTOAR_PREF_FORMAT_TAR,
-  AUTOAR_PREF_FORMAT_CPIO,
-  AUTOAR_PREF_FORMAT_ISO9660,
+  AUTOAR_PREF_FORMAT_ZIP,       /* .zip */
+  AUTOAR_PREF_FORMAT_TAR,       /* .tar, pax_restricted */
+  AUTOAR_PREF_FORMAT_CPIO,      /* .cpio, odc */
+  AUTOAR_PREF_FORMAT_7ZIP,      /* .7z */
+  AUTOAR_PREF_FORMAT_AR_BSD,    /* .a */
+  AUTOAR_PREF_FORMAT_AR_SVR4,   /* .a */
+  AUTOAR_PREF_FORMAT_CPIO_NEWC, /* .cpio, newc */
+  AUTOAR_PREF_FORMAT_GNUTAR,    /* .tar, gnutar */
+  AUTOAR_PREF_FORMAT_ISO9660,   /* .iso */
+  AUTOAR_PREF_FORMAT_PAX,       /* .tar, pax */
+  AUTOAR_PREF_FORMAT_USTAR,     /* .tar, ustar */
+  AUTOAR_PREF_FORMAT_XAR,       /* .xar, xar */
   AUTOAR_PREF_FORMAT_LAST /*< skip >*/
 } AutoarPrefFormat;
 
 typedef enum {
   AUTOAR_PREF_FILTER_0, /*< skip >*/
   AUTOAR_PREF_FILTER_NONE,
-  AUTOAR_PREF_FILTER_COMPRESS,
-  AUTOAR_PREF_FILTER_GZIP,
-  AUTOAR_PREF_FILTER_BZIP2,
-  AUTOAR_PREF_FILTER_LZMA,
-  AUTOAR_PREF_FILTER_XZ,
-  AUTOAR_PREF_FILTER_LZIP,
+  AUTOAR_PREF_FILTER_COMPRESS,  /* .Z */
+  AUTOAR_PREF_FILTER_GZIP,      /* .gz */
+  AUTOAR_PREF_FILTER_BZIP2,     /* .bz2 */
+  AUTOAR_PREF_FILTER_XZ,        /* .xz */
+  AUTOAR_PREF_FILTER_LZMA,      /* .lzma */
+  AUTOAR_PREF_FILTER_LZIP,      /* .lz */
+  AUTOAR_PREF_FILTER_LZOP,      /* .lzo */
+  AUTOAR_PREF_FILTER_GRZIP,     /* .grz */
+  AUTOAR_PREF_FILTER_LRZIP,     /* .lrz */
   AUTOAR_PREF_FILTER_LAST /*< skip >*/
 } AutoarPrefFilter;
 

@@ -1454,16 +1454,6 @@ autoar_extract_start (AutoarExtract *arextract)
 }
 
 static void
-autoar_extract_start_async_data_free (AutoarExtractPrivate *data)
-{
-  g_free (data->source);
-  g_free (data->output);
-  g_free (data->buffer);
-  g_object_unref (data->arpref);
-  g_free (data);
-}
-
-static void
 autoar_extract_start_async_thread (GTask *task,
                                    gpointer source_object,
                                    gpointer task_data,
@@ -1472,22 +1462,18 @@ autoar_extract_start_async_thread (GTask *task,
   AutoarExtract *arextract = source_object;
   autoar_extract_run (arextract, TRUE);
   g_task_return_pointer (task, NULL, g_free);
+  g_object_unref (arextract);
 }
 
 
 void
 autoar_extract_start_async (AutoarExtract *arextract)
 {
-  AutoarExtractPrivate *data;
   GTask *task;
 
-  data = g_memdup (arextract->priv, sizeof (AutoarExtractPrivate));
-  data->source = g_strdup (data->source);
-  data->output = g_strdup (data->output);
-  data->arpref = g_object_ref (data->arpref);
-  data->buffer = g_new (char, data->buffer_size);
+  g_object_ref (arextract);
 
   task = g_task_new (arextract, NULL, NULL, NULL);
-  g_task_set_task_data (task, data, (GDestroyNotify) autoar_extract_start_async_data_free);
+  g_task_set_task_data (task, NULL, NULL);
   g_task_run_in_thread (task, autoar_extract_start_async_thread);
 }

@@ -917,7 +917,7 @@ autoar_extract_class_init (AutoarExtractClass *klass)
   g_object_class_install_property (object_class, PROP_SIZE,
                                    g_param_spec_uint64 ("size",
                                                         "File size",
-                                                        "Size of the archive file",
+                                                        "Size of the extracted files",
                                                         0, G_MAXUINT64, 0,
                                                         G_PARAM_READWRITE |
                                                         G_PARAM_STATIC_NAME |
@@ -926,13 +926,23 @@ autoar_extract_class_init (AutoarExtractClass *klass)
 
   g_object_class_install_property (object_class, PROP_COMPLETED_SIZE,
                                    g_param_spec_uint64 ("completed-size",
-                                                        "Read file size",
-                                                        "Bytes read from the archive",
+                                                        "Written file size",
+                                                        "Bytes written to disk",
                                                         0, G_MAXUINT64, 0,
                                                         G_PARAM_READWRITE |
                                                         G_PARAM_STATIC_NAME |
                                                         G_PARAM_STATIC_NICK |
                                                         G_PARAM_STATIC_BLURB));
+
+  g_object_class_install_property (object_class, PROP_FILES,
+                                   g_param_spec_uint ("files",
+                                                      "Files",
+                                                      "Number of files in the archive",
+                                                      0, G_MAXUINT32, 0,
+                                                      G_PARAM_READWRITE |
+                                                      G_PARAM_STATIC_NAME |
+                                                      G_PARAM_STATIC_NICK |
+                                                      G_PARAM_STATIC_BLURB));
 
   g_object_class_install_property (object_class, PROP_COMPLETED_FILES,
                                    g_param_spec_uint ("completed-files",
@@ -1016,6 +1026,8 @@ autoar_extract_init (AutoarExtract *arextract)
 
   priv->files = 0;
   priv->completed_files = 0;
+
+  priv->arpref = NULL;
 
   priv->istream = NULL;
   priv->buffer_size = BUFFER_SIZE;

@@ -377,6 +377,7 @@ autoar_pref_class_init (AutoarPrefClass *klass)
                                                          G_PARAM_STATIC_NAME |
                                                          G_PARAM_STATIC_NICK |
                                                          G_PARAM_STATIC_BLURB));
+  g_ptr_array_unref (tmparr);
 }
 
 static void

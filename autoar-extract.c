@@ -83,6 +83,7 @@ struct _AutoarExtractPrivate
 struct _AutoarExtractSignalEmitData
 {
   GValue instance_and_params[3]; /* Maximum number of parameters + 1 */
+  gssize used_values; /* Number of GValues to be unset */
   guint signal_id;
   GQuark detail;
 };
@@ -506,17 +507,11 @@ _g_pattern_spec_free (void *pattern_compiled)
 static void
 autoar_extract_signal_emit_data_free (AutoarExtractSignalEmitData *emit_data)
 {
-  g_value_unset (emit_data->instance_and_params + 0);
-  if (emit_data->signal_id == autoar_extract_signals[SCANNED]) {
-    g_value_unset (emit_data->instance_and_params + 1);
-  } else if (emit_data->signal_id == autoar_extract_signals[DECIDE_DEST]) {
-    g_value_unset (emit_data->instance_and_params + 1);
-  } else if (emit_data->signal_id == autoar_extract_signals[PROGRESS]) {
-    g_value_unset (emit_data->instance_and_params + 1);
-    g_value_unset (emit_data->instance_and_params + 2);
-  } else if (emit_data->signal_id == autoar_extract_signals[ERROR]) {
-    g_value_unset (emit_data->instance_and_params + 1);
-  }
+  int i;
+
+  for (i = 0; i < emit_data->used_values; i++)
+    g_value_unset (emit_data->instance_and_params + i);
+
   g_free (emit_data);
 }
 
@@ -543,40 +538,41 @@ _g_signal_emit (gboolean in_thread,
 
   va_start (ap, detail);
   if (in_thread) {
+    int i;
     gchar *error;
+    GSignalQuery query;
     AutoarExtractSignalEmitData *emit_data;
 
     error = NULL;
     emit_data = g_new0 (AutoarExtractSignalEmitData, 1);
     emit_data->signal_id = signal_id;
     emit_data->detail = detail;
+    emit_data->used_values = 1;
     g_value_init (emit_data->instance_and_params, G_TYPE_FROM_INSTANCE (instance));
     g_value_set_instance (emit_data->instance_and_params, instance);
 
-    if (signal_id == autoar_extract_signals[SCANNED]) {
-      G_VALUE_COLLECT_INIT (emit_data->instance_and_params + 1, G_TYPE_UINT, ap, 0, &error);
-    } else if (signal_id == autoar_extract_signals[DECIDE_DEST]) {
-      G_VALUE_COLLECT_INIT (emit_data->instance_and_params + 1, G_TYPE_FILE, ap, 0, &error);
-    } else if (signal_id == autoar_extract_signals[PROGRESS]) {
-      G_VALUE_COLLECT_INIT (emit_data->instance_and_params + 1, G_TYPE_DOUBLE, ap, 0, &error);
-      if (error != NULL)
-        goto invoke_end;
-      G_VALUE_COLLECT_INIT (emit_data->instance_and_params + 2, G_TYPE_DOUBLE, ap, 0, &error);
-    } else if (signal_id == autoar_extract_signals[ERROR]) {
-      G_VALUE_COLLECT_INIT (emit_data->instance_and_params + 1, G_TYPE_POINTER, ap, 0, &error);
-    } else {
-      /* "completed" signal does not have parameters. */
-      if (signal_id != autoar_extract_signals[COMPLETED])
-        goto invoke_end;
+    g_signal_query (signal_id, &query);
+    if (query.signal_id == 0) {
+      autoar_extract_signal_emit_data_free (emit_data);
+      va_end (ap);
+      return;
     }
 
-    if (error != NULL)
-      goto invoke_end;
+    emit_data->used_values = query.n_params + 1;
+    for (i = 0; i < query.n_params; i++) {
+      G_VALUE_COLLECT_INIT (emit_data->instance_and_params + i + 1,
+                            query.param_types[i],
+                            ap,
+                            0,
+                            &error);
+      if (error != NULL)
+        break;
+      emit_data->used_values++;
+    }
 
-    g_main_context_invoke (NULL, _g_signal_emit_main_context, emit_data);
-
-invoke_end:
-    if (error != NULL) {
+    if (error == NULL) {
+      g_main_context_invoke (NULL, _g_signal_emit_main_context, emit_data);
+    } else {
       autoar_extract_signal_emit_data_free (emit_data);
       g_debug ("G_VALUE_COLLECT_INIT: Error: %s", error);
       g_free (error);

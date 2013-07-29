@@ -20,11 +20,13 @@ gsettings_SCHEMAS = org.gnome.desktop.archives.gschema.xml
 noinst_LTLIBRARIES = libautoarchive.la
 
 libautoarchive_h_sources = \
+	autoar-common.h		\
 	autoar-create.h		\
 	autoar-extract.h	\
 	autoar-pref.h		\
 	$(NULL)
 libautoarchive_c_sources = \
+	autoar-common.c		\
 	autoar-create.c		\
 	autoar-extract.c	\
 	autoar-pref.c		\

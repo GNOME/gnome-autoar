@@ -558,7 +558,6 @@ _g_signal_emit (gboolean in_thread,
       return;
     }
 
-    emit_data->used_values = query.n_params + 1;
     for (i = 0; i < query.n_params; i++) {
       G_VALUE_COLLECT_INIT (emit_data->instance_and_params + i + 1,
                             query.param_types[i],

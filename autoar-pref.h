@@ -35,7 +35,7 @@ G_BEGIN_DECLS
 
 typedef enum {
   AUTOAR_PREF_FORMAT_0, /*< skip >*/
-  AUTOAR_PREF_FORMAT_ZIP,       /* .zip */
+  AUTOAR_PREF_FORMAT_ZIP = 1,   /* .zip */
   AUTOAR_PREF_FORMAT_TAR,       /* .tar, pax_restricted */
   AUTOAR_PREF_FORMAT_CPIO,      /* .cpio, odc */
   AUTOAR_PREF_FORMAT_7ZIP,      /* .7z */
@@ -52,7 +52,7 @@ typedef enum {
 
 typedef enum {
   AUTOAR_PREF_FILTER_0, /*< skip >*/
-  AUTOAR_PREF_FILTER_NONE,
+  AUTOAR_PREF_FILTER_NONE = 1,
   AUTOAR_PREF_FILTER_COMPRESS,  /* .Z */
   AUTOAR_PREF_FILTER_GZIP,      /* .gz */
   AUTOAR_PREF_FILTER_BZIP2,     /* .bz2 */

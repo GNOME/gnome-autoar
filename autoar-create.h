@@ -67,9 +67,12 @@ struct _AutoarCreateClass
 
 GType           autoar_create_get_type            (void) G_GNUC_CONST;
 
-AutoarCreate   *autoar_create_new                 (const char **source,
+AutoarCreate*   autoar_create_new                 (AutoarPref *arpref,
+                                                   const char *output,
+                                                   ...);
+AutoarCreate*   autoar_create_newv                (AutoarPref  *arpref,
                                                    const char  *output,
-                                                   AutoarPref  *arpref);
+                                                   const char **source);
 
 void            autoar_create_start               (AutoarCreate *arcreate);
 void            autoar_create_start_async         (AutoarCreate *arcreate);

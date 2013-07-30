@@ -30,6 +30,7 @@
 
 #include <gio/gio.h>
 #include <glib.h>
+#include <stdarg.h>
 
 G_DEFINE_TYPE (AutoarCreate, autoar_create, G_TYPE_OBJECT)
 
@@ -43,6 +44,7 @@ struct _AutoarCreatePrivate
   char **source;
   char  *output;
 
+  guint64 size; /* This field is currently unused */
   guint64 completed_size;
 
   guint files;
@@ -70,6 +72,7 @@ enum
   PROP_0,
   PROP_SOURCE,
   PROP_OUTPUT,
+  PROP_SIZE, /* This property is currently unused */
   PROP_COMPLETED_SIZE,
   PROP_FILES,
   PROP_COMPLETED_FILES
@@ -102,6 +105,8 @@ autoar_create_get_property (GObject    *object,
     case PROP_OUTPUT:
       g_value_set_string (value, priv->output);
       break;
+    case PROP_SIZE:
+      g_value_set_uint64 (value, priv->size);
     case PROP_COMPLETED_SIZE:
       g_value_set_uint64 (value, priv->completed_size);
       break;
@@ -132,6 +137,9 @@ autoar_create_set_property (GObject      *object,
   priv = arcreate->priv;
 
   switch (property_id) {
+    case PROP_SIZE:
+      autoar_create_set_size (arcreate, g_value_get_uint64 (value));
+      break;
     case PROP_COMPLETED_SIZE:
       autoar_create_set_completed_size (arcreate, g_value_get_uint64 (value));
       break;
@@ -171,6 +179,13 @@ autoar_create_get_output (AutoarCreate *arcreate)
 }
 
 guint64
+autoar_create_get_size (AutoarCreate *arcreate)
+{
+  g_return_val_if_fail (AUTOAR_IS_CREATE (arcreate), 0);
+  return arcreate->priv->size;
+}
+
+guint64
 autoar_create_get_completed_size (AutoarCreate *arcreate)
 {
   g_return_val_if_fail (AUTOAR_IS_CREATE (arcreate), 0);
@@ -189,6 +204,14 @@ autoar_create_get_completed_files (AutoarCreate *arcreate)
 {
   g_return_val_if_fail (AUTOAR_IS_CREATE (arcreate), 0);
   return arcreate->priv->completed_files;
+}
+
+void
+autoar_create_set_size (AutoarCreate *arcreate,
+                        guint64 size)
+{
+  g_return_if_fail (AUTOAR_IS_CREATE (arcreate));
+  arcreate->priv->size = size;
 }
 
 void
@@ -310,6 +333,16 @@ autoar_create_class_init (AutoarCreateClass *klass)
                                                         G_PARAM_STATIC_NICK |
                                                         G_PARAM_STATIC_BLURB));
 
+  g_object_class_install_property (object_class, PROP_SIZE,
+                                   g_param_spec_uint64 ("size",
+                                                        "Size",
+                                                        "Unused property",
+                                                        0, G_MAXUINT64, 0,
+                                                        G_PARAM_READWRITE |
+                                                        G_PARAM_STATIC_NAME |
+                                                        G_PARAM_STATIC_NICK |
+                                                        G_PARAM_STATIC_BLURB));
+
   g_object_class_install_property (object_class, PROP_COMPLETED_SIZE,
                                    g_param_spec_uint64 ("completed-size",
                                                         "Read file size",
@@ -412,11 +445,11 @@ autoar_create_init (AutoarCreate *arcreate)
 }
 
 AutoarCreate*
-autoar_create_new (const char **source,
-                   const char  *output,
-                   AutoarPref  *arpref)
+autoar_create_newv (AutoarPref  *arpref,
+                    const char  *output,
+                    const char **source)
 {
-  AutoarCreate* arcreate;
+  AutoarCreate *arcreate;
 
   g_return_val_if_fail (source != NULL, NULL);
   g_return_val_if_fail (output != NULL, NULL);
@@ -428,4 +461,47 @@ autoar_create_new (const char **source,
   arcreate->priv->arpref = g_object_ref (arpref);
 
   return arcreate;
+}
+
+AutoarCreate*
+autoar_create_new (AutoarPref *arpref,
+                   const char *output,
+                   ...)
+{
+  AutoarCreate *arcreate;
+  char *str;
+  va_list ap;
+  GPtrArray *strv;
+
+  va_start (ap, output);
+  strv = g_ptr_array_new_with_free_func (g_free);
+  while ((str = va_arg (ap, char*)) != NULL) {
+    g_ptr_array_add (strv, str);
+  }
+  g_ptr_array_add (strv, NULL);
+  va_end (ap);
+
+  arcreate = autoar_create_newv (arpref, output, (const char**)(strv->pdata));
+  g_ptr_array_unref (strv);
+  return arcreate;
+}
+
+static void
+autoar_create_run (AutoarCreate *arcreate,
+                   gboolean in_thread)
+{
+  struct archive *a;
+  struct archive_entry *entry;
+
+}
+
+void
+autoar_create_start (AutoarCreate *arcreate)
+{
+  autoar_create_run (arcreate, FALSE);
+}
+
+void
+autoar_create_start_async (AutoarCreate *arcreate)
+{
 }

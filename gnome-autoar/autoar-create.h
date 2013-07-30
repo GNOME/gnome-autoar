@@ -79,10 +79,13 @@ void            autoar_create_start_async         (AutoarCreate *arcreate);
 
 char          **autoar_create_get_source          (AutoarCreate *arcreate);
 char           *autoar_create_get_output          (AutoarCreate *arcreate);
+guint64         autoar_create_get_size            (AutoarCreate *arcreate);
 guint64         autoar_create_get_completed_size  (AutoarCreate *arcreate);
 guint           autoar_create_get_files           (AutoarCreate *arcreate);
 guint           autoar_create_get_completed_files (AutoarCreate *arcreate);
 
+void            autoar_create_set_size            (AutoarCreate *arcreate,
+                                                   guint64 size);
 void            autoar_create_set_completed_size  (AutoarCreate *arcreate,
                                                    guint64 completed_size);
 void            autoar_create_set_files           (AutoarCreate *arcreate,

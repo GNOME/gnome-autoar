@@ -1,6 +1,6 @@
 /* vim: set sw=2 ts=2 sts=2 et: */
 
-#include <autoarchive/autoarchive.h>
+#include <gnome-autoar/autoar.h>
 
 int
 main (int argc,

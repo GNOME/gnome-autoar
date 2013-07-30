@@ -27,8 +27,8 @@
 #define AUTOARHICVE_H
 
 /* #include <autoarchive/autoar-create.h> */
-#include <autoarchive/autoar-extract.h>
-#include <autoarchive/autoar-pref.h>
+#include <gnome-autoar/autoar-extract.h>
+#include <gnome-autoar/autoar-pref.h>
 /* #include <autoarchive/autoar-ui.h> */
 
 #endif /* AUTOARCHIVE_H */

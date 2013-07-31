@@ -50,7 +50,7 @@ AC_TYPE_SIZE_T
 AC_TYPE_SSIZE_T
 
 # Checks for library functions.
-AC_CHECK_FUNCS([getgrnam getpwnam link mkfifo mknod])
+AC_CHECK_FUNCS([getgrnam getpwnam link mkfifo mknod stat])
 
 AC_CONFIG_FILES([Makefile
                  gnome-autoar/Makefile

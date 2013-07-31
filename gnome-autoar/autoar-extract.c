@@ -1171,7 +1171,6 @@ autoar_extract_run (AutoarExtract *arextract,
                                  0, arextract->priv->error);
     g_object_unref (top_level_dir);
     g_hash_table_unref (bad_filename);
-    archive_read_free (a);
     return;
   }
 

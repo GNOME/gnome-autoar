@@ -456,6 +456,48 @@ g_pattern_spec_free_safe (void *pattern_compiled)
     g_pattern_spec_free (pattern_compiled);
 }
 
+static GFile*
+autoar_extract_do_sanitize_pathname (const char *pathname,
+                                     const char *skip_chars,
+                                     GFile *top_level_dir) {
+  const char *pathname_skip_prefix;
+  char **pathname_chunks;
+  GFile *extracted_filename;
+  int i;
+
+  if (skip_chars != NULL)
+    pathname_skip_prefix = pathname + strspn (pathname, "./");
+  else
+    pathname_skip_prefix = pathname;
+
+  for (; *pathname_skip_prefix == '/'; pathname_skip_prefix++);
+  extracted_filename = g_file_get_child (top_level_dir, pathname_skip_prefix);
+
+  /* Extracted file should not be located outside the top level directory. */
+  if (!g_file_has_prefix (extracted_filename, top_level_dir)) {
+    pathname_chunks = g_strsplit (pathname_skip_prefix, "/", G_MAXINT);
+    for (i = 0; pathname_chunks[i] != NULL; i++) {
+      if (strcmp (pathname_chunks[i], "..") == 0) {
+        char *pathname_sanitized;
+
+        *pathname_chunks[i] = '\0';
+        pathname_sanitized = g_strjoinv ("/", pathname_chunks);
+
+        g_object_unref (extracted_filename);
+        extracted_filename = g_file_get_child (top_level_dir, pathname_sanitized);
+
+        g_free (pathname_sanitized);
+
+        if (g_file_has_prefix (extracted_filename, top_level_dir))
+          break;
+      }
+    }
+    g_strfreev (pathname_chunks);
+  }
+
+  return extracted_filename;
+}
+
 static gboolean
 autoar_extract_do_pattern_check (const char *path,
                                  GPtrArray *pattern)
@@ -497,6 +539,8 @@ autoar_extract_do_write_entry (AutoarExtract *arextract,
                                struct archive *a,
                                struct archive_entry *entry,
                                GFile *dest,
+                               GFile *hardlink,
+                               GFile *top_level_dir,
                                GHashTable *userhash,
                                GHashTable *grouphash,
                                gboolean in_thread,
@@ -520,6 +564,7 @@ autoar_extract_do_write_entry (AutoarExtract *arextract,
 #endif
 
   guint32 uid, gid;
+  char *str, *str2;
 
   parent = g_file_get_parent (dest);
   if (!g_file_query_exists (parent, NULL))
@@ -615,10 +660,26 @@ autoar_extract_do_write_entry (AutoarExtract *arextract,
                                     G_FILE_ATTRIBUTE_UNIX_MODE,
                                     archive_entry_mode (entry));
 
+#ifdef HAVE_LINK
+  if (hardlink != NULL) {
+    r = link (str2 = g_file_get_path (hardlink), str = g_file_get_path (dest));
+    g_debug ("autoar_extract_do_write_entry: hard link, %s => %s, %d",
+             str, str2, r);
+    g_free (str);
+    g_free (str2);
+    if (r >= 0) {
+      g_debug ("autoar_extract_do_write_entry: skip file creation");
+      goto applyinfo;
+    }
+  }
+#endif
+
   g_debug ("autoar_extract_do_write_entry: writing");
   r = 0;
   switch (filetype = archive_entry_filetype (entry)) {
+    default:
     case AE_IFREG:
+      g_debug ("autoar_extract_do_write_entry: case REG");
       ostream = (GOutputStream*)g_file_replace (dest,
                                                 NULL,
                                                 FALSE,
@@ -666,6 +727,7 @@ autoar_extract_do_write_entry (AutoarExtract *arextract,
       }
       break;
     case AE_IFDIR:
+      g_debug ("autoar_extract_do_write_entry: case DIR");
       g_file_make_directory_with_parents (dest, NULL, &(arextract->priv->error));
       if (arextract->priv->error != NULL) {
         /* "File exists" is not a fatal error */
@@ -676,6 +738,7 @@ autoar_extract_do_write_entry (AutoarExtract *arextract,
       }
       break;
     case AE_IFLNK:
+      g_debug ("autoar_extract_do_write_entry: case LNK");
       g_file_make_symbolic_link (dest,
                                  archive_entry_symlink (entry),
                                  NULL,
@@ -685,30 +748,39 @@ autoar_extract_do_write_entry (AutoarExtract *arextract,
      * in the regular archives, so errors are not fatal. */
 #if defined HAVE_MKFIFO || defined HAVE_MKNOD
     case AE_IFIFO:
+      g_debug ("autoar_extract_do_write_entry: case FIFO");
 # ifdef HAVE_MKFIFO
-      r = mkfifo (g_file_get_path (dest), archive_entry_mode (entry));
+      r = mkfifo (str = g_file_get_path (dest), archive_entry_mode (entry));
+      g_free (str);
 # else
-      r = mknod (g_file_get_path (dest),
+      r = mknod (str = g_file_get_path (dest),
                  S_IFIFO | archive_entry_mode (entry),
                  0);
+      g_free (str);
 # endif
       break;
 #endif
 #ifdef HAVE_MKNOD
     case AE_IFSOCK:
-      r = mknod (g_file_get_path (dest),
+      g_debug ("autoar_extract_do_write_entry: case SOCK");
+      r = mknod (str = g_file_get_path (dest),
                  S_IFSOCK | archive_entry_mode (entry),
                  0);
+      g_free (str);
       break;
     case AE_IFBLK:
-      r = mknod (g_file_get_path (dest),
+      g_debug ("autoar_extract_do_write_entry: case BLK");
+      r = mknod (str = g_file_get_path (dest),
                  S_IFBLK | archive_entry_mode (entry),
                  archive_entry_rdev (entry));
+      g_free (str);
       break;
     case AE_IFCHR:
-      r = mknod (g_file_get_path (dest),
+      g_debug ("autoar_extract_do_write_entry: case CHR");
+      r = mknod (str = g_file_get_path (dest),
                  S_IFCHR | archive_entry_mode (entry),
                  archive_entry_rdev (entry));
+      g_free (str);
       break;
 #endif
   }
@@ -727,6 +799,7 @@ autoar_extract_do_write_entry (AutoarExtract *arextract,
   }
 #endif
 
+applyinfo:
   g_debug ("autoar_extract_do_write_entry: applying info");
   g_file_set_attributes_from_info (dest,
                                    info,
@@ -1214,44 +1287,31 @@ autoar_extract_run (AutoarExtract *arextract,
   grouphash = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
   while ((r = archive_read_next_header (a, &entry)) == ARCHIVE_OK) {
     const char *pathname;
-    const char *pathname_skip_prefix;
-    char **pathname_chunks;
-
+    const char *hardlink;
     GFile *extracted_filename;
+    GFile *hardlink_filename;
 
     pathname = archive_entry_pathname (entry);
+    hardlink = archive_entry_hardlink (entry);
+    hardlink_filename = NULL;
     if (GPOINTER_TO_UINT (g_hash_table_lookup (bad_filename, pathname)))
       continue;
 
     if (!has_only_one_file) {
-      if (has_top_level_dir)
-        pathname_skip_prefix = pathname + pathname_prefix_len;
-      else
-        pathname_skip_prefix = pathname + strspn (pathname, "./");
-
-      for (; *pathname_skip_prefix == '/'; pathname_skip_prefix++);
-      extracted_filename = g_file_get_child (top_level_dir, pathname_skip_prefix);
-
-      /* Extracted file should not be located outside the top level directory. */
-      if (!g_file_has_prefix (extracted_filename, top_level_dir)) {
-        pathname_chunks = g_strsplit (pathname_skip_prefix, "/", G_MAXINT);
-        for (i = 0; pathname_chunks[i] != NULL; i++) {
-          if (strcmp (pathname_chunks[i], "..") == 0) {
-            char *pathname_sanitized;
-
-            *pathname_chunks[i] = '\0';
-            pathname_sanitized = g_strjoinv ("/", pathname_chunks);
-
-            g_object_unref (extracted_filename);
-            extracted_filename = g_file_get_child (top_level_dir, pathname_sanitized);
-
-            g_free (pathname_sanitized);
-
-            if (g_file_has_prefix (extracted_filename, top_level_dir))
-              break;
-          }
-        }
-        g_strfreev (pathname_chunks);
+      if (has_top_level_dir) {
+        extracted_filename =
+          autoar_extract_do_sanitize_pathname (pathname + pathname_prefix_len,
+                                               NULL, top_level_dir);
+        if (hardlink != NULL)
+          hardlink_filename =
+            autoar_extract_do_sanitize_pathname (hardlink + pathname_prefix_len,
+                                                 NULL, top_level_dir);
+      } else {
+        extracted_filename =
+          autoar_extract_do_sanitize_pathname (pathname, "./", top_level_dir);
+        if (hardlink != NULL)
+          hardlink_filename =
+            autoar_extract_do_sanitize_pathname (pathname, "./", top_level_dir);
       }
     } else {
       extracted_filename = g_object_ref (top_level_dir);
@@ -1261,16 +1321,21 @@ autoar_extract_run (AutoarExtract *arextract,
                                    a,
                                    entry,
                                    extracted_filename,
+                                   hardlink_filename,
+                                   top_level_dir,
                                    userhash,
                                    grouphash,
                                    in_thread,
                                    use_raw_format);
 
+    g_object_unref (extracted_filename);
+    if (hardlink_filename != NULL)
+      g_object_unref (hardlink_filename);
+
     if (arextract->priv->error != NULL) {
       autoar_common_g_signal_emit (in_thread, arextract,
                                    autoar_extract_signals[ERROR],
                                    0, arextract->priv->error);
-      g_object_unref (extracted_filename);
       g_object_unref (top_level_dir);
       g_hash_table_unref (userhash);
       g_hash_table_unref (grouphash);
@@ -1289,7 +1354,6 @@ autoar_extract_run (AutoarExtract *arextract,
                                  ((double)(arextract->priv->size)),
                                  ((double)(arextract->priv->completed_files)) /
                                  ((double)(arextract->priv->files)));
-    g_object_unref (extracted_filename);
   }
   if (r != ARCHIVE_EOF) {
     if (arextract->priv->error == NULL) {

@@ -553,16 +553,16 @@ autoar_create_do_add_to_archive (AutoarCreate *arcreate,
 #ifdef HAVE_STAT
       local_pathname = g_file_get_path (file);
       if (local_pathname != NULL && stat (local_pathname, &filestat) >= 0) {
-        if (filestat.st_mode & S_IFSOCK) {
-          g_debug ("autoar_create_do_add_to_archive: file type set to SOCKET");
-          archive_entry_set_filetype (entry, AE_IFSOCK);
-        } else if (filestat.st_mode & S_IFBLK) {
+        if (S_ISBLK (filestat.st_mode)) {
           g_debug ("autoar_create_do_add_to_archive: file type set to BLOCK");
           archive_entry_set_filetype (entry, AE_IFBLK);
-        } else if (filestat.st_mode & S_IFCHR) {
+        } else if (S_ISSOCK (filestat.st_mode)) {
+          g_debug ("autoar_create_do_add_to_archive: file type set to SOCKET");
+          archive_entry_set_filetype (entry, AE_IFSOCK);
+        } else if (S_ISCHR (filestat.st_mode)) {
           g_debug ("autoar_create_do_add_to_archive: file type set to CHAR");
           archive_entry_set_filetype (entry, AE_IFCHR);
-        } else if (filestat.st_mode & S_IFIFO) {
+        } else if (S_ISFIFO (filestat.st_mode)) {
           g_debug ("autoar_create_do_add_to_archive: file type set to FIFO");
           archive_entry_set_filetype (entry, AE_IFIFO);
         } else {

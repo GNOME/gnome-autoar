@@ -1173,7 +1173,27 @@ autoar_create_start (AutoarCreate *arcreate)
   autoar_create_run (arcreate, FALSE);
 }
 
+static void
+autoar_create_start_async_thread (GTask *task,
+                                  gpointer source_object,
+                                  gpointer task_data,
+                                  GCancellable *cancellable)
+{
+  AutoarCreate *arcreate = source_object;
+  autoar_create_run (arcreate, TRUE);
+  g_task_return_pointer (task, NULL, g_free);
+  g_object_unref (arextract);
+  g_object_unref (task);
+}
+
 void
 autoar_create_start_async (AutoarCreate *arcreate)
 {
+  GTask *task;
+
+  g_object_ref (arcreate);
+
+  task = g_task_new (arcreate, NULL, NULL, NULL);
+  g_task_set_task_data (task, NULL, NULL);
+  g_task_run_in_thread (task, autoar_create_start_async_thread);
 }

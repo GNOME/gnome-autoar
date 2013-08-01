@@ -1420,6 +1420,7 @@ autoar_extract_start_async_thread (GTask *task,
   autoar_extract_run (arextract, TRUE);
   g_task_return_pointer (task, NULL, g_free);
   g_object_unref (arextract);
+  g_object_unref (task);
 }
 
 

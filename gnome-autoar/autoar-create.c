@@ -854,6 +854,7 @@ autoar_create_run (AutoarCreate *arcreate,
   const char *basename;
   gboolean prepend_basename;
 
+  GFileInfo *tmp_info;
   GFile *file_source;
   GFile *file_output;
   GFile *file_dest;
@@ -975,10 +976,27 @@ autoar_create_run (AutoarCreate *arcreate,
   g_debug ("autoar_extract_run: Step 1, Filename");
   basename = *(arcreate->priv->source);
   file_source = g_file_new_for_commandline_arg (basename);
-  file_output = g_file_new_for_commandline_arg (arcreate->priv->output);
-  source_basename = g_file_get_basename (file_source);
-  source_basename_noext = autoar_common_get_basename_remove_extension (source_basename);
+  tmp_info = g_file_query_info (file_source,
+                                G_FILE_ATTRIBUTE_STANDARD_TYPE,
+                                G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
+                                NULL,
+                                &(arcreate->priv->error));
+  if (tmp_info == NULL) {
+    g_object_unref (file_source);
+    autoar_common_g_signal_emit (in_thread, arcreate,
+                                 autoar_create_signals[ERROR],
+                                 0, arcreate->priv->error);
+    return;
+  }
 
+  source_basename = g_file_get_basename (file_source);
+  if (g_file_info_get_file_type (tmp_info) == G_FILE_TYPE_REGULAR)
+    source_basename_noext = autoar_common_get_basename_remove_extension (source_basename);
+  else
+    source_basename_noext = g_strdup (source_basename);
+  g_object_unref (tmp_info);
+
+  file_output = g_file_new_for_commandline_arg (arcreate->priv->output);
   dest_basename = g_strconcat (source_basename_noext,
                                format_extension,
                                filter_extension,
@@ -1021,7 +1039,6 @@ autoar_create_run (AutoarCreate *arcreate,
   g_object_unref (file_output);
   g_object_unref (file_dest);
   g_free (source_basename);
-  g_free (source_basename_noext);
   g_free (dest_basename);
 
   /* Step 2: Create and open the new archive file */
@@ -1039,6 +1056,7 @@ autoar_create_run (AutoarCreate *arcreate,
     autoar_common_g_signal_emit (in_thread, arcreate,
                                  autoar_create_signals[ERROR],
                                  0, arcreate->priv->error);
+    g_free (source_basename_noext);
     return;
   }
 
@@ -1058,6 +1076,7 @@ autoar_create_run (AutoarCreate *arcreate,
     GFile *file;
     GFileInfo *fileinfo;
 
+    g_debug ("autoar_create_run: source[%d] (%s)", i, arcreate->priv->source[i]);
     file = g_file_new_for_commandline_arg (arcreate->priv->source[i]);
     fileinfo = g_file_query_info (file,
                                   G_FILE_ATTRIBUTE_STANDARD_TYPE,
@@ -1070,6 +1089,7 @@ autoar_create_run (AutoarCreate *arcreate,
                                    0, arcreate->priv->error);
       g_object_unref (file);
       g_object_unref (fileinfo);
+      g_free (source_basename_noext);
       archive_write_free (a);
       archive_entry_free (entry);
       archive_entry_linkresolver_free (resolver);
@@ -1078,13 +1098,13 @@ autoar_create_run (AutoarCreate *arcreate,
     }
 
     autoar_create_do_add_to_archive (arcreate, a, entry, resolver, file, file,
-                                     basename, prepend_basename, in_thread,
-                                     pathname_to_g_file);
+                                     source_basename_noext, prepend_basename,
+                                     in_thread, pathname_to_g_file);
 
     if (g_file_info_get_file_type (fileinfo) == G_FILE_TYPE_DIRECTORY)
       autoar_create_do_recursive_read (arcreate, a, entry, resolver, file, file,
-                                       basename, prepend_basename, in_thread,
-                                       pathname_to_g_file);
+                                       source_basename_noext, prepend_basename,
+                                       in_thread, pathname_to_g_file);
 
     g_object_unref (file);
     g_object_unref (fileinfo);
@@ -1093,6 +1113,7 @@ autoar_create_run (AutoarCreate *arcreate,
       autoar_common_g_signal_emit (in_thread, arcreate,
                                    autoar_create_signals[ERROR],
                                    0, arcreate->priv->error);
+      g_free (source_basename_noext);
       archive_write_free (a);
       archive_entry_free (entry);
       archive_entry_linkresolver_free (resolver);
@@ -1101,6 +1122,7 @@ autoar_create_run (AutoarCreate *arcreate,
     }
   }
 
+  g_free (source_basename_noext);
   archive_entry_free (entry);
   archive_entry_linkresolver_free (resolver);
   g_hash_table_unref (pathname_to_g_file);

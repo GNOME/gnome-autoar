@@ -2,8 +2,7 @@
 
 NULL =
 
-noinst_PROGRAMS = test-extract test-pref
-EXTRA_DIST = test-extract.c test-pref.c
+noinst_PROGRAMS = test-extract test-pref test-create
 
 test_cflags = \
 	$(DEPENDENCIES_CFLAGS)	\
@@ -24,3 +23,7 @@ test_extract_LDADD = $(test_libs)
 test_pref_SOURCES = test-pref.c
 test_pref_CFLAGS = $(test_cflags)
 test_pref_LDADD = $(test_libs)
+
+test_create_SOURCES = test-create.c
+test_create_CFLAGS = $(test_cflags)
+test_create_LDADD = $(test_libs)

@@ -378,9 +378,12 @@ autoar_create_do_write_data (AutoarCreate *arcreate,
                              struct archive *a,
                              struct archive_entry *entry,
                              GFile *file,
+                             gboolean no_data,
                              gboolean in_thread)
 {
   int r;
+
+  g_debug ("autoar_create_do_write_data: called");
 
   if (arcreate->priv->error != NULL)
     return;
@@ -394,9 +397,14 @@ autoar_create_do_write_data (AutoarCreate *arcreate,
     return;
   }
 
-  if (archive_entry_size (entry) > 0) {
+  g_debug ("autoar_create_do_write_data: write header OK");
+
+  if (archive_entry_size (entry) > 0 && !no_data) {
     GInputStream *istream;
     ssize_t read_actual, written_actual, written_acc;
+
+    g_debug ("autoar_create_do_write_data: entry size is %"G_GUINT64_FORMAT,
+             archive_entry_size (entry));
 
     istream = (GInputStream*)g_file_read (file, NULL, &(arcreate->priv->error));
     if (istream == NULL)
@@ -440,7 +448,9 @@ autoar_create_do_write_data (AutoarCreate *arcreate,
                                                      archive_error_string (a));
       return;
     }
+    g_debug ("autoar_create_do_write_data: write data OK");
   } else {
+    g_debug ("autoar_create_do_write_data: no data, return now!");
     arcreate->priv->completed_files++;
     autoar_common_g_signal_emit (in_thread,
                                  arcreate,
@@ -472,6 +482,7 @@ autoar_create_do_add_to_archive (AutoarCreate *arcreate,
   long atimeu, btimeu, ctimeu, mtimeu;
 
   struct archive_entry *sparse;
+  gboolean force_no_data;
 
 #ifdef HAVE_STAT
   struct stat filestat;
@@ -479,6 +490,7 @@ autoar_create_do_add_to_archive (AutoarCreate *arcreate,
 #endif
 
   archive_entry_clear (entry);
+  force_no_data = FALSE;
   info = g_file_query_info (file, "*", G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
                             NULL, &(arcreate->priv->error));
   if (info == NULL)
@@ -486,12 +498,12 @@ autoar_create_do_add_to_archive (AutoarCreate *arcreate,
 
   root_basename = g_file_get_basename (root);
   pathname_relative = g_file_get_relative_path (root, file);
-  pathname = g_strdup_printf ("%s%s%s%s%s",
-                              prepend_basename ? basename : "",
-                              prepend_basename ? "/" : "",
-                              root_basename,
-                              "/",
-                              pathname_relative != NULL ? pathname_relative : "");
+  pathname = g_strconcat (prepend_basename ? basename : "",
+                          prepend_basename ? "/" : "",
+                          root_basename,
+                          pathname_relative != NULL ? "/" : "",
+                          pathname_relative != NULL ? pathname_relative : "",
+                          NULL);
   g_debug ("autoar_create_do_add_to_archive: %s", pathname);
 
   archive_entry_set_pathname (entry, pathname);
@@ -528,28 +540,38 @@ autoar_create_do_add_to_archive (AutoarCreate *arcreate,
 
   switch (g_file_info_get_file_type (info)) {
     case G_FILE_TYPE_DIRECTORY:
+      g_debug ("autoar_create_do_add_to_archive: file type set to DIR");
       archive_entry_set_filetype (entry, AE_IFDIR);
       break;
     case G_FILE_TYPE_SYMBOLIC_LINK:
+      g_debug ("autoar_create_do_add_to_archive: file type set to SYMLINK");
       archive_entry_set_filetype (entry, AE_IFLNK);
       archive_entry_set_symlink (entry, g_file_info_get_attribute_byte_string (info, G_FILE_ATTRIBUTE_STANDARD_SYMLINK_TARGET));
+      force_no_data = TRUE; /* Symlinks have size > 0, but there is nothing to write */
       break;
     case G_FILE_TYPE_SPECIAL:
 #ifdef HAVE_STAT
       local_pathname = g_file_get_path (file);
       if (local_pathname != NULL && stat (local_pathname, &filestat) >= 0) {
-        if (filestat.st_mode & S_IFSOCK)
+        if (filestat.st_mode & S_IFSOCK) {
+          g_debug ("autoar_create_do_add_to_archive: file type set to SOCKET");
           archive_entry_set_filetype (entry, AE_IFSOCK);
-        else if (filestat.st_mode & S_IFBLK)
+        } else if (filestat.st_mode & S_IFBLK) {
+          g_debug ("autoar_create_do_add_to_archive: file type set to BLOCK");
           archive_entry_set_filetype (entry, AE_IFBLK);
-        else if (filestat.st_mode & S_IFCHR)
+        } else if (filestat.st_mode & S_IFCHR) {
+          g_debug ("autoar_create_do_add_to_archive: file type set to CHAR");
           archive_entry_set_filetype (entry, AE_IFCHR);
-        else if (filestat.st_mode & S_IFIFO)
+        } else if (filestat.st_mode & S_IFIFO) {
+          g_debug ("autoar_create_do_add_to_archive: file type set to FIFO");
           archive_entry_set_filetype (entry, AE_IFIFO);
-        else
+        } else {
+          g_debug ("autoar_create_do_add_to_archive: file type set to REGULAR");
           archive_entry_set_filetype (entry, AE_IFREG);
+        }
         g_free (local_pathname);
       } else {
+        g_debug ("autoar_create_do_add_to_archive: file type set to REGULAR");
         archive_entry_set_filetype (entry, AE_IFREG);
       }
       break;
@@ -559,6 +581,7 @@ autoar_create_do_add_to_archive (AutoarCreate *arcreate,
     case G_FILE_TYPE_MOUNTABLE:
     case G_FILE_TYPE_REGULAR:
     default:
+      g_debug ("autoar_create_do_add_to_archive: file type set to REGULAR");
       archive_entry_set_filetype (entry, AE_IFREG);
       break;
   }
@@ -574,7 +597,7 @@ autoar_create_do_add_to_archive (AutoarCreate *arcreate,
     const char *pathname_in_entry;
     pathname_in_entry = archive_entry_pathname (entry);
     file_to_read = g_hash_table_lookup (pathname_to_g_file, pathname_in_entry);
-    autoar_create_do_write_data (arcreate, a, entry, file_to_read, in_thread);
+    autoar_create_do_write_data (arcreate, a, entry, file_to_read, force_no_data, in_thread);
     g_hash_table_remove (pathname_to_g_file, pathname_in_entry);
   }
 
@@ -583,7 +606,7 @@ autoar_create_do_add_to_archive (AutoarCreate *arcreate,
     const char *pathname_in_entry;
     pathname_in_entry = archive_entry_pathname (entry);
     file_to_read = g_hash_table_lookup (pathname_to_g_file, pathname_in_entry);
-    autoar_create_do_write_data (arcreate, a, sparse, file_to_read, in_thread);
+    autoar_create_do_write_data (arcreate, a, sparse, file_to_read, force_no_data, in_thread);
     g_hash_table_remove (pathname_to_g_file, pathname_in_entry);
   }
 

@@ -415,8 +415,8 @@ autoar_create_do_write_data (AutoarCreate *arcreate,
                                    arcreate,
                                    autoar_create_signals[PROGRESS],
                                    0,
-                                   (double)(arcreate->priv->completed_size),
-                                   (double)(arcreate->priv->completed_files));
+                                   arcreate->priv->completed_size,
+                                   arcreate->priv->completed_files);
       if (read_actual > 0) {
         written_acc = 0;
         do {
@@ -440,6 +440,14 @@ autoar_create_do_write_data (AutoarCreate *arcreate,
                                                      archive_error_string (a));
       return;
     }
+  } else {
+    arcreate->priv->completed_files++;
+    autoar_common_g_signal_emit (in_thread,
+                                 arcreate,
+                                 autoar_create_signals[PROGRESS],
+                                 0,
+                                 arcreate->priv->completed_size,
+                                 arcreate->priv->completed_files);
   }
 }
 
@@ -799,7 +807,7 @@ autoar_create_newv (AutoarPref  *arpref,
   g_return_val_if_fail (output != NULL, NULL);
 
   arcreate = g_object_new (AUTOAR_TYPE_CREATE,
-                           "source", source,
+                           "source", g_variant_new_strv (source, -1),
                            "output", output,
                            NULL);
   arcreate->priv->arpref = g_object_ref (arpref);
@@ -986,6 +994,22 @@ autoar_create_run (AutoarCreate *arcreate,
                                      format_extension,
                                      filter_extension);
     file_dest = g_file_get_child (file_output, dest_basename);
+  }
+
+  if (!g_file_query_exists (file_output, NULL)) {
+    g_file_make_directory_with_parents (file_output, NULL, &(arcreate->priv->error));
+    if (arcreate->priv->error) {
+      autoar_common_g_signal_emit (in_thread, arcreate,
+                                   autoar_create_signals[ERROR],
+                                   0, arcreate->priv->error);
+      g_object_unref (file_source);
+      g_object_unref (file_output);
+      g_object_unref (file_dest);
+      g_free (source_basename);
+      g_free (source_basename_noext);
+      g_free (dest_basename);
+      return;
+    }
   }
 
   arcreate->priv->dest = g_object_ref (file_dest);

@@ -74,9 +74,10 @@ autoar_common_get_basename_remove_extension (const char *filename)
   basename = g_path_get_basename (filename);
 
   dot_location = autoar_common_get_filename_extension (basename);
-  *dot_location = '\0';
+  if (dot_location != basename)
+    *dot_location = '\0';
 
-  g_debug ("_g_filename_basename_remove_extension: %s => %s",
+  g_debug ("autoar_common_get_basename_remove_extension: %s => %s",
            filename,
            basename);
   return basename;

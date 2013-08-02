@@ -658,7 +658,7 @@ autoar_extract_do_write_entry (AutoarExtract *arextract,
   g_debug ("autoar_extract_do_write_entry: permissions");
   g_file_info_set_attribute_uint32 (info,
                                     G_FILE_ATTRIBUTE_UNIX_MODE,
-                                    archive_entry_mode (entry));
+                                    archive_entry_perm (entry));
 
 #ifdef HAVE_LINK
   if (hardlink != NULL) {
@@ -734,6 +734,9 @@ autoar_extract_do_write_entry (AutoarExtract *arextract,
         if (arextract->priv->error->code == G_IO_ERROR_EXISTS) {
           g_error_free (arextract->priv->error);
           arextract->priv->error = NULL;
+        } else {
+          g_object_unref (info);
+          return;
         }
       }
       break;
@@ -750,11 +753,11 @@ autoar_extract_do_write_entry (AutoarExtract *arextract,
     case AE_IFIFO:
       g_debug ("autoar_extract_do_write_entry: case FIFO");
 # ifdef HAVE_MKFIFO
-      r = mkfifo (str = g_file_get_path (dest), archive_entry_mode (entry));
+      r = mkfifo (str = g_file_get_path (dest), archive_entry_perm (entry));
       g_free (str);
 # else
       r = mknod (str = g_file_get_path (dest),
-                 S_IFIFO | archive_entry_mode (entry),
+                 S_IFIFO | archive_entry_perm (entry),
                  0);
       g_free (str);
 # endif
@@ -764,21 +767,21 @@ autoar_extract_do_write_entry (AutoarExtract *arextract,
     case AE_IFSOCK:
       g_debug ("autoar_extract_do_write_entry: case SOCK");
       r = mknod (str = g_file_get_path (dest),
-                 S_IFSOCK | archive_entry_mode (entry),
+                 S_IFSOCK | archive_entry_perm (entry),
                  0);
       g_free (str);
       break;
     case AE_IFBLK:
       g_debug ("autoar_extract_do_write_entry: case BLK");
       r = mknod (str = g_file_get_path (dest),
-                 S_IFBLK | archive_entry_mode (entry),
+                 S_IFBLK | archive_entry_perm (entry),
                  archive_entry_rdev (entry));
       g_free (str);
       break;
     case AE_IFCHR:
       g_debug ("autoar_extract_do_write_entry: case CHR");
       r = mknod (str = g_file_get_path (dest),
-                 S_IFCHR | archive_entry_mode (entry),
+                 S_IFCHR | archive_entry_perm (entry),
                  archive_entry_rdev (entry));
       g_free (str);
       break;

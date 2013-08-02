@@ -1182,7 +1182,7 @@ autoar_create_start_async_thread (GTask *task,
   AutoarCreate *arcreate = source_object;
   autoar_create_run (arcreate, TRUE);
   g_task_return_pointer (task, NULL, g_free);
-  g_object_unref (arextract);
+  g_object_unref (arcreate);
   g_object_unref (task);
 }
 

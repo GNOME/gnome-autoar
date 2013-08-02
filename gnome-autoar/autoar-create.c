@@ -378,7 +378,6 @@ autoar_create_do_write_data (AutoarCreate *arcreate,
                              struct archive *a,
                              struct archive_entry *entry,
                              GFile *file,
-                             gboolean no_data,
                              gboolean in_thread)
 {
   int r;
@@ -399,7 +398,8 @@ autoar_create_do_write_data (AutoarCreate *arcreate,
 
   g_debug ("autoar_create_do_write_data: write header OK");
 
-  if (archive_entry_size (entry) > 0 && !no_data) {
+  /* Symlinks have size > 0, but there is nothing to write */
+  if (archive_entry_size (entry) > 0 && archive_entry_filetype (entry) != AE_IFLNK) {
     GInputStream *istream;
     ssize_t read_actual, written_actual, written_acc;
 
@@ -482,7 +482,6 @@ autoar_create_do_add_to_archive (AutoarCreate *arcreate,
   long atimeu, btimeu, ctimeu, mtimeu;
 
   struct archive_entry *sparse;
-  gboolean force_no_data;
 
 #ifdef HAVE_STAT
   struct stat filestat;
@@ -490,7 +489,6 @@ autoar_create_do_add_to_archive (AutoarCreate *arcreate,
 #endif
 
   archive_entry_clear (entry);
-  force_no_data = FALSE;
   info = g_file_query_info (file, "*", G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
                             NULL, &(arcreate->priv->error));
   if (info == NULL)
@@ -547,7 +545,6 @@ autoar_create_do_add_to_archive (AutoarCreate *arcreate,
       g_debug ("autoar_create_do_add_to_archive: file type set to SYMLINK");
       archive_entry_set_filetype (entry, AE_IFLNK);
       archive_entry_set_symlink (entry, g_file_info_get_attribute_byte_string (info, G_FILE_ATTRIBUTE_STANDARD_SYMLINK_TARGET));
-      force_no_data = TRUE; /* Symlinks have size > 0, but there is nothing to write */
       break;
     case G_FILE_TYPE_SPECIAL:
 #ifdef HAVE_STAT
@@ -597,8 +594,10 @@ autoar_create_do_add_to_archive (AutoarCreate *arcreate,
     const char *pathname_in_entry;
     pathname_in_entry = archive_entry_pathname (entry);
     file_to_read = g_hash_table_lookup (pathname_to_g_file, pathname_in_entry);
-    autoar_create_do_write_data (arcreate, a, entry, file_to_read, force_no_data, in_thread);
+    autoar_create_do_write_data (arcreate, a, entry, file_to_read, in_thread);
     g_hash_table_remove (pathname_to_g_file, pathname_in_entry);
+    /* We have registered g_object_unref function to free the GFile object,
+     * so we do not have to unref it here. */
   }
 
   if (sparse != NULL) {
@@ -606,7 +605,7 @@ autoar_create_do_add_to_archive (AutoarCreate *arcreate,
     const char *pathname_in_entry;
     pathname_in_entry = archive_entry_pathname (entry);
     file_to_read = g_hash_table_lookup (pathname_to_g_file, pathname_in_entry);
-    autoar_create_do_write_data (arcreate, a, sparse, file_to_read, force_no_data, in_thread);
+    autoar_create_do_write_data (arcreate, a, sparse, file_to_read, in_thread);
     g_hash_table_remove (pathname_to_g_file, pathname_in_entry);
   }
 
@@ -866,7 +865,7 @@ autoar_create_run (AutoarCreate *arcreate,
                    gboolean in_thread)
 {
   struct archive *a;
-  struct archive_entry *entry;
+  struct archive_entry *entry, *sparse;
   struct archive_entry_linkresolver *resolver;
 
   AutoarPrefFormat format;
@@ -1145,10 +1144,27 @@ autoar_create_run (AutoarCreate *arcreate,
     }
   }
 
-  g_free (source_basename_noext);
   archive_entry_free (entry);
+  entry = NULL;
+  archive_entry_linkify (resolver, &entry, &sparse);
+  if (entry != NULL) {
+    GFile *file_to_read;
+    const char *pathname_in_entry;
+    pathname_in_entry = archive_entry_pathname (entry);
+    file_to_read = g_hash_table_lookup (pathname_to_g_file, pathname_in_entry);
+    autoar_create_do_write_data (arcreate, a, entry, file_to_read, in_thread);
+    /* I think we do not have to remove the entry in the hash table now
+     * because we are going to free the entire hash table. */
+  }
+
+  g_free (source_basename_noext);
   archive_entry_linkresolver_free (resolver);
   g_hash_table_unref (pathname_to_g_file);
+
+  if (arcreate->priv->error != NULL) {
+    archive_write_free (a);
+    return;
+  }
 
   r = archive_write_close (a);
   if (r != ARCHIVE_OK) {

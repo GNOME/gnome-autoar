@@ -1115,6 +1115,7 @@ autoar_extract_run (AutoarExtract *arextract,
     use_raw_format = TRUE;
   }
   bad_filename = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
+  pathname_basename = NULL;
   while ((r = archive_read_next_header (a, &entry)) == ARCHIVE_OK) {
     const char *pathname, *dir_sep_location;
     size_t skip_len, prefix_len;

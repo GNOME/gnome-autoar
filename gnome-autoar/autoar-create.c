@@ -406,6 +406,8 @@ autoar_create_do_write_data (AutoarCreate *arcreate,
     g_debug ("autoar_create_do_write_data: entry size is %"G_GUINT64_FORMAT,
              archive_entry_size (entry));
 
+    written_actual = 0;
+
     istream = (GInputStream*)g_file_read (file, NULL, &(arcreate->priv->error));
     if (istream == NULL)
       return;

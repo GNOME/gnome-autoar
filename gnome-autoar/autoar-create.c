@@ -486,6 +486,7 @@ autoar_create_do_add_to_archive (AutoarCreate *arcreate,
                                  GHashTable *pathname_to_g_file)
 {
   GFileInfo *info;
+  GFileType  filetype;
   char *root_basename;
   char *pathname_relative;
   char *pathname;
@@ -506,20 +507,32 @@ autoar_create_do_add_to_archive (AutoarCreate *arcreate,
   if (info == NULL)
     return;
 
-  root_basename = g_file_get_basename (root);
-  pathname_relative = g_file_get_relative_path (root, file);
-  pathname = g_strconcat (prepend_basename ? basename : "",
-                          prepend_basename ? "/" : "",
-                          root_basename,
-                          pathname_relative != NULL ? "/" : "",
-                          pathname_relative != NULL ? pathname_relative : "",
-                          NULL);
-  g_debug ("autoar_create_do_add_to_archive: %s", pathname);
+  switch (archive_format (a)) {
+    /* ar format does not support directories */
+    case ARCHIVE_FORMAT_AR:
+    case ARCHIVE_FORMAT_AR_GNU:
+    case ARCHIVE_FORMAT_AR_BSD:
+      pathname = g_file_get_basename (file);
+      archive_entry_set_pathname (entry, pathname);
+      g_free (pathname);
+      break;
 
-  archive_entry_set_pathname (entry, pathname);
-  g_free (root_basename);
-  g_free (pathname_relative);
-  g_free (pathname);
+    default:
+      root_basename = g_file_get_basename (root);
+      pathname_relative = g_file_get_relative_path (root, file);
+      pathname = g_strconcat (prepend_basename ? basename : "",
+                              prepend_basename ? "/" : "",
+                              root_basename,
+                              pathname_relative != NULL ? "/" : "",
+                              pathname_relative != NULL ? pathname_relative : "",
+                              NULL);
+      archive_entry_set_pathname (entry, pathname);
+      g_free (root_basename);
+      g_free (pathname_relative);
+      g_free (pathname);
+  }
+
+  g_debug ("autoar_create_do_add_to_archive: %s", archive_entry_pathname (entry));
 
   atime = g_file_info_get_attribute_uint64 (info, G_FILE_ATTRIBUTE_TIME_ACCESS);
   btime = g_file_info_get_attribute_uint64 (info, G_FILE_ATTRIBUTE_TIME_CREATED);
@@ -548,16 +561,43 @@ autoar_create_do_add_to_archive (AutoarCreate *arcreate,
   archive_entry_set_nlink (entry, g_file_info_get_attribute_uint32 (info, G_FILE_ATTRIBUTE_UNIX_NLINK));
   archive_entry_set_rdev (entry, g_file_info_get_attribute_uint32 (info, G_FILE_ATTRIBUTE_UNIX_RDEV));
 
-  switch (g_file_info_get_file_type (info)) {
+  filetype = g_file_info_get_file_type (info);
+  switch (archive_format (a)) {
+    case ARCHIVE_FORMAT_AR:
+    case ARCHIVE_FORMAT_AR_GNU:
+    case ARCHIVE_FORMAT_AR_BSD:
+      if (filetype == G_FILE_TYPE_DIRECTORY ||
+          filetype == G_FILE_TYPE_SYMBOLIC_LINK ||
+          filetype == G_FILE_TYPE_SPECIAL) {
+        /* ar only support regular files, so we abort this operation to
+         * prevent producing a malformed archive. */
+        g_object_unref (info);
+        return;
+      }
+      break;
+
+    case ARCHIVE_FORMAT_ZIP:
+      if (filetype == G_FILE_TYPE_SPECIAL) {
+        /* Add special files to zip archives cause unknown fatal error
+         * in libarchive. */
+        g_object_unref (info);
+        return;
+      }
+      break;
+  }
+
+  switch (filetype) {
     case G_FILE_TYPE_DIRECTORY:
       g_debug ("autoar_create_do_add_to_archive: file type set to DIR");
       archive_entry_set_filetype (entry, AE_IFDIR);
       break;
+
     case G_FILE_TYPE_SYMBOLIC_LINK:
       g_debug ("autoar_create_do_add_to_archive: file type set to SYMLINK");
       archive_entry_set_filetype (entry, AE_IFLNK);
       archive_entry_set_symlink (entry, g_file_info_get_attribute_byte_string (info, G_FILE_ATTRIBUTE_STANDARD_SYMLINK_TARGET));
       break;
+
     case G_FILE_TYPE_SPECIAL:
 #ifdef HAVE_STAT
       local_pathname = g_file_get_path (file);
@@ -584,6 +624,7 @@ autoar_create_do_add_to_archive (AutoarCreate *arcreate,
         archive_entry_set_filetype (entry, AE_IFREG);
       }
       break;
+
 #endif
     case G_FILE_TYPE_UNKNOWN:
     case G_FILE_TYPE_SHORTCUT:

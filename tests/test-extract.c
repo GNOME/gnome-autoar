@@ -58,16 +58,10 @@ main (int argc,
   AutoarExtract *arextract;
   AutoarPref *arpref;
   GSettings *settings;
-  const char *pattern[] = {
-    "__MACOSX",
-    ".DS_Store",
-    "._.*",
-    "*.in",
-    NULL
-  };
 
   if (argc < 3) {
-    g_printerr ("Usage: %s archive_file output_dir\n", argv[0]);
+    g_printerr ("Usage: %s archive_file output_dir pattern_to_ignore ...\n",
+                argv[0]);
     return 255;
   }
 
@@ -75,7 +69,7 @@ main (int argc,
 
   arpref = autoar_pref_new_with_gsettings (settings);
   autoar_pref_set_delete_if_succeed (arpref, FALSE);
-  autoar_pref_set_pattern_to_ignore (arpref, pattern);
+  autoar_pref_set_pattern_to_ignore (arpref, (const char**)argv + 3);
 
   autoar_pref_forget_changes (arpref);
   autoar_pref_write_gsettings (arpref, settings);

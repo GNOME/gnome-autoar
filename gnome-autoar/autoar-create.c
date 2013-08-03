@@ -44,6 +44,7 @@ G_DEFINE_TYPE (AutoarCreate, autoar_create, G_TYPE_OBJECT)
   (G_TYPE_INSTANCE_GET_PRIVATE ((o), AUTOAR_TYPE_CREATE, AutoarCreatePrivate))
 
 #define BUFFER_SIZE (64 * 1024)
+#define ARCHIVE_WRITE_RETRY_TIMES 5
 
 struct _AutoarCreatePrivate
 {
@@ -390,9 +391,11 @@ autoar_create_do_write_data (AutoarCreate *arcreate,
   while ((r = archive_write_header (a, entry)) == ARCHIVE_RETRY);
   if (r == ARCHIVE_FATAL) {
     if (arcreate->priv->error == NULL)
-      arcreate->priv->error = g_error_new_literal (autoar_create_quark,
-                                                   archive_errno (a),
-                                                   archive_error_string (a));
+      arcreate->priv->error = g_error_new (autoar_create_quark,
+                                           archive_errno (a),
+                                           "\'%s\': %s",
+                                           archive_entry_pathname (entry),
+                                           archive_error_string (a));
     return;
   }
 
@@ -402,6 +405,7 @@ autoar_create_do_write_data (AutoarCreate *arcreate,
   if (archive_entry_size (entry) > 0 && archive_entry_filetype (entry) == AE_IFREG) {
     GInputStream *istream;
     ssize_t read_actual, written_actual, written_acc;
+    int written_try;
 
     g_debug ("autoar_create_do_write_data: entry size is %"G_GUINT64_FORMAT,
              archive_entry_size (entry));
@@ -429,10 +433,14 @@ autoar_create_do_write_data (AutoarCreate *arcreate,
                                    arcreate->priv->completed_files);
       if (read_actual > 0) {
         written_acc = 0;
+        written_try = 0;
         do {
           written_actual = archive_write_data (a, (const char*)(arcreate->priv->buffer) + written_acc, read_actual);
           written_acc += written_actual > 0 ? written_actual : 0;
-        } while (written_acc < read_actual && written_actual >= 0);
+          written_try = written_actual ? 0 : written_try + 1;
+          /* archive_write_data may return zero, so we have to limit the
+           * retry times to prevent infinite loop */
+        } while (written_acc < read_actual && written_actual >= 0 && written_try < ARCHIVE_WRITE_RETRY_TIMES);
       }
     } while (read_actual > 0 && written_actual >= 0);
 
@@ -443,11 +451,13 @@ autoar_create_do_write_data (AutoarCreate *arcreate,
     if (read_actual < 0)
       return;
 
-    if (written_actual < 0) {
+    if (written_actual < 0 || written_try >= ARCHIVE_WRITE_RETRY_TIMES) {
       if (arcreate->priv->error == NULL)
-        arcreate->priv->error = g_error_new_literal (autoar_create_quark,
-                                                     archive_errno (a),
-                                                     archive_error_string (a));
+        arcreate->priv->error = g_error_new (autoar_create_quark,
+                                             archive_errno (a),
+                                             "\'%s\': %s",
+                                             archive_entry_pathname (entry),
+                                             archive_error_string (a));
       return;
     }
     g_debug ("autoar_create_do_write_data: write data OK");
@@ -1074,9 +1084,10 @@ autoar_create_run (AutoarCreate *arcreate,
   if (r != ARCHIVE_OK) {
     archive_write_free (a);
     if (arcreate->priv->error == NULL)
-      arcreate->priv->error = g_error_new_literal (autoar_create_quark,
-                                                   archive_errno (a),
-                                                   archive_error_string (a));
+      arcreate->priv->error = g_error_new (autoar_create_quark,
+                                           archive_errno (a),
+                                           "%s",
+                                           archive_error_string (a));
     autoar_common_g_signal_emit (in_thread, arcreate,
                                  autoar_create_signals[ERROR],
                                  0, arcreate->priv->error);
@@ -1171,9 +1182,10 @@ autoar_create_run (AutoarCreate *arcreate,
   r = archive_write_close (a);
   if (r != ARCHIVE_OK) {
     if (arcreate->priv->error == NULL)
-      arcreate->priv->error = g_error_new_literal (autoar_create_quark,
-                                                   archive_errno (a),
-                                                   archive_error_string (a));
+      arcreate->priv->error = g_error_new (autoar_create_quark,
+                                           archive_errno (a),
+                                           "%s",
+                                           archive_error_string (a));
 
     archive_write_free (a);
     return;

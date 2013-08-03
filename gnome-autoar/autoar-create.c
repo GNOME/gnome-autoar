@@ -411,6 +411,7 @@ autoar_create_do_write_data (AutoarCreate *arcreate,
              archive_entry_size (entry));
 
     written_actual = 0;
+    written_try = 0;
 
     istream = (GInputStream*)g_file_read (file, NULL, &(arcreate->priv->error));
     if (istream == NULL)

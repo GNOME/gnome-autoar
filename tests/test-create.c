@@ -59,7 +59,7 @@ main (int argc,
   autoar_pref_set_default_format (arpref, atoi (argv[1]));
   autoar_pref_set_default_filter (arpref, atoi (argv[2]));
 
-  arcreate = autoar_create_newv (arpref, argv[3], argv + 4);
+  arcreate = autoar_create_newv (arpref, argv[3], (const char**)argv + 4);
   g_signal_connect (arcreate, "decide-dest", G_CALLBACK (my_handler_decide_dest), NULL);
   g_signal_connect (arcreate, "progress", G_CALLBACK (my_handler_progress), NULL);
   g_signal_connect (arcreate, "error", G_CALLBACK (my_handler_error), NULL);

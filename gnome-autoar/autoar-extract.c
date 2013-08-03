@@ -61,6 +61,8 @@ G_DEFINE_TYPE (AutoarExtract, autoar_extract, G_TYPE_OBJECT)
 #define BUFFER_SIZE (64 * 1024)
 #define NOT_AN_ARCHIVE_ERRNO 2013
 
+typedef struct _GFileAndInfo GFileAndInfo;
+
 struct _AutoarExtractPrivate
 {
   char *source;
@@ -78,6 +80,12 @@ struct _AutoarExtractPrivate
   void         *buffer;
   gssize        buffer_size;
   GError       *error;
+};
+
+struct _GFileAndInfo
+{
+  GFile *file;
+  GFileInfo *info;
 };
 
 enum
@@ -456,6 +464,13 @@ g_pattern_spec_free_safe (void *pattern_compiled)
     g_pattern_spec_free (pattern_compiled);
 }
 
+static void
+g_file_and_info_free (void *g_file_and_info) {
+  GFileAndInfo *fi = g_file_and_info;
+  g_object_unref (fi->file);
+  g_object_unref (fi->info);
+}
+
 static GFile*
 autoar_extract_do_sanitize_pathname (const char *pathname,
                                      const char *skip_chars,
@@ -543,6 +558,7 @@ autoar_extract_do_write_entry (AutoarExtract *arextract,
                                GFile *top_level_dir,
                                GHashTable *userhash,
                                GHashTable *grouphash,
+                               GArray *extracted_dir_list,
                                gboolean in_thread,
                                gboolean use_raw_format)
 {
@@ -565,6 +581,7 @@ autoar_extract_do_write_entry (AutoarExtract *arextract,
 
   guint32 uid, gid;
   char *str, *str2;
+  GFileAndInfo fileandinfo;
 
   parent = g_file_get_parent (dest);
   if (!g_file_query_exists (parent, NULL))
@@ -739,6 +756,9 @@ autoar_extract_do_write_entry (AutoarExtract *arextract,
           return;
         }
       }
+      fileandinfo.file = g_object_ref (dest);
+      fileandinfo.info = g_object_ref (info);
+      g_array_append_val (extracted_dir_list, fileandinfo);
       break;
     case AE_IFLNK:
       g_debug ("autoar_extract_do_write_entry: case LNK");
@@ -1025,6 +1045,7 @@ autoar_extract_run (AutoarExtract *arextract,
 
   const char **pattern;
   GPtrArray *pattern_compiled;
+  GArray *extracted_dir_list;
 
   GFile *source;
   char *source_basename;
@@ -1288,6 +1309,8 @@ autoar_extract_run (AutoarExtract *arextract,
   }
   userhash = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
   grouphash = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
+  extracted_dir_list = g_array_new (FALSE, FALSE, sizeof (GFileAndInfo));
+  g_array_set_clear_func (extracted_dir_list, g_file_and_info_free);
   while ((r = archive_read_next_header (a, &entry)) == ARCHIVE_OK) {
     const char *pathname;
     const char *hardlink;
@@ -1328,6 +1351,7 @@ autoar_extract_run (AutoarExtract *arextract,
                                    top_level_dir,
                                    userhash,
                                    grouphash,
+                                   extracted_dir_list,
                                    in_thread,
                                    use_raw_format);
 
@@ -1343,6 +1367,7 @@ autoar_extract_run (AutoarExtract *arextract,
       g_hash_table_unref (userhash);
       g_hash_table_unref (grouphash);
       g_hash_table_unref (bad_filename);
+      g_array_unref (extracted_dir_list);
       archive_read_close (a);
       archive_read_free (a);
       return;
@@ -1373,15 +1398,25 @@ autoar_extract_run (AutoarExtract *arextract,
     g_hash_table_unref (userhash);
     g_hash_table_unref (grouphash);
     g_hash_table_unref (bad_filename);
+    g_array_unref (extracted_dir_list);
     archive_read_close (a);
     archive_read_free (a);
     return;
+  }
+
+  for (i = 0; i < extracted_dir_list->len; i++) {
+    GFile *file = g_array_index (extracted_dir_list, GFileAndInfo, i).file;
+    GFileInfo *info = g_array_index (extracted_dir_list, GFileAndInfo, i).info;
+    g_file_set_attributes_from_info (file, info,
+                                     G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
+                                     NULL, NULL);
   }
 
   g_object_unref (top_level_dir);
   g_hash_table_unref (userhash);
   g_hash_table_unref (grouphash);
   g_hash_table_unref (bad_filename);
+  g_array_unref (extracted_dir_list);
   archive_read_close (a);
   archive_read_free (a);
   if (arextract->priv->error != NULL) {

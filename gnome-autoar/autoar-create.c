@@ -398,8 +398,8 @@ autoar_create_do_write_data (AutoarCreate *arcreate,
 
   g_debug ("autoar_create_do_write_data: write header OK");
 
-  /* Symlinks have size > 0, but there is nothing to write */
-  if (archive_entry_size (entry) > 0 && archive_entry_filetype (entry) != AE_IFLNK) {
+  /* Non-regular files have no content to write */
+  if (archive_entry_size (entry) > 0 && archive_entry_filetype (entry) == AE_IFREG) {
     GInputStream *istream;
     ssize_t read_actual, written_actual, written_acc;
 

@@ -1199,7 +1199,6 @@ autoar_extract_run (AutoarExtract *arextract,
   g_object_unref (source);
   top_level_dir_basename = autoar_common_get_basename_remove_extension (source_basename);
   top_level_parent_dir = g_file_new_for_commandline_arg (arextract->priv->output);
-  top_level_dir = g_file_get_child (top_level_parent_dir, top_level_dir_basename);
 
   pathname_extension = autoar_common_get_filename_extension (pathname_basename);
   if (has_only_one_file && (pathname_extension != pathname_basename)) {

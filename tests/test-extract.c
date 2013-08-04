@@ -81,7 +81,7 @@ main (int argc,
   g_signal_connect (arextract, "error", G_CALLBACK (my_handler_error), NULL);
   g_signal_connect (arextract, "completed", G_CALLBACK (my_handler_completed), NULL);
 
-  autoar_extract_start (arextract);
+  autoar_extract_start (arextract, NULL);
 
   g_object_unref (arextract);
   g_object_unref (arpref);

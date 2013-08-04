@@ -48,6 +48,7 @@ AC_TYPE_MODE_T
 AC_TYPE_OFF_T
 AC_TYPE_SIZE_T
 AC_TYPE_SSIZE_T
+AC_C_INLINE
 
 # Checks for library functions.
 AC_CHECK_FUNCS([getgrnam getpwnam link mkfifo mknod stat])

@@ -62,6 +62,7 @@ struct _AutoarExtractClass
   void (* progress)   (AutoarExtract *arextract,
                        gdouble fraction_size,
                        gdouble fraction_files);
+  void (* cancelled)  (AutoarExtract *arextract);
   void (* completed)  (AutoarExtract *arextract);
   void (* error)      (AutoarExtract *arextract,
                        GError *error);
@@ -73,8 +74,10 @@ AutoarExtract  *autoar_extract_new                 (const char *source,
                                                     const char *output,
                                                     AutoarPref *arpref);
 
-void            autoar_extract_start               (AutoarExtract *arextract);
-void            autoar_extract_start_async         (AutoarExtract *arextract);
+void            autoar_extract_start               (AutoarExtract *arextract,
+                                                    GCancellable *cancellable);
+void            autoar_extract_start_async         (AutoarExtract *arextract,
+                                                    GCancellable *cancellable);
 
 char           *autoar_extract_get_source          (AutoarExtract *arextract);
 char           *autoar_extract_get_output          (AutoarExtract *arextract);

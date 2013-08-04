@@ -27,15 +27,21 @@
 #ifndef AUTOAR_COMMON_H
 #define AUTOAR_COMMON_H
 
+#include <archive.h>
+#include <glib.h>
 #include <glib-object.h>
 
 char*     autoar_common_get_basename_remove_extension  (const char *filename);
 char*     autoar_common_get_filename_extension         (const char *filename);
 
-void      autoar_common_g_signal_emit                  (gboolean in_thread,
-                                                        gpointer instance,
+void      autoar_common_g_signal_emit                  (gpointer instance,
+                                                        gboolean in_thread,
                                                         guint signal_id,
                                                         GQuark detail,
                                                         ...);
+
+GError*   autoar_common_g_error_new_a                  (GQuark quark,
+                                                        struct archive *a,
+                                                        const char *pathname);
 
 #endif /* AUTOAR_COMMON_H */

@@ -107,8 +107,8 @@ autoar_common_g_signal_emit_main_context (void *data)
 }
 
 void
-autoar_common_g_signal_emit (gboolean in_thread,
-                             gpointer instance,
+autoar_common_g_signal_emit (gpointer instance,
+                             gboolean in_thread,
                              guint signal_id,
                              GQuark detail,
                              ...)
@@ -161,4 +161,20 @@ autoar_common_g_signal_emit (gboolean in_thread,
     g_signal_emit_valist (instance, signal_id, detail, ap);
   }
   va_end (ap);
+}
+
+GError*
+autoar_common_g_error_new_a (GQuark quark,
+                             struct archive *a,
+                             const char *pathname)
+{
+  GError *newerror;
+  newerror = g_error_new (quark,
+                          archive_errno (a),
+                          "%s%s%s%s",
+                          pathname != NULL ? "\'" : "",
+                          pathname != NULL ? pathname : "",
+                          pathname != NULL ? "\': " : "",
+                          archive_error_string (a));
+  return newerror;
 }

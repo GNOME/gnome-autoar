@@ -80,6 +80,18 @@ struct _AutoarExtractPrivate
   void         *buffer;
   gssize        buffer_size;
   GError       *error;
+
+  GCancellable *cancellable;
+
+  GHashTable *userhash;
+  GHashTable *grouphash;
+  GHashTable *bad_filename;
+  GPtrArray  *pattern_compiled;
+  GArray     *extracted_dir_list;
+  GFile      *top_level_dir;
+
+  int in_thread : 1;
+  int use_raw_format : 1;
 };
 
 struct _GFileAndInfo
@@ -93,6 +105,7 @@ enum
   SCANNED,
   DECIDE_DEST,
   PROGRESS,
+  CANCELLED,
   COMPLETED,
   ERROR,
   LAST_SIGNAL
@@ -268,11 +281,47 @@ static void
 autoar_extract_dispose (GObject *object)
 {
   AutoarExtract *arextract;
+  AutoarExtractPrivate *priv;
+
   arextract = AUTOAR_EXTRACT (object);
+  priv = arextract->priv;
 
   g_debug ("AutoarExtract: dispose");
 
-  g_clear_object (&(arextract->priv->arpref));
+  if (priv->istream != NULL) {
+    if (!g_input_stream_is_closed (priv->istream)) {
+      g_input_stream_close (priv->istream, NULL, NULL);
+    }
+    g_object_unref (priv->istream);
+  }
+
+  g_clear_object (&(priv->arpref));
+  g_clear_object (&(priv->top_level_dir));
+
+  if (priv->userhash != NULL) {
+    g_hash_table_unref (priv->userhash);
+    priv->userhash = NULL;
+  }
+
+  if (priv->grouphash != NULL) {
+    g_hash_table_unref (priv->grouphash);
+    priv->grouphash = NULL;
+  }
+
+  if (priv->bad_filename != NULL) {
+    g_hash_table_unref (priv->bad_filename);
+    priv->bad_filename = NULL;
+  }
+
+  if (priv->pattern_compiled != NULL) {
+    g_ptr_array_unref (priv->pattern_compiled);
+    priv->pattern_compiled = NULL;
+  }
+
+  if (priv->extracted_dir_list != NULL) {
+    g_array_unref (priv->extracted_dir_list);
+    priv->extracted_dir_list = NULL;
+  }
 
   G_OBJECT_CLASS (autoar_extract_parent_class)->dispose (object);
 }
@@ -293,13 +342,6 @@ autoar_extract_finalize (GObject *object)
 
   g_free (priv->output);
   priv->output = NULL;
-
-  if (priv->istream != NULL) {
-    if (!g_input_stream_is_closed (priv->istream)) {
-      g_input_stream_close (priv->istream, NULL, NULL);
-    }
-    g_object_unref (priv->istream);
-  }
 
   g_free (priv->buffer);
   priv->buffer = NULL;
@@ -471,6 +513,57 @@ g_file_and_info_free (void *g_file_and_info) {
   g_object_unref (fi->info);
 }
 
+static inline void
+autoar_extract_signal_scanned (AutoarExtract *arextract)
+{
+  autoar_common_g_signal_emit (arextract, arextract->priv->in_thread,
+                               autoar_extract_signals[SCANNED], 0,
+                               arextract->priv->files);
+}
+
+static inline void
+autoar_extract_signal_decide_dest (AutoarExtract *arextract)
+{
+  autoar_common_g_signal_emit (arextract, arextract->priv->in_thread,
+                               autoar_extract_signals[DECIDE_DEST], 0,
+                               arextract->priv->top_level_dir);
+}
+
+static inline void
+autoar_extract_signal_progress (AutoarExtract *arextract)
+{
+  autoar_common_g_signal_emit (arextract, arextract->priv->in_thread,
+                               autoar_extract_signals[PROGRESS], 0,
+                               ((double)(arextract->priv->completed_size)) /
+                               ((double)(arextract->priv->size)),
+                               ((double)(arextract->priv->completed_files)) /
+                               ((double)(arextract->priv->files)));
+}
+
+static inline void
+autoar_extract_signal_cancelled (AutoarExtract *arextract)
+{
+  autoar_common_g_signal_emit (arextract, arextract->priv->in_thread,
+                               autoar_extract_signals[CANCELLED], 0);
+
+}
+
+static inline void
+autoar_extract_signal_completed (AutoarExtract *arextract)
+{
+  autoar_common_g_signal_emit (arextract, arextract->priv->in_thread,
+                               autoar_extract_signals[COMPLETED], 0);
+
+}
+
+static inline void
+autoar_extract_signal_error (AutoarExtract *arextract)
+{
+  autoar_common_g_signal_emit (arextract, arextract->priv->in_thread,
+                               autoar_extract_signals[ERROR], 0,
+                               arextract->priv->error);
+}
+
 static GFile*
 autoar_extract_do_sanitize_pathname (const char *pathname,
                                      const char *skip_chars,
@@ -554,39 +647,22 @@ autoar_extract_do_write_entry (AutoarExtract *arextract,
                                struct archive *a,
                                struct archive_entry *entry,
                                GFile *dest,
-                               GFile *hardlink,
-                               GFile *top_level_dir,
-                               GHashTable *userhash,
-                               GHashTable *grouphash,
-                               GArray *extracted_dir_list,
-                               gboolean in_thread,
-                               gboolean use_raw_format)
+                               GFile *hardlink)
 {
-  GOutputStream *ostream;
+  AutoarExtractPrivate *priv;
   GFileInfo *info;
-  GFile *parent;
   mode_t filetype;
-  const void *buffer;
-  size_t size, written;
-  off_t offset;
   int r;
 
-#ifdef HAVE_GETPWNAM
-  const char *uname;
-#endif
+  priv = arextract->priv;
 
-#ifdef HAVE_GETGRNAM
-  const char *gname;
-#endif
-
-  guint32 uid, gid;
-  char *str, *str2;
-  GFileAndInfo fileandinfo;
-
-  parent = g_file_get_parent (dest);
-  if (!g_file_query_exists (parent, NULL))
-    g_file_make_directory_with_parents (parent, NULL, NULL);
-  g_object_unref (parent);
+  {
+    GFile *parent;
+    parent = g_file_get_parent (dest);
+    if (!g_file_query_exists (parent, NULL))
+      g_file_make_directory_with_parents (parent, NULL, NULL);
+    g_object_unref (parent);
+  }
 
   info = g_file_info_new ();
 
@@ -626,49 +702,61 @@ autoar_extract_do_write_entry (AutoarExtract *arextract,
   }
 
   /* user */
-  g_debug ("autoar_extract_do_write_entry: user");
+  {
+    guint32 uid;
+    const char *uname;
+
+    g_debug ("autoar_extract_do_write_entry: user");
 #ifdef HAVE_GETPWNAM
-  if ((uname = archive_entry_uname (entry)) != NULL) {
-    void *got_uid;
-    if (g_hash_table_lookup_extended (userhash, uname, NULL, &got_uid) == TRUE) {
-      uid = GPOINTER_TO_UINT (got_uid);
-    } else {
-      struct passwd *pwd = getpwnam (uname);
-      if (pwd == NULL) {
-        uid = archive_entry_uid (entry);
+    if ((uname = archive_entry_uname (entry)) != NULL) {
+      void *got_uid;
+      if (g_hash_table_lookup_extended (priv->userhash, uname, NULL, &got_uid) == TRUE) {
+        uid = GPOINTER_TO_UINT (got_uid);
       } else {
-        uid = pwd->pw_uid;
-        g_hash_table_insert (userhash, g_strdup (uname), GUINT_TO_POINTER (uid));
+        struct passwd *pwd = getpwnam (uname);
+        if (pwd == NULL) {
+          uid = archive_entry_uid (entry);
+        } else {
+          uid = pwd->pw_uid;
+          g_hash_table_insert (priv->userhash, g_strdup (uname), GUINT_TO_POINTER (uid));
+        }
       }
-    }
-    g_file_info_set_attribute_uint32 (info, G_FILE_ATTRIBUTE_UNIX_UID, uid);
-  } else
+      g_file_info_set_attribute_uint32 (info, G_FILE_ATTRIBUTE_UNIX_UID, uid);
+    } else
 #endif
-  if ((uid = archive_entry_uid (entry)) != 0) {
-    g_file_info_set_attribute_uint32 (info, G_FILE_ATTRIBUTE_UNIX_UID, uid);
+
+    if ((uid = archive_entry_uid (entry)) != 0) {
+      g_file_info_set_attribute_uint32 (info, G_FILE_ATTRIBUTE_UNIX_UID, uid);
+    }
   }
 
   /* group */
-  g_debug ("autoar_extract_do_write_entry: group");
+  {
+    guint32 gid;
+    const char *gname;
+
+    g_debug ("autoar_extract_do_write_entry: group");
 #ifdef HAVE_GETGRNAM
-  if ((gname = archive_entry_gname (entry)) != NULL) {
-    void *got_gid;
-    if (g_hash_table_lookup_extended (grouphash, gname, NULL, &got_gid) == TRUE) {
-      gid = GPOINTER_TO_UINT (got_gid);
-    } else {
-      struct group *grp = getgrnam (gname);
-      if (grp == NULL) {
-        gid = archive_entry_gid (entry);
+    if ((gname = archive_entry_gname (entry)) != NULL) {
+      void *got_gid;
+      if (g_hash_table_lookup_extended (priv->grouphash, gname, NULL, &got_gid) == TRUE) {
+        gid = GPOINTER_TO_UINT (got_gid);
       } else {
-        gid = grp->gr_gid;
-        g_hash_table_insert (grouphash, g_strdup (gname), GUINT_TO_POINTER (gid));
+        struct group *grp = getgrnam (gname);
+        if (grp == NULL) {
+          gid = archive_entry_gid (entry);
+        } else {
+          gid = grp->gr_gid;
+          g_hash_table_insert (priv->grouphash, g_strdup (gname), GUINT_TO_POINTER (gid));
+        }
       }
-    }
-    g_file_info_set_attribute_uint32 (info, G_FILE_ATTRIBUTE_UNIX_GID, gid);
-  } else
+      g_file_info_set_attribute_uint32 (info, G_FILE_ATTRIBUTE_UNIX_GID, gid);
+    } else
 #endif
-  if ((gid = archive_entry_gid (entry)) != 0) {
-    g_file_info_set_attribute_uint32 (info, G_FILE_ATTRIBUTE_UNIX_GID, gid);
+
+    if ((gid = archive_entry_gid (entry)) != 0) {
+      g_file_info_set_attribute_uint32 (info, G_FILE_ATTRIBUTE_UNIX_GID, gid);
+    }
   }
 
   /* permissions */
@@ -679,11 +767,13 @@ autoar_extract_do_write_entry (AutoarExtract *arextract,
 
 #ifdef HAVE_LINK
   if (hardlink != NULL) {
-    r = link (str2 = g_file_get_path (hardlink), str = g_file_get_path (dest));
+    char *hardlink_path, *dest_path;
+    r = link (hardlink_path = g_file_get_path (hardlink),
+              dest_path = g_file_get_path (dest));
     g_debug ("autoar_extract_do_write_entry: hard link, %s => %s, %d",
-             str, str2, r);
-    g_free (str);
-    g_free (str2);
+             dest_path, hardlink_path, r);
+    g_free (hardlink_path);
+    g_free (dest_path);
     if (r >= 0) {
       g_debug ("autoar_extract_do_write_entry: skip file creation");
       goto applyinfo;
@@ -696,69 +786,73 @@ autoar_extract_do_write_entry (AutoarExtract *arextract,
   switch (filetype = archive_entry_filetype (entry)) {
     default:
     case AE_IFREG:
-      g_debug ("autoar_extract_do_write_entry: case REG");
-      ostream = (GOutputStream*)g_file_replace (dest,
-                                                NULL,
-                                                FALSE,
-                                                G_FILE_CREATE_NONE,
-                                                NULL,
-                                                &(arextract->priv->error));
-      if (arextract->priv->error != NULL) {
-        g_object_unref (info);
-        return;
-      }
-      if (ostream != NULL) {
-        /* Archive entry size may be zero if we use raw format. */
-        if (archive_entry_size(entry) > 0 || use_raw_format) {
-          while (archive_read_data_block (a, &buffer, &size, &offset) == ARCHIVE_OK) {
-            /* buffer == NULL occurs in some zip archives when an entry is
-             * completely read. We just skip this situation to prevent GIO
-             * warnings. */
-            if (buffer == NULL)
-              continue;
-            g_output_stream_write_all (ostream,
-                                       buffer,
-                                       size,
-                                       &written,
-                                       NULL,
-                                       &(arextract->priv->error));
-            if (arextract->priv->error != NULL) {
-              g_output_stream_close (ostream, NULL, NULL);
-              g_object_unref (ostream);
-              g_object_unref (info);
-              return;
-            }
-            arextract->priv->completed_size += written;
-            autoar_common_g_signal_emit (in_thread,
-                                         arextract,
-                                         autoar_extract_signals[PROGRESS],
-                                         0,
-                                         ((double)(arextract->priv->completed_size)) /
-                                         ((double)(arextract->priv->size)),
-                                         ((double)(arextract->priv->completed_files)) /
-                                         ((double)(arextract->priv->files)));
-          }
-        }
-        g_output_stream_close (ostream, NULL, NULL);
-        g_object_unref (ostream);
-      }
-      break;
-    case AE_IFDIR:
-      g_debug ("autoar_extract_do_write_entry: case DIR");
-      g_file_make_directory_with_parents (dest, NULL, &(arextract->priv->error));
-      if (arextract->priv->error != NULL) {
-        /* "File exists" is not a fatal error */
-        if (arextract->priv->error->code == G_IO_ERROR_EXISTS) {
-          g_error_free (arextract->priv->error);
-          arextract->priv->error = NULL;
-        } else {
+      {
+        GOutputStream *ostream;
+        const void *buffer;
+        size_t size, written;
+        off_t offset;
+
+        g_debug ("autoar_extract_do_write_entry: case REG");
+        ostream = (GOutputStream*)g_file_replace (dest,
+                                                  NULL,
+                                                  FALSE,
+                                                  G_FILE_CREATE_NONE,
+                                                  NULL,
+                                                  &(arextract->priv->error));
+        if (arextract->priv->error != NULL) {
           g_object_unref (info);
           return;
         }
+        if (ostream != NULL) {
+          /* Archive entry size may be zero if we use raw format. */
+          if (archive_entry_size(entry) > 0 || priv->use_raw_format) {
+            while (archive_read_data_block (a, &buffer, &size, &offset) == ARCHIVE_OK) {
+              /* buffer == NULL occurs in some zip archives when an entry is
+               * completely read. We just skip this situation to prevent GIO
+               * warnings. */
+              if (buffer == NULL)
+                continue;
+              g_output_stream_write_all (ostream,
+                                         buffer,
+                                         size,
+                                         &written,
+                                         NULL,
+                                         &(arextract->priv->error));
+              if (arextract->priv->error != NULL) {
+                g_output_stream_close (ostream, NULL, NULL);
+                g_object_unref (ostream);
+                g_object_unref (info);
+                return;
+              }
+              arextract->priv->completed_size += written;
+              autoar_extract_signal_progress (arextract);
+            }
+          }
+          g_output_stream_close (ostream, NULL, NULL);
+          g_object_unref (ostream);
+        }
       }
-      fileandinfo.file = g_object_ref (dest);
-      fileandinfo.info = g_object_ref (info);
-      g_array_append_val (extracted_dir_list, fileandinfo);
+      break;
+    case AE_IFDIR:
+      {
+        GFileAndInfo fileandinfo;
+
+        g_debug ("autoar_extract_do_write_entry: case DIR");
+        g_file_make_directory_with_parents (dest, NULL, &(arextract->priv->error));
+        if (arextract->priv->error != NULL) {
+          /* "File exists" is not a fatal error */
+          if (arextract->priv->error->code == G_IO_ERROR_EXISTS) {
+            g_error_free (arextract->priv->error);
+            arextract->priv->error = NULL;
+          } else {
+            g_object_unref (info);
+            return;
+          }
+        }
+        fileandinfo.file = g_object_ref (dest);
+        fileandinfo.info = g_object_ref (info);
+        g_array_append_val (priv->extracted_dir_list, fileandinfo);
+      }
       break;
     case AE_IFLNK:
       g_debug ("autoar_extract_do_write_entry: case LNK");
@@ -771,39 +865,50 @@ autoar_extract_do_write_entry (AutoarExtract *arextract,
      * in the regular archives, so errors are not fatal. */
 #if defined HAVE_MKFIFO || defined HAVE_MKNOD
     case AE_IFIFO:
-      g_debug ("autoar_extract_do_write_entry: case FIFO");
+      {
+        char *path;
+        g_debug ("autoar_extract_do_write_entry: case FIFO");
 # ifdef HAVE_MKFIFO
-      r = mkfifo (str = g_file_get_path (dest), archive_entry_perm (entry));
-      g_free (str);
+        r = mkfifo (path = g_file_get_path (dest), archive_entry_perm (entry));
 # else
-      r = mknod (str = g_file_get_path (dest),
-                 S_IFIFO | archive_entry_perm (entry),
-                 0);
-      g_free (str);
+        r = mknod (path = g_file_get_path (dest),
+                   S_IFIFO | archive_entry_perm (entry),
+                   0);
 # endif
+        g_free (path);
+      }
       break;
 #endif
 #ifdef HAVE_MKNOD
     case AE_IFSOCK:
-      g_debug ("autoar_extract_do_write_entry: case SOCK");
-      r = mknod (str = g_file_get_path (dest),
-                 S_IFSOCK | archive_entry_perm (entry),
-                 0);
-      g_free (str);
+      {
+        char *path;
+        g_debug ("autoar_extract_do_write_entry: case SOCK");
+        r = mknod (path = g_file_get_path (dest),
+                   S_IFSOCK | archive_entry_perm (entry),
+                   0);
+        g_free (path);
+      }
       break;
     case AE_IFBLK:
-      g_debug ("autoar_extract_do_write_entry: case BLK");
-      r = mknod (str = g_file_get_path (dest),
-                 S_IFBLK | archive_entry_perm (entry),
-                 archive_entry_rdev (entry));
-      g_free (str);
+      {
+        char *path;
+        g_debug ("autoar_extract_do_write_entry: case BLK");
+        r = mknod (path = g_file_get_path (dest),
+                   S_IFBLK | archive_entry_perm (entry),
+                   archive_entry_rdev (entry));
+        g_free (path);
+      }
       break;
     case AE_IFCHR:
-      g_debug ("autoar_extract_do_write_entry: case CHR");
-      r = mknod (str = g_file_get_path (dest),
-                 S_IFCHR | archive_entry_perm (entry),
-                 archive_entry_rdev (entry));
-      g_free (str);
+      {
+        char *path;
+        g_debug ("autoar_extract_do_write_entry: case CHR");
+        r = mknod (path = g_file_get_path (dest),
+                   S_IFCHR | archive_entry_perm (entry),
+                   archive_entry_rdev (entry));
+        g_free (path);
+      }
       break;
 #endif
   }
@@ -814,6 +919,7 @@ autoar_extract_do_write_entry (AutoarExtract *arextract,
                 filetype == AE_IFSOCK ||
                 filetype == AE_IFBLK ||
                 filetype == AE_IFCHR)) {
+    GOutputStream *ostream;
     ostream = (GOutputStream*)g_file_append_to (dest, G_FILE_CREATE_NONE, NULL, NULL);
     if (ostream != NULL) {
       g_output_stream_close (ostream, NULL, NULL);
@@ -953,6 +1059,16 @@ autoar_extract_class_init (AutoarExtractClass *klass)
                   G_TYPE_DOUBLE,
                   G_TYPE_DOUBLE);
 
+  autoar_extract_signals[CANCELLED] =
+    g_signal_new ("cancelled",
+                  type,
+                  G_SIGNAL_RUN_LAST,
+                  G_STRUCT_OFFSET (AutoarExtractClass, cancelled),
+                  NULL, NULL,
+                  g_cclosure_marshal_VOID__VOID,
+                  G_TYPE_NONE,
+                  0);
+
   autoar_extract_signals[COMPLETED] =
     g_signal_new ("completed",
                   type,
@@ -998,6 +1114,19 @@ autoar_extract_init (AutoarExtract *arextract)
   priv->buffer_size = BUFFER_SIZE;
   priv->buffer = g_new (char, priv->buffer_size);
   priv->error = NULL;
+
+  priv->cancellable = NULL;
+
+  priv->userhash = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
+  priv->grouphash = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
+  priv->bad_filename = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
+  priv->pattern_compiled = g_ptr_array_new_with_free_func (g_pattern_spec_free_safe);
+  priv->extracted_dir_list = g_array_new (FALSE, FALSE, sizeof (GFileAndInfo));
+  g_array_set_clear_func (priv->extracted_dir_list, g_file_and_info_free);
+  priv->top_level_dir = NULL;
+
+  priv->in_thread = FALSE;
+  priv->use_raw_format = FALSE;
 }
 
 AutoarExtract*
@@ -1020,65 +1149,51 @@ autoar_extract_new (const char *source,
 }
 
 static void
-autoar_extract_run (AutoarExtract *arextract,
-                    gboolean in_thread)
+autoar_extract_run (AutoarExtract *arextract)
 {
   struct archive *a;
   struct archive_entry *entry;
 
   char *pathname_basename;
-  char *pathname_extension;
   char *pathname_prefix;
   int pathname_prefix_len;
 
   gboolean has_top_level_dir;
   gboolean has_only_one_file;
-  gboolean use_raw_format;
-  char *top_level_dir_basename;
-  char *top_level_dir_basename_modified;
-  GFile *top_level_parent_dir;
-  GFile *top_level_dir;
 
-  GHashTable *userhash;
-  GHashTable *grouphash;
-  GHashTable *bad_filename;
-
-  const char **pattern;
-  GPtrArray *pattern_compiled;
-  GArray *extracted_dir_list;
-
-  GFile *source;
-  char *source_basename;
-
+  AutoarExtractPrivate *priv;
   int i, r;
 
   g_return_if_fail (AUTOAR_IS_EXTRACT (arextract));
-  g_return_if_fail (arextract->priv->source != NULL);
-  g_return_if_fail (arextract->priv->output != NULL);
+  priv = arextract->priv;
+
+  g_return_if_fail (priv->source != NULL);
+  g_return_if_fail (priv->output != NULL);
 
   a = archive_read_new ();
   archive_read_support_filter_all (a);
   archive_read_support_format_all (a);
 
   /* Reset all counter variables */
-  arextract->priv->size = 0;
-  arextract->priv->completed_size = 0;
-  arextract->priv->files = 0;
-  arextract->priv->completed_files = 0;
+  priv->size = 0;
+  priv->completed_size = 0;
+  priv->files = 0;
+  priv->completed_files = 0;
 
-  pattern = autoar_pref_get_pattern_to_ignore (arextract->priv->arpref);
-  pattern_compiled = g_ptr_array_new_with_free_func (g_pattern_spec_free_safe);
-  if (pattern != NULL) {
-    for (i = 0; pattern[i] != NULL; i++)
-      g_ptr_array_add (pattern_compiled, g_pattern_spec_new (pattern[i]));
+  {
+    const char **pattern = autoar_pref_get_pattern_to_ignore (priv->arpref);
+    priv->pattern_compiled = g_ptr_array_new_with_free_func (g_pattern_spec_free_safe);
+    if (pattern != NULL) {
+      for (i = 0; pattern[i] != NULL; i++)
+        g_ptr_array_add (priv->pattern_compiled, g_pattern_spec_new (pattern[i]));
+    }
+    g_ptr_array_add (priv->pattern_compiled, NULL);
   }
-  g_ptr_array_add (pattern_compiled, NULL);
 
   pathname_prefix = NULL;
   pathname_prefix_len = 0;
   has_top_level_dir = TRUE;
   has_only_one_file = TRUE;
-  use_raw_format = FALSE;
 
   /* Step 1: Scan all file names in the archive
    * We have to check whether the archive contains a top-level directory
@@ -1108,51 +1223,40 @@ autoar_extract_run (AutoarExtract *arextract,
     archive_read_set_callback_data (a, arextract);
     r = archive_read_open1 (a);
     if (r != ARCHIVE_OK || archive_filter_count (a) <= 1) {
-      if (arextract->priv->error == NULL) {
+      if (priv->error == NULL) {
         if (r != ARCHIVE_OK) {
-          arextract->priv->error = g_error_new (autoar_extract_quark,
-                                                archive_errno (a),
-                                                "\'%s\': %s",
-                                                arextract->priv->source,
-                                                archive_error_string (a));
+          priv->error = autoar_common_g_error_new_a (autoar_extract_quark, a, priv->source);
         } else {
           /* If we only use raw format and filter count is one, libarchive will
            * not do anything except for just copying the source file. We do not
            * want this thing to happen because it does unnecesssary copying. */
-          arextract->priv->error = g_error_new (autoar_extract_quark,
-                                                NOT_AN_ARCHIVE_ERRNO,
-                                                "\'%s\': %s",
-                                                arextract->priv->source,
-                                                "not an archive");
+          priv->error = g_error_new (autoar_extract_quark,
+                                     NOT_AN_ARCHIVE_ERRNO,
+                                     "\'%s\': %s",
+                                     priv->source,
+                                     "not an archive");
         }
       }
-      autoar_common_g_signal_emit (in_thread, arextract,
-                                   autoar_extract_signals[ERROR],
-                                   0, arextract->priv->error);
+      autoar_extract_signal_error (arextract);
       archive_read_free (a);
-      g_ptr_array_unref (pattern_compiled);
       return;
     }
-    use_raw_format = TRUE;
+    priv->use_raw_format = TRUE;
   }
-  bad_filename = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
   pathname_basename = NULL;
   while ((r = archive_read_next_header (a, &entry)) == ARCHIVE_OK) {
     const char *pathname, *dir_sep_location;
     size_t skip_len, prefix_len;
 
     pathname = archive_entry_pathname (entry);
-    g_debug ("autoar_extract_run: %d: pathname = %s",
-             arextract->priv->files,
-             pathname);
+    g_debug ("autoar_extract_run: %d: pathname = %s", priv->files, pathname);
 
-    if (!use_raw_format && !autoar_extract_do_pattern_check (pathname, pattern_compiled)) {
-      g_hash_table_insert (bad_filename, g_strdup (pathname), GUINT_TO_POINTER (TRUE));
+    if (!priv->use_raw_format && !autoar_extract_do_pattern_check (pathname, priv->pattern_compiled)) {
+      g_hash_table_insert (priv->bad_filename, g_strdup (pathname), GUINT_TO_POINTER (TRUE));
       continue;
     }
 
-    g_debug ("autoar_extract_run: %d: pattern check passed",
-             arextract->priv->files);
+    g_debug ("autoar_extract_run: %d: pattern check passed", priv->files);
 
     if (pathname_prefix == NULL) {
       pathname_basename = g_path_get_basename (pathname);
@@ -1172,115 +1276,109 @@ autoar_extract_run (AutoarExtract *arextract,
         has_top_level_dir = FALSE;
       }
     }
-    arextract->priv->files++;
-    arextract->priv->size += archive_entry_size (entry);
+    priv->files++;
+    priv->size += archive_entry_size (entry);
     archive_read_data_skip (a);
   }
   if (r != ARCHIVE_EOF) {
-    if (arextract->priv->error == NULL) {
-      arextract->priv->error = g_error_new (autoar_extract_quark,
-                                            archive_errno (a),
-                                            "\'%s\': %s",
-                                            arextract->priv->source,
-                                            archive_error_string (a));
+    if (priv->error == NULL) {
+      priv->error = autoar_common_g_error_new_a (autoar_extract_quark, a, priv->source);
     }
-    autoar_common_g_signal_emit (in_thread, arextract,
-                                 autoar_extract_signals[ERROR],
-                                 0, arextract->priv->error);
+    autoar_extract_signal_error (arextract);
     g_free (pathname_prefix);
     g_free (pathname_basename);
-    g_ptr_array_unref (pattern_compiled);
-    g_hash_table_unref (bad_filename);
     archive_read_close (a);
     archive_read_free (a);
     return;
   }
 
   g_free (pathname_prefix);
-  g_ptr_array_unref (pattern_compiled);
   archive_read_close (a);
   archive_read_free (a);
-  if (arextract->priv->error != NULL) {
-    autoar_common_g_signal_emit (in_thread, arextract,
-                                 autoar_extract_signals[ERROR],
-                                 0, arextract->priv->error);
-    g_hash_table_unref (bad_filename);
+  if (priv->error != NULL) {
+    g_free (pathname_basename);
+    autoar_extract_signal_error (arextract);
     return;
   }
   g_debug ("autoar_extract_run: has_top_level_dir = %s",
            has_top_level_dir ? "TRUE" : "FALSE");
-  autoar_common_g_signal_emit (in_thread, arextract,
-                               autoar_extract_signals[SCANNED],
-                               0, arextract->priv->files);
+  autoar_extract_signal_scanned (arextract);
 
   /* Step 2: Create necessary directories
    * If the archive contains only one file, we don't create the directory */
   g_debug ("autoar_extract_run: Step 2, Mkdir-p");
-  source = g_file_new_for_commandline_arg (arextract->priv->source);
-  source_basename = g_file_get_basename (source);
-  g_object_unref (source);
-  top_level_dir_basename = autoar_common_get_basename_remove_extension (source_basename);
-  top_level_parent_dir = g_file_new_for_commandline_arg (arextract->priv->output);
+  {
+    GFile *top_level_parent_dir;
+    char *top_level_dir_basename;
+    const char *pathname_extension;
 
-  pathname_extension = autoar_common_get_filename_extension (pathname_basename);
-  if (has_only_one_file && (pathname_extension != pathname_basename)) {
-    /* If we only have one file, we have to add the file extension.
-     * Although we use the variable `top_level_dir', it may be a regular
-     * file, so the extension is important. */
-    char *new_filename;
-    new_filename = g_strconcat (top_level_dir_basename, pathname_extension, NULL);
-    top_level_dir = g_file_get_child (top_level_parent_dir, new_filename);
-    g_free (new_filename);
-  } else {
-    top_level_dir = g_file_get_child (top_level_parent_dir, top_level_dir_basename);
-    pathname_extension = "";
-  }
-
-  top_level_dir_basename_modified = NULL;
-  for (i = 1; g_file_query_exists (top_level_dir, NULL); i++) {
-    g_free (top_level_dir_basename_modified);
-    g_object_unref (top_level_dir);
-    if (has_only_one_file) {
-      top_level_dir_basename_modified = g_strdup_printf ("%s(%d)%s",
-                                                         top_level_dir_basename,
-                                                         i,
-                                                         pathname_extension);
-    } else {
-      top_level_dir_basename_modified = g_strdup_printf ("%s(%d)",
-                                                         top_level_dir_basename,
-                                                         i);
+    {
+      GFile *source;
+      char *source_basename;
+      source = g_file_new_for_commandline_arg (priv->source);
+      source_basename = g_file_get_basename (source);
+      top_level_dir_basename = autoar_common_get_basename_remove_extension (source_basename);
+      top_level_parent_dir = g_file_new_for_commandline_arg (priv->output);
+      g_object_unref (source);
+      g_free (source_basename);
     }
-    top_level_dir = g_file_get_child (top_level_parent_dir,
-                                      top_level_dir_basename_modified);
+
+    pathname_extension = autoar_common_get_filename_extension (pathname_basename);
+    if (has_only_one_file && (pathname_extension != pathname_basename)) {
+      /* If we only have one file, we have to add the file extension.
+       * Although we use the variable `top_level_dir', it may be a regular
+       * file, so the extension is important. */
+      char *new_filename;
+      new_filename = g_strconcat (top_level_dir_basename, pathname_extension, NULL);
+      priv->top_level_dir = g_file_get_child (top_level_parent_dir, new_filename);
+      g_free (new_filename);
+    } else {
+      priv->top_level_dir = g_file_get_child (top_level_parent_dir, top_level_dir_basename);
+      pathname_extension = "";
+    }
+
+    {
+      char *top_level_dir_basename_modified = NULL;
+      for (i = 1; g_file_query_exists (priv->top_level_dir, NULL); i++) {
+        g_free (top_level_dir_basename_modified);
+        g_object_unref (priv->top_level_dir);
+        if (has_only_one_file) {
+          top_level_dir_basename_modified = g_strdup_printf ("%s(%d)%s",
+                                                             top_level_dir_basename,
+                                                             i,
+                                                             pathname_extension);
+        } else {
+          top_level_dir_basename_modified = g_strdup_printf ("%s(%d)",
+                                                             top_level_dir_basename,
+                                                             i);
+        }
+        priv->top_level_dir = g_file_get_child (top_level_parent_dir,
+                                                top_level_dir_basename_modified);
+      }
+      g_free (top_level_dir_basename_modified);
+    }
+
+    if (!has_only_one_file)
+      g_file_make_directory_with_parents (priv->top_level_dir, NULL, &(priv->error));
+
+    g_free (pathname_basename);
+    g_free (top_level_dir_basename);
+    g_object_unref (top_level_parent_dir);
+
+    if (priv->error != NULL) {
+      autoar_extract_signal_error (arextract);
+      return;
+    }
+
+    autoar_extract_signal_decide_dest (arextract);
   }
-
-  if (!has_only_one_file)
-    g_file_make_directory_with_parents (top_level_dir, NULL, &(arextract->priv->error));
-
-  g_free (pathname_basename);
-  g_free (top_level_dir_basename);
-  g_free (top_level_dir_basename_modified);
-  g_object_unref (top_level_parent_dir);
-
-  if (arextract->priv->error != NULL) {
-    autoar_common_g_signal_emit (in_thread, arextract,
-                                 autoar_extract_signals[ERROR],
-                                 0, arextract->priv->error);
-    g_object_unref (top_level_dir);
-    g_hash_table_unref (bad_filename);
-    return;
-  }
-
-  autoar_common_g_signal_emit (in_thread, arextract,
-                               autoar_extract_signals[DECIDE_DEST],
-                               0, top_level_dir);
 
   /* Step 3: Extract files
    * We have to re-open the archive to extract files */
   g_debug ("autoar_extract_run: Step 3, Extract");
   a = archive_read_new ();
   archive_read_support_filter_all (a);
-  if (use_raw_format)
+  if (priv->use_raw_format)
     archive_read_support_format_raw (a);
   else
     archive_read_support_format_all (a);
@@ -1292,25 +1390,13 @@ autoar_extract_run (AutoarExtract *arextract,
   archive_read_set_callback_data (a, arextract);
   r = archive_read_open1 (a);
   if (r != ARCHIVE_OK) {
-    if (arextract->priv->error == NULL) {
-      arextract->priv->error = g_error_new (autoar_extract_quark,
-                                            archive_errno (a),
-                                            "\'%s\': %s",
-                                            arextract->priv->source,
-                                            archive_error_string (a));
+    if (priv->error == NULL) {
+      priv->error = autoar_common_g_error_new_a (autoar_extract_quark, a, priv->source);
     }
-    autoar_common_g_signal_emit (in_thread, arextract,
-                                 autoar_extract_signals[ERROR],
-                                 0, arextract->priv->error);
-    g_object_unref (top_level_dir);
-    g_hash_table_unref (bad_filename);
+    autoar_extract_signal_error (arextract);
     archive_read_free (a);
     return;
   }
-  userhash = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
-  grouphash = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
-  extracted_dir_list = g_array_new (FALSE, FALSE, sizeof (GFileAndInfo));
-  g_array_set_clear_func (extracted_dir_list, g_file_and_info_free);
   while ((r = archive_read_next_header (a, &entry)) == ARCHIVE_OK) {
     const char *pathname;
     const char *hardlink;
@@ -1320,132 +1406,97 @@ autoar_extract_run (AutoarExtract *arextract,
     pathname = archive_entry_pathname (entry);
     hardlink = archive_entry_hardlink (entry);
     hardlink_filename = NULL;
-    if (GPOINTER_TO_UINT (g_hash_table_lookup (bad_filename, pathname)))
+    if (GPOINTER_TO_UINT (g_hash_table_lookup (priv->bad_filename, pathname)))
       continue;
 
     if (!has_only_one_file) {
       if (has_top_level_dir) {
         extracted_filename =
           autoar_extract_do_sanitize_pathname (pathname + pathname_prefix_len,
-                                               NULL, top_level_dir);
+                                               NULL, priv->top_level_dir);
         if (hardlink != NULL)
           hardlink_filename =
             autoar_extract_do_sanitize_pathname (hardlink + pathname_prefix_len,
-                                                 NULL, top_level_dir);
+                                                 NULL, priv->top_level_dir);
       } else {
         extracted_filename =
-          autoar_extract_do_sanitize_pathname (pathname, "./", top_level_dir);
+          autoar_extract_do_sanitize_pathname (pathname, "./", priv->top_level_dir);
         if (hardlink != NULL)
           hardlink_filename =
-            autoar_extract_do_sanitize_pathname (pathname, "./", top_level_dir);
+            autoar_extract_do_sanitize_pathname (pathname, "./", priv->top_level_dir);
       }
     } else {
-      extracted_filename = g_object_ref (top_level_dir);
+      extracted_filename = g_object_ref (priv->top_level_dir);
     }
 
     autoar_extract_do_write_entry (arextract,
                                    a,
                                    entry,
                                    extracted_filename,
-                                   hardlink_filename,
-                                   top_level_dir,
-                                   userhash,
-                                   grouphash,
-                                   extracted_dir_list,
-                                   in_thread,
-                                   use_raw_format);
+                                   hardlink_filename);
 
     g_object_unref (extracted_filename);
     if (hardlink_filename != NULL)
       g_object_unref (hardlink_filename);
 
-    if (arextract->priv->error != NULL) {
-      autoar_common_g_signal_emit (in_thread, arextract,
-                                   autoar_extract_signals[ERROR],
-                                   0, arextract->priv->error);
-      g_object_unref (top_level_dir);
-      g_hash_table_unref (userhash);
-      g_hash_table_unref (grouphash);
-      g_hash_table_unref (bad_filename);
-      g_array_unref (extracted_dir_list);
+    if (priv->error != NULL) {
+      autoar_extract_signal_error (arextract);
       archive_read_close (a);
       archive_read_free (a);
       return;
     }
 
-    arextract->priv->completed_files++;
-    autoar_common_g_signal_emit (in_thread,
-                                 arextract,
-                                 autoar_extract_signals[PROGRESS],
-                                 0,
-                                 ((double)(arextract->priv->completed_size)) /
-                                 ((double)(arextract->priv->size)),
-                                 ((double)(arextract->priv->completed_files)) /
-                                 ((double)(arextract->priv->files)));
+    priv->completed_files++;
+    autoar_extract_signal_progress (arextract);
   }
   if (r != ARCHIVE_EOF) {
-    if (arextract->priv->error == NULL) {
-      arextract->priv->error = g_error_new (autoar_extract_quark,
-                                            archive_errno (a),
-                                            "\'%s\': %s",
-                                            arextract->priv->source,
-                                            archive_error_string (a));
+    if (priv->error == NULL) {
+      priv->error = autoar_common_g_error_new_a (autoar_extract_quark, a, priv->source);
     }
-    autoar_common_g_signal_emit (in_thread, arextract,
-                                 autoar_extract_signals[ERROR],
-                                 0, arextract->priv->error);
-    g_object_unref (top_level_dir);
-    g_hash_table_unref (userhash);
-    g_hash_table_unref (grouphash);
-    g_hash_table_unref (bad_filename);
-    g_array_unref (extracted_dir_list);
+    autoar_extract_signal_error (arextract);
     archive_read_close (a);
     archive_read_free (a);
     return;
   }
 
-  for (i = 0; i < extracted_dir_list->len; i++) {
-    GFile *file = g_array_index (extracted_dir_list, GFileAndInfo, i).file;
-    GFileInfo *info = g_array_index (extracted_dir_list, GFileAndInfo, i).info;
+  for (i = 0; i < priv->extracted_dir_list->len; i++) {
+    GFile *file = g_array_index (priv->extracted_dir_list, GFileAndInfo, i).file;
+    GFileInfo *info = g_array_index (priv->extracted_dir_list, GFileAndInfo, i).info;
     g_file_set_attributes_from_info (file, info,
                                      G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
                                      NULL, NULL);
   }
 
-  g_object_unref (top_level_dir);
-  g_hash_table_unref (userhash);
-  g_hash_table_unref (grouphash);
-  g_hash_table_unref (bad_filename);
-  g_array_unref (extracted_dir_list);
   archive_read_close (a);
   archive_read_free (a);
-  if (arextract->priv->error != NULL) {
-    autoar_common_g_signal_emit (in_thread, arextract,
-                                 autoar_extract_signals[ERROR],
-                                 0, arextract->priv->error);
+  if (priv->error != NULL) {
+    autoar_extract_signal_error (arextract);
     return;
   }
 
   /* If the extraction is completed successfully, remove the source file.
    * Errors are not fatal because we have completed our work. */
-  autoar_common_g_signal_emit (in_thread, arextract,
-                               autoar_extract_signals[PROGRESS],
-                               0, 1.0, 1.0);
+  priv->completed_size = priv->size;
+  priv->completed_files = priv->files;
+  autoar_extract_signal_progress (arextract);
   g_debug ("autoar_extract_run: Finalize");
-  if (autoar_pref_get_delete_if_succeed (arextract->priv->arpref)) {
+  if (autoar_pref_get_delete_if_succeed (priv->arpref)) {
+    GFile *source;
     g_debug ("autoar_extract_run: Delete");
-    source = g_file_new_for_commandline_arg (arextract->priv->source);
+    source = g_file_new_for_commandline_arg (priv->source);
     g_file_delete (source, NULL, NULL);
     g_object_unref (source);
   }
-  autoar_common_g_signal_emit (in_thread, arextract,
-                               autoar_extract_signals[COMPLETED], 0);
+  autoar_extract_signal_completed (arextract);
 }
 
 void
-autoar_extract_start (AutoarExtract *arextract)
+autoar_extract_start (AutoarExtract *arextract,
+                      GCancellable *cancellable)
 {
-  autoar_extract_run (arextract, FALSE);
+  arextract->priv->cancellable = cancellable;
+  arextract->priv->in_thread = FALSE;
+  autoar_extract_run (arextract);
 }
 
 static void
@@ -1455,7 +1506,7 @@ autoar_extract_start_async_thread (GTask *task,
                                    GCancellable *cancellable)
 {
   AutoarExtract *arextract = source_object;
-  autoar_extract_run (arextract, TRUE);
+  autoar_extract_run (arextract);
   g_task_return_pointer (task, NULL, g_free);
   g_object_unref (arextract);
   g_object_unref (task);
@@ -1463,11 +1514,14 @@ autoar_extract_start_async_thread (GTask *task,
 
 
 void
-autoar_extract_start_async (AutoarExtract *arextract)
+autoar_extract_start_async (AutoarExtract *arextract,
+                            GCancellable *cancellable)
 {
   GTask *task;
 
   g_object_ref (arextract);
+  arextract->priv->cancellable = cancellable;
+  arextract->priv->in_thread = TRUE;
 
   task = g_task_new (arextract, NULL, NULL, NULL);
   g_task_set_task_data (task, NULL, NULL);

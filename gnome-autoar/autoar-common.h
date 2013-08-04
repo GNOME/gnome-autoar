@@ -28,6 +28,7 @@
 #define AUTOAR_COMMON_H
 
 #include <archive.h>
+#include <archive_entry.h>
 #include <glib.h>
 #include <glib-object.h>
 
@@ -43,5 +44,8 @@ void      autoar_common_g_signal_emit                  (gpointer instance,
 GError*   autoar_common_g_error_new_a                  (GQuark quark,
                                                         struct archive *a,
                                                         const char *pathname);
+GError*   autoar_common_g_error_new_a_entry            (GQuark quark,
+                                                        struct archive *a,
+                                                        struct archive_entry *entry);
 
 #endif /* AUTOAR_COMMON_H */

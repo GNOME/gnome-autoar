@@ -65,7 +65,7 @@ main (int argc,
   g_signal_connect (arcreate, "error", G_CALLBACK (my_handler_error), NULL);
   g_signal_connect (arcreate, "completed", G_CALLBACK (my_handler_completed), NULL);
 
-  autoar_create_start (arcreate);
+  autoar_create_start (arcreate, NULL);
 
   g_object_unref (arpref);
   g_object_unref (arcreate);

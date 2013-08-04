@@ -178,3 +178,11 @@ autoar_common_g_error_new_a (GQuark quark,
                           archive_error_string (a));
   return newerror;
 }
+
+GError*
+autoar_common_g_error_new_a_entry (GQuark quark,
+                                   struct archive *a,
+                                   struct archive_entry *entry)
+{
+  return autoar_common_g_error_new_a (quark, a, archive_entry_pathname (entry));
+}

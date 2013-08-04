@@ -64,12 +64,24 @@ struct _AutoarCreatePrivate
   void          *buffer;
   gssize         buffer_size;
   GError        *error;
+
+  GCancellable *cancellable;
+
+  struct archive                    *a;
+  struct archive_entry              *entry;
+  struct archive_entry_linkresolver *resolver;
+  GHashTable                        *pathname_to_g_file;
+  char                              *source_basename_noext;
+
+  int in_thread : 1;
+  int prepend_basename : 1;
 };
 
 enum
 {
   DECIDE_DEST,
   PROGRESS,
+  CANCELLED,
   COMPLETED,
   ERROR,
   LAST_SIGNAL
@@ -258,6 +270,18 @@ autoar_create_dispose (GObject *object)
 
   g_clear_object (&(arcreate->priv->arpref));
 
+  if (arcreate->priv->ostream != NULL) {
+    if (!g_output_stream_is_closed (arcreate->priv->ostream)) {
+      g_output_stream_close (arcreate->priv->ostream, NULL, NULL);
+    }
+    g_object_unref (arcreate->priv->ostream);
+  }
+
+  if (arcreate->priv->pathname_to_g_file != NULL) {
+    g_hash_table_unref (arcreate->priv->pathname_to_g_file);
+    arcreate->priv->pathname_to_g_file = NULL;
+  }
+
   G_OBJECT_CLASS (autoar_create_parent_class)->dispose (object);
 }
 
@@ -278,20 +302,37 @@ autoar_create_finalize (GObject *object)
   g_free (priv->output);
   priv->output = NULL;
 
-  if (priv->ostream != NULL) {
-    if (!g_output_stream_is_closed (priv->ostream)) {
-      g_output_stream_close (priv->ostream, NULL, NULL);
-    }
-    g_object_unref (priv->ostream);
-  }
-
   g_free (priv->buffer);
   priv->buffer = NULL;
+
+  /* If priv->error == NULL, no errors occurs. Therefore, we can safely free
+   * libarchive objects because it will not call the callbacks during the
+   * the process of freeing.
+   * If priv->error != NULL, we must free libarchive objects beforce freeing
+   * priv->error in order to prevent libarchive callbacks from accessing
+   * freed private objects and buffers. */
+  if (priv->a != NULL) {
+    archive_write_free (priv->a);
+    priv->a = NULL;
+  }
+
+  if (priv->entry != NULL) {
+    archive_entry_free (priv->entry);
+    priv->entry = NULL;
+  }
+
+  if (priv->resolver != NULL) {
+    archive_entry_linkresolver_free (priv->resolver);
+    priv->resolver = NULL;
+  }
 
   if (priv->error != NULL) {
     g_error_free (priv->error);
     priv->error = NULL;
   }
+
+  g_free (priv->source_basename_noext);
+  priv->source_basename_noext = NULL;
 
   G_OBJECT_CLASS (autoar_create_parent_class)->finalize (object);
 }
@@ -374,28 +415,66 @@ libarchive_write_write_cb (struct archive *ar_write,
   return write_size;
 }
 
+static inline void
+autoar_create_signal_decide_dest (AutoarCreate *arcreate)
+{
+  autoar_common_g_signal_emit (arcreate, arcreate->priv->in_thread,
+                               autoar_create_signals[DECIDE_DEST], 0,
+                               arcreate->priv->dest);
+}
+
+static inline void
+autoar_create_signal_progress (AutoarCreate *arcreate)
+{
+  autoar_common_g_signal_emit (arcreate, arcreate->priv->in_thread,
+                               autoar_create_signals[PROGRESS], 0,
+                               arcreate->priv->completed_size,
+                               arcreate->priv->completed_files);
+}
+
+static inline void
+autoar_create_signal_cancelled (AutoarCreate *arcreate)
+{
+  autoar_common_g_signal_emit (arcreate, arcreate->priv->in_thread,
+                               autoar_create_signals[CANCELLED], 0);
+
+}
+
+static inline void
+autoar_create_signal_completed (AutoarCreate *arcreate)
+{
+  autoar_common_g_signal_emit (arcreate, arcreate->priv->in_thread,
+                               autoar_create_signals[COMPLETED], 0);
+
+}
+
+static inline void
+autoar_create_signal_error (AutoarCreate *arcreate)
+{
+  autoar_common_g_signal_emit (arcreate, arcreate->priv->in_thread,
+                               autoar_create_signals[ERROR], 0,
+                               arcreate->priv->error);
+}
+
 static void
 autoar_create_do_write_data (AutoarCreate *arcreate,
-                             struct archive *a,
                              struct archive_entry *entry,
-                             GFile *file,
-                             gboolean in_thread)
+                             GFile *file)
 {
   int r;
+  AutoarCreatePrivate *priv;
 
   g_debug ("autoar_create_do_write_data: called");
 
   if (arcreate->priv->error != NULL)
     return;
 
-  while ((r = archive_write_header (a, entry)) == ARCHIVE_RETRY);
+  priv = arcreate->priv;
+
+  while ((r = archive_write_header (priv->a, entry)) == ARCHIVE_RETRY);
   if (r == ARCHIVE_FATAL) {
-    if (arcreate->priv->error == NULL)
-      arcreate->priv->error = g_error_new (autoar_create_quark,
-                                           archive_errno (a),
-                                           "\'%s\': %s",
-                                           archive_entry_pathname (entry),
-                                           archive_error_string (a));
+    if (priv->error == NULL)
+      priv->error = autoar_common_g_error_new_a_entry (autoar_create_quark, priv->a, entry);
     return;
   }
 
@@ -413,30 +492,25 @@ autoar_create_do_write_data (AutoarCreate *arcreate,
     written_actual = 0;
     written_try = 0;
 
-    istream = (GInputStream*)g_file_read (file, NULL, &(arcreate->priv->error));
+    istream = (GInputStream*)g_file_read (file, NULL, &(priv->error));
     if (istream == NULL)
       return;
 
-    arcreate->priv->completed_files++;
+    priv->completed_files++;
 
     do {
       read_actual = g_input_stream_read (istream,
-                                         arcreate->priv->buffer,
-                                         arcreate->priv->buffer_size,
+                                         priv->buffer,
+                                         priv->buffer_size,
                                          NULL,
-                                         &(arcreate->priv->error));
-      arcreate->priv->completed_size += read_actual > 0 ? read_actual : 0;
-      autoar_common_g_signal_emit (in_thread,
-                                   arcreate,
-                                   autoar_create_signals[PROGRESS],
-                                   0,
-                                   arcreate->priv->completed_size,
-                                   arcreate->priv->completed_files);
+                                         &(priv->error));
+      priv->completed_size += read_actual > 0 ? read_actual : 0;
+      autoar_create_signal_progress (arcreate);
       if (read_actual > 0) {
         written_acc = 0;
         written_try = 0;
         do {
-          written_actual = archive_write_data (a, (const char*)(arcreate->priv->buffer) + written_acc, read_actual);
+          written_actual = archive_write_data (priv->a, (const char*)(priv->buffer) + written_acc, read_actual);
           written_acc += written_actual > 0 ? written_actual : 0;
           written_try = written_actual ? 0 : written_try + 1;
           /* archive_write_data may return zero, so we have to limit the
@@ -453,117 +527,102 @@ autoar_create_do_write_data (AutoarCreate *arcreate,
       return;
 
     if (written_actual < 0 || written_try >= ARCHIVE_WRITE_RETRY_TIMES) {
-      if (arcreate->priv->error == NULL)
-        arcreate->priv->error = g_error_new (autoar_create_quark,
-                                             archive_errno (a),
-                                             "\'%s\': %s",
-                                             archive_entry_pathname (entry),
-                                             archive_error_string (a));
+      if (priv->error == NULL)
+        priv->error = autoar_common_g_error_new_a_entry (autoar_create_quark, priv->a, entry);
       return;
     }
     g_debug ("autoar_create_do_write_data: write data OK");
   } else {
     g_debug ("autoar_create_do_write_data: no data, return now!");
-    arcreate->priv->completed_files++;
-    autoar_common_g_signal_emit (in_thread,
-                                 arcreate,
-                                 autoar_create_signals[PROGRESS],
-                                 0,
-                                 arcreate->priv->completed_size,
-                                 arcreate->priv->completed_files);
+    priv->completed_files++;
+    autoar_create_signal_progress (arcreate);
   }
 }
 
 static void
 autoar_create_do_add_to_archive (AutoarCreate *arcreate,
-                                 struct archive *a,
-                                 struct archive_entry *entry,
-                                 struct archive_entry_linkresolver *resolver,
                                  GFile *root,
-                                 GFile *file,
-                                 const char *basename,
-                                 gboolean prepend_basename,
-                                 gboolean in_thread,
-                                 GHashTable *pathname_to_g_file)
+                                 GFile *file)
 {
+  AutoarCreatePrivate *priv;
   GFileInfo *info;
   GFileType  filetype;
-  char *root_basename;
-  char *pathname_relative;
-  char *pathname;
 
-  time_t atime, btime, ctime, mtime;
-  long atimeu, btimeu, ctimeu, mtimeu;
+  priv = arcreate->priv;
 
-  struct archive_entry *sparse;
-
-#ifdef HAVE_STAT
-  struct stat filestat;
-  char *local_pathname;
-#endif
-
-  archive_entry_clear (entry);
+  archive_entry_clear (priv->entry);
   info = g_file_query_info (file, "*", G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
                             NULL, &(arcreate->priv->error));
   if (info == NULL)
     return;
 
-  switch (archive_format (a)) {
-    /* ar format does not support directories */
-    case ARCHIVE_FORMAT_AR:
-    case ARCHIVE_FORMAT_AR_GNU:
-    case ARCHIVE_FORMAT_AR_BSD:
-      pathname = g_file_get_basename (file);
-      archive_entry_set_pathname (entry, pathname);
-      g_free (pathname);
-      break;
+  {
+    char *root_basename;
+    char *pathname_relative;
+    char *pathname;
 
-    default:
-      root_basename = g_file_get_basename (root);
-      pathname_relative = g_file_get_relative_path (root, file);
-      pathname = g_strconcat (prepend_basename ? basename : "",
-                              prepend_basename ? "/" : "",
-                              root_basename,
-                              pathname_relative != NULL ? "/" : "",
-                              pathname_relative != NULL ? pathname_relative : "",
-                              NULL);
-      archive_entry_set_pathname (entry, pathname);
-      g_free (root_basename);
-      g_free (pathname_relative);
-      g_free (pathname);
+    switch (archive_format (priv->a)) {
+      /* ar format does not support directories */
+      case ARCHIVE_FORMAT_AR:
+      case ARCHIVE_FORMAT_AR_GNU:
+      case ARCHIVE_FORMAT_AR_BSD:
+        pathname = g_file_get_basename (file);
+        archive_entry_set_pathname (priv->entry, pathname);
+        g_free (pathname);
+        break;
+
+      default:
+        root_basename = g_file_get_basename (root);
+        pathname_relative = g_file_get_relative_path (root, file);
+        pathname = g_strconcat (priv->prepend_basename ? priv->source_basename_noext : "",
+                                priv->prepend_basename ? "/" : "",
+                                root_basename,
+                                pathname_relative != NULL ? "/" : "",
+                                pathname_relative != NULL ? pathname_relative : "",
+                                NULL);
+        archive_entry_set_pathname (priv->entry, pathname);
+        g_free (root_basename);
+        g_free (pathname_relative);
+        g_free (pathname);
+    }
   }
 
-  g_debug ("autoar_create_do_add_to_archive: %s", archive_entry_pathname (entry));
+  g_debug ("autoar_create_do_add_to_archive: %s", archive_entry_pathname (priv->entry));
 
-  atime = g_file_info_get_attribute_uint64 (info, G_FILE_ATTRIBUTE_TIME_ACCESS);
-  btime = g_file_info_get_attribute_uint64 (info, G_FILE_ATTRIBUTE_TIME_CREATED);
-  ctime = g_file_info_get_attribute_uint64 (info, G_FILE_ATTRIBUTE_TIME_CHANGED);
-  mtime = g_file_info_get_attribute_uint64 (info, G_FILE_ATTRIBUTE_TIME_MODIFIED);
+  {
+    time_t atime, btime, ctime, mtime;
+    long atimeu, btimeu, ctimeu, mtimeu;
 
-  atimeu = g_file_info_get_attribute_uint32 (info, G_FILE_ATTRIBUTE_TIME_ACCESS_USEC);
-  btimeu = g_file_info_get_attribute_uint32 (info, G_FILE_ATTRIBUTE_TIME_CREATED_USEC);
-  ctimeu = g_file_info_get_attribute_uint32 (info, G_FILE_ATTRIBUTE_TIME_CHANGED_USEC);
-  mtimeu = g_file_info_get_attribute_uint32 (info, G_FILE_ATTRIBUTE_TIME_MODIFIED_USEC);
+    atime = g_file_info_get_attribute_uint64 (info, G_FILE_ATTRIBUTE_TIME_ACCESS);
+    btime = g_file_info_get_attribute_uint64 (info, G_FILE_ATTRIBUTE_TIME_CREATED);
+    ctime = g_file_info_get_attribute_uint64 (info, G_FILE_ATTRIBUTE_TIME_CHANGED);
+    mtime = g_file_info_get_attribute_uint64 (info, G_FILE_ATTRIBUTE_TIME_MODIFIED);
 
-  archive_entry_set_atime (entry, atime, atimeu * 1000);
-  archive_entry_set_birthtime (entry, btime, btimeu * 1000);
-  archive_entry_set_ctime (entry, ctime, ctimeu * 1000);
-  archive_entry_set_mtime (entry, mtime, mtimeu * 1000);
+    atimeu = g_file_info_get_attribute_uint32 (info, G_FILE_ATTRIBUTE_TIME_ACCESS_USEC);
+    btimeu = g_file_info_get_attribute_uint32 (info, G_FILE_ATTRIBUTE_TIME_CREATED_USEC);
+    ctimeu = g_file_info_get_attribute_uint32 (info, G_FILE_ATTRIBUTE_TIME_CHANGED_USEC);
+    mtimeu = g_file_info_get_attribute_uint32 (info, G_FILE_ATTRIBUTE_TIME_MODIFIED_USEC);
 
-  archive_entry_set_uid (entry, g_file_info_get_attribute_uint32 (info, G_FILE_ATTRIBUTE_UNIX_UID));
-  archive_entry_set_gid (entry, g_file_info_get_attribute_uint32 (info, G_FILE_ATTRIBUTE_UNIX_GID));
-  archive_entry_set_uname (entry, g_file_info_get_attribute_string (info, G_FILE_ATTRIBUTE_OWNER_USER));
-  archive_entry_set_gname (entry, g_file_info_get_attribute_string (info, G_FILE_ATTRIBUTE_OWNER_GROUP));
-  archive_entry_set_mode (entry, g_file_info_get_attribute_uint32 (info, G_FILE_ATTRIBUTE_UNIX_MODE));
+    archive_entry_set_atime (priv->entry, atime, atimeu * 1000);
+    archive_entry_set_birthtime (priv->entry, btime, btimeu * 1000);
+    archive_entry_set_ctime (priv->entry, ctime, ctimeu * 1000);
+    archive_entry_set_mtime (priv->entry, mtime, mtimeu * 1000);
 
-  archive_entry_set_size (entry, g_file_info_get_attribute_uint64 (info, G_FILE_ATTRIBUTE_STANDARD_SIZE));
-  archive_entry_set_dev (entry, g_file_info_get_attribute_uint32 (info, G_FILE_ATTRIBUTE_UNIX_DEVICE));
-  archive_entry_set_ino64 (entry, g_file_info_get_attribute_uint64 (info, G_FILE_ATTRIBUTE_UNIX_INODE));
-  archive_entry_set_nlink (entry, g_file_info_get_attribute_uint32 (info, G_FILE_ATTRIBUTE_UNIX_NLINK));
-  archive_entry_set_rdev (entry, g_file_info_get_attribute_uint32 (info, G_FILE_ATTRIBUTE_UNIX_RDEV));
+    archive_entry_set_uid (priv->entry, g_file_info_get_attribute_uint32 (info, G_FILE_ATTRIBUTE_UNIX_UID));
+    archive_entry_set_gid (priv->entry, g_file_info_get_attribute_uint32 (info, G_FILE_ATTRIBUTE_UNIX_GID));
+    archive_entry_set_uname (priv->entry, g_file_info_get_attribute_string (info, G_FILE_ATTRIBUTE_OWNER_USER));
+    archive_entry_set_gname (priv->entry, g_file_info_get_attribute_string (info, G_FILE_ATTRIBUTE_OWNER_GROUP));
+    archive_entry_set_mode (priv->entry, g_file_info_get_attribute_uint32 (info, G_FILE_ATTRIBUTE_UNIX_MODE));
+  }
+
+  archive_entry_set_size (priv->entry, g_file_info_get_attribute_uint64 (info, G_FILE_ATTRIBUTE_STANDARD_SIZE));
+  archive_entry_set_dev (priv->entry, g_file_info_get_attribute_uint32 (info, G_FILE_ATTRIBUTE_UNIX_DEVICE));
+  archive_entry_set_ino64 (priv->entry, g_file_info_get_attribute_uint64 (info, G_FILE_ATTRIBUTE_UNIX_INODE));
+  archive_entry_set_nlink (priv->entry, g_file_info_get_attribute_uint32 (info, G_FILE_ATTRIBUTE_UNIX_NLINK));
+  archive_entry_set_rdev (priv->entry, g_file_info_get_attribute_uint32 (info, G_FILE_ATTRIBUTE_UNIX_RDEV));
 
   filetype = g_file_info_get_file_type (info);
-  switch (archive_format (a)) {
+  switch (archive_format (priv->a)) {
     case ARCHIVE_FORMAT_AR:
     case ARCHIVE_FORMAT_AR_GNU:
     case ARCHIVE_FORMAT_AR_BSD:
@@ -590,39 +649,44 @@ autoar_create_do_add_to_archive (AutoarCreate *arcreate,
   switch (filetype) {
     case G_FILE_TYPE_DIRECTORY:
       g_debug ("autoar_create_do_add_to_archive: file type set to DIR");
-      archive_entry_set_filetype (entry, AE_IFDIR);
+      archive_entry_set_filetype (priv->entry, AE_IFDIR);
       break;
 
     case G_FILE_TYPE_SYMBOLIC_LINK:
       g_debug ("autoar_create_do_add_to_archive: file type set to SYMLINK");
-      archive_entry_set_filetype (entry, AE_IFLNK);
-      archive_entry_set_symlink (entry, g_file_info_get_attribute_byte_string (info, G_FILE_ATTRIBUTE_STANDARD_SYMLINK_TARGET));
+      archive_entry_set_filetype (priv->entry, AE_IFLNK);
+      archive_entry_set_symlink (priv->entry, g_file_info_get_attribute_byte_string (info, G_FILE_ATTRIBUTE_STANDARD_SYMLINK_TARGET));
       break;
 
     case G_FILE_TYPE_SPECIAL:
 #ifdef HAVE_STAT
-      local_pathname = g_file_get_path (file);
-      if (local_pathname != NULL && stat (local_pathname, &filestat) >= 0) {
-        if (S_ISBLK (filestat.st_mode)) {
-          g_debug ("autoar_create_do_add_to_archive: file type set to BLOCK");
-          archive_entry_set_filetype (entry, AE_IFBLK);
-        } else if (S_ISSOCK (filestat.st_mode)) {
-          g_debug ("autoar_create_do_add_to_archive: file type set to SOCKET");
-          archive_entry_set_filetype (entry, AE_IFSOCK);
-        } else if (S_ISCHR (filestat.st_mode)) {
-          g_debug ("autoar_create_do_add_to_archive: file type set to CHAR");
-          archive_entry_set_filetype (entry, AE_IFCHR);
-        } else if (S_ISFIFO (filestat.st_mode)) {
-          g_debug ("autoar_create_do_add_to_archive: file type set to FIFO");
-          archive_entry_set_filetype (entry, AE_IFIFO);
+      {
+        struct stat filestat;
+        char *local_pathname;
+
+        local_pathname = g_file_get_path (file);
+        if (local_pathname != NULL && stat (local_pathname, &filestat) >= 0) {
+          if (S_ISBLK (filestat.st_mode)) {
+            g_debug ("autoar_create_do_add_to_archive: file type set to BLOCK");
+            archive_entry_set_filetype (priv->entry, AE_IFBLK);
+          } else if (S_ISSOCK (filestat.st_mode)) {
+            g_debug ("autoar_create_do_add_to_archive: file type set to SOCKET");
+            archive_entry_set_filetype (priv->entry, AE_IFSOCK);
+          } else if (S_ISCHR (filestat.st_mode)) {
+            g_debug ("autoar_create_do_add_to_archive: file type set to CHAR");
+            archive_entry_set_filetype (priv->entry, AE_IFCHR);
+          } else if (S_ISFIFO (filestat.st_mode)) {
+            g_debug ("autoar_create_do_add_to_archive: file type set to FIFO");
+            archive_entry_set_filetype (priv->entry, AE_IFIFO);
+          } else {
+            g_debug ("autoar_create_do_add_to_archive: file type set to REGULAR");
+            archive_entry_set_filetype (priv->entry, AE_IFREG);
+          }
+          g_free (local_pathname);
         } else {
           g_debug ("autoar_create_do_add_to_archive: file type set to REGULAR");
-          archive_entry_set_filetype (entry, AE_IFREG);
+          archive_entry_set_filetype (priv->entry, AE_IFREG);
         }
-        g_free (local_pathname);
-      } else {
-        g_debug ("autoar_create_do_add_to_archive: file type set to REGULAR");
-        archive_entry_set_filetype (entry, AE_IFREG);
       }
       break;
 
@@ -633,34 +697,39 @@ autoar_create_do_add_to_archive (AutoarCreate *arcreate,
     case G_FILE_TYPE_REGULAR:
     default:
       g_debug ("autoar_create_do_add_to_archive: file type set to REGULAR");
-      archive_entry_set_filetype (entry, AE_IFREG);
+      archive_entry_set_filetype (priv->entry, AE_IFREG);
       break;
   }
 
-  g_hash_table_insert (pathname_to_g_file,
-                       g_strdup (archive_entry_pathname (entry)),
+  g_hash_table_insert (priv->pathname_to_g_file,
+                       g_strdup (archive_entry_pathname (priv->entry)),
                        g_object_ref (file));
 
-  archive_entry_linkify (resolver, &entry, &sparse);
+  {
+    struct archive_entry *entry, *sparse;
 
-  if (entry != NULL) {
-    GFile *file_to_read;
-    const char *pathname_in_entry;
-    pathname_in_entry = archive_entry_pathname (entry);
-    file_to_read = g_hash_table_lookup (pathname_to_g_file, pathname_in_entry);
-    autoar_create_do_write_data (arcreate, a, entry, file_to_read, in_thread);
-    g_hash_table_remove (pathname_to_g_file, pathname_in_entry);
-    /* We have registered g_object_unref function to free the GFile object,
-     * so we do not have to unref it here. */
-  }
+    entry = priv->entry;
+    archive_entry_linkify (priv->resolver, &entry, &sparse);
 
-  if (sparse != NULL) {
-    GFile *file_to_read;
-    const char *pathname_in_entry;
-    pathname_in_entry = archive_entry_pathname (entry);
-    file_to_read = g_hash_table_lookup (pathname_to_g_file, pathname_in_entry);
-    autoar_create_do_write_data (arcreate, a, sparse, file_to_read, in_thread);
-    g_hash_table_remove (pathname_to_g_file, pathname_in_entry);
+    if (entry != NULL) {
+      GFile *file_to_read;
+      const char *pathname_in_entry;
+      pathname_in_entry = archive_entry_pathname (entry);
+      file_to_read = g_hash_table_lookup (priv->pathname_to_g_file, pathname_in_entry);
+      autoar_create_do_write_data (arcreate, entry, file_to_read);
+      g_hash_table_remove (priv->pathname_to_g_file, pathname_in_entry);
+      /* We have registered g_object_unref function to free the GFile object,
+       * so we do not have to unref it here. */
+    }
+
+    if (sparse != NULL) {
+      GFile *file_to_read;
+      const char *pathname_in_entry;
+      pathname_in_entry = archive_entry_pathname (entry);
+      file_to_read = g_hash_table_lookup (priv->pathname_to_g_file, pathname_in_entry);
+      autoar_create_do_write_data (arcreate, sparse, file_to_read);
+      g_hash_table_remove (priv->pathname_to_g_file, pathname_in_entry);
+    }
   }
 
   g_object_unref (info);
@@ -668,15 +737,8 @@ autoar_create_do_add_to_archive (AutoarCreate *arcreate,
 
 static void
 autoar_create_do_recursive_read (AutoarCreate *arcreate,
-                                 struct archive *a,
-                                 struct archive_entry *entry,
-                                 struct archive_entry_linkresolver *resolver,
                                  GFile *root,
-                                 GFile *file,
-                                 const char *basename,
-                                 gboolean prepend_basename,
-                                 gboolean in_thread,
-                                 GHashTable *pathname_to_g_file)
+                                 GFile *file)
 {
   GFileEnumerator *enumerator;
   GFileInfo *info;
@@ -694,9 +756,7 @@ autoar_create_do_recursive_read (AutoarCreate *arcreate,
   while ((info = g_file_enumerator_next_file (enumerator, NULL, &(arcreate->priv->error))) != NULL) {
     thisname = g_file_info_get_name (info);
     thisfile = g_file_get_child (file, thisname);
-    autoar_create_do_add_to_archive (arcreate, a, entry, resolver, root,
-                                     thisfile, basename, prepend_basename,
-                                     in_thread, pathname_to_g_file);
+    autoar_create_do_add_to_archive (arcreate, root, thisfile);
     if (arcreate->priv->error != NULL) {
       g_object_unref (thisfile);
       g_object_unref (info);
@@ -704,9 +764,7 @@ autoar_create_do_recursive_read (AutoarCreate *arcreate,
     }
 
     if (g_file_info_get_file_type (info) == G_FILE_TYPE_DIRECTORY)
-      autoar_create_do_recursive_read (arcreate, a, entry, resolver, root,
-                                       thisfile, basename, prepend_basename,
-                                       in_thread, pathname_to_g_file);
+      autoar_create_do_recursive_read (arcreate, root, thisfile);
     g_object_unref (thisfile);
     g_object_unref (info);
 
@@ -823,6 +881,16 @@ autoar_create_class_init (AutoarCreateClass *klass)
                   G_TYPE_UINT64,
                   G_TYPE_UINT);
 
+  autoar_create_signals[CANCELLED] =
+    g_signal_new ("cancelled",
+                  type,
+                  G_SIGNAL_RUN_LAST,
+                  G_STRUCT_OFFSET (AutoarCreateClass, cancelled),
+                  NULL, NULL,
+                  g_cclosure_marshal_VOID__VOID,
+                  G_TYPE_NONE,
+                  0);
+
   autoar_create_signals[COMPLETED] =
     g_signal_new ("completed",
                   type,
@@ -869,6 +937,17 @@ autoar_create_init (AutoarCreate *arcreate)
   priv->buffer_size = BUFFER_SIZE;
   priv->buffer = g_new (char, priv->buffer_size);
   priv->error = NULL;
+
+  priv->cancellable = NULL;
+
+  priv->a = archive_write_new ();
+  priv->entry = archive_entry_new ();
+  priv->resolver = archive_entry_linkresolver_new ();;
+  priv->pathname_to_g_file = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_object_unref);
+  priv->source_basename_noext = NULL;
+
+  priv->in_thread = FALSE;
+  priv->prepend_basename = FALSE;
 }
 
 AutoarCreate*
@@ -915,82 +994,66 @@ autoar_create_new (AutoarPref *arpref,
 }
 
 static void
-autoar_create_run (AutoarCreate *arcreate,
-                   gboolean in_thread)
+autoar_create_run (AutoarCreate *arcreate)
 {
-  struct archive *a;
-  struct archive_entry *entry, *sparse;
-  struct archive_entry_linkresolver *resolver;
-
   AutoarPrefFormat format;
   AutoarPrefFilter filter;
   const char *format_extension;
   const char *filter_extension;
 
-  const char *basename;
-  gboolean prepend_basename;
-
-  GFileInfo *tmp_info;
-  GFile *file_source;
-  GFile *file_output;
-  GFile *file_dest;
-  char  *source_basename;
-  char  *source_basename_noext;
-  char  *dest_basename;
-
-  GHashTable *pathname_to_g_file;
-
+  AutoarCreatePrivate *priv;
   int i, r;
 
   g_return_if_fail (AUTOAR_IS_CREATE (arcreate));
-  g_return_if_fail (arcreate->priv->source != NULL);
-  g_return_if_fail (arcreate->priv->output != NULL);
+  priv = arcreate->priv;
+
+  g_return_if_fail (priv->source != NULL);
+  g_return_if_fail (priv->output != NULL);
 
   /* A string array without a string is not allowed */
-  g_return_if_fail (*(arcreate->priv->source) != NULL);
+  g_return_if_fail (*(priv->source) != NULL);
 
-  format = autoar_pref_get_default_format (arcreate->priv->arpref);
-  filter = autoar_pref_get_default_filter (arcreate->priv->arpref);
+  format = autoar_pref_get_default_format (priv->arpref);
+  filter = autoar_pref_get_default_filter (priv->arpref);
   g_return_if_fail (format > 0 && format < AUTOAR_PREF_FORMAT_LAST);
   g_return_if_fail (filter > 0 && filter < AUTOAR_PREF_FILTER_LAST);
 
-  a = archive_write_new ();
-  archive_write_set_bytes_in_last_block (a, 1);
+  archive_write_set_bytes_in_last_block (priv->a, 1);
   switch (filter) {
     case AUTOAR_PREF_FILTER_COMPRESS:
-      archive_write_add_filter_compress (a);
+      archive_write_add_filter_compress (priv->a);
       filter_extension = ".Z";
       break;
     case AUTOAR_PREF_FILTER_GZIP:
-      archive_write_add_filter_gzip (a);
+      archive_write_add_filter_gzip (priv->a);
       filter_extension = ".gz";
       break;
     case AUTOAR_PREF_FILTER_BZIP2:
-      archive_write_add_filter_bzip2 (a);
+      archive_write_add_filter_bzip2 (priv->a);
       filter_extension = ".bz2";
       break;
     case AUTOAR_PREF_FILTER_XZ:
-      archive_write_add_filter_xz (a);
+      archive_write_add_filter_xz (priv->a);
       filter_extension = ".xz";
       break;
     case AUTOAR_PREF_FILTER_LZMA:
-      archive_write_add_filter_lzma (a);
+      archive_write_add_filter_lzma (priv->a);
       filter_extension = ".lzma";
       break;
     case AUTOAR_PREF_FILTER_LZIP:
-      archive_write_add_filter_lzip (a);
+      archive_write_add_filter_lzip (priv->a);
       filter_extension = ".lz";
       break;
     case AUTOAR_PREF_FILTER_LZOP:
-      archive_write_add_filter_lzop (a);
+      archive_write_add_filter_lzop (priv->a);
       filter_extension = ".lzo";
       break;
     case AUTOAR_PREF_FILTER_GRZIP:
-      archive_write_add_filter_grzip (a);
+      archive_write_add_filter_grzip (priv->a);
       filter_extension = ".grz";
       break;
     case AUTOAR_PREF_FILTER_LRZIP:
-      archive_write_add_filter_lrzip (a);
+      archive_write_add_filter_lrzip (priv->a);
       filter_extension = ".lrz";
       break;
     case AUTOAR_PREF_FILTER_NONE:
@@ -1000,47 +1063,47 @@ autoar_create_run (AutoarCreate *arcreate,
 
   switch (format) {
     case AUTOAR_PREF_FORMAT_ZIP:
-      archive_write_set_format_zip (a);
+      archive_write_set_format_zip (priv->a);
       format_extension = ".zip";
       break;
     case AUTOAR_PREF_FORMAT_TAR:
-      archive_write_set_format_pax_restricted (a);
+      archive_write_set_format_pax_restricted (priv->a);
       format_extension = ".tar";
       break;
     case AUTOAR_PREF_FORMAT_CPIO:
-      archive_write_set_format_cpio (a);
+      archive_write_set_format_cpio (priv->a);
       format_extension = ".cpio";
       break;
     case AUTOAR_PREF_FORMAT_7ZIP:
-      archive_write_set_format_7zip (a);
+      archive_write_set_format_7zip (priv->a);
       format_extension = ".7z";
       break;
     case AUTOAR_PREF_FORMAT_AR_BSD:
-      archive_write_set_format_ar_bsd (a);
+      archive_write_set_format_ar_bsd (priv->a);
       format_extension = ".a";
       break;
     case AUTOAR_PREF_FORMAT_AR_SVR4:
-      archive_write_set_format_ar_svr4 (a);
+      archive_write_set_format_ar_svr4 (priv->a);
       format_extension = ".a";
       break;
     case AUTOAR_PREF_FORMAT_CPIO_NEWC:
-      archive_write_set_format_cpio_newc (a);
+      archive_write_set_format_cpio_newc (priv->a);
       format_extension = ".cpio";
       break;
     case AUTOAR_PREF_FORMAT_GNUTAR:
-      archive_write_set_format_gnutar (a);
+      archive_write_set_format_gnutar (priv->a);
       format_extension = ".tar";
       break;
     case AUTOAR_PREF_FORMAT_ISO9660:
-      archive_write_set_format_iso9660 (a);
+      archive_write_set_format_iso9660 (priv->a);
       format_extension = ".iso";
       break;
     case AUTOAR_PREF_FORMAT_PAX:
-      archive_write_set_format_pax (a);
+      archive_write_set_format_pax (priv->a);
       format_extension = ".tar";
       break;
     case AUTOAR_PREF_FORMAT_XAR:
-      archive_write_set_format_xar (a);
+      archive_write_set_format_xar (priv->a);
       format_extension = ".xar";
       break;
     default:
@@ -1050,104 +1113,106 @@ autoar_create_run (AutoarCreate *arcreate,
   /* Step 1: Set the destination file name
    * Use the first source file name */
   g_debug ("autoar_extract_run: Step 1, Filename");
-  basename = *(arcreate->priv->source);
-  file_source = g_file_new_for_commandline_arg (basename);
-  tmp_info = g_file_query_info (file_source,
-                                G_FILE_ATTRIBUTE_STANDARD_TYPE,
-                                G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
-                                NULL,
-                                &(arcreate->priv->error));
-  if (tmp_info == NULL) {
-    g_object_unref (file_source);
-    autoar_common_g_signal_emit (in_thread, arcreate,
-                                 autoar_create_signals[ERROR],
-                                 0, arcreate->priv->error);
-    return;
-  }
+  {
+    GFile *file_output;
+    GFile *file_dest;
 
-  source_basename = g_file_get_basename (file_source);
-  if (g_file_info_get_file_type (tmp_info) == G_FILE_TYPE_REGULAR)
-    source_basename_noext = autoar_common_get_basename_remove_extension (source_basename);
-  else
-    source_basename_noext = g_strdup (source_basename);
-  g_object_unref (tmp_info);
+    {
+      GFile *file_source;
+      GFileInfo *source_info;
+      char *source_basename;
+      const char *basename;
 
-  file_output = g_file_new_for_commandline_arg (arcreate->priv->output);
-  dest_basename = g_strconcat (source_basename_noext,
-                               format_extension,
-                               filter_extension,
-                               NULL);
-  file_dest = g_file_get_child (file_output, dest_basename);
+      basename = *(priv->source);
+      file_source = g_file_new_for_commandline_arg (basename);
+      source_info = g_file_query_info (file_source,
+                                       G_FILE_ATTRIBUTE_STANDARD_TYPE,
+                                       G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
+                                       NULL,
+                                       &(priv->error));
+      if (source_info == NULL) {
+        g_object_unref (file_source);
+        autoar_create_signal_error (arcreate);
+        return;
+      }
 
-  for (i = 1; g_file_query_exists (file_dest, NULL); i++) {
-    g_free (dest_basename);
-    g_object_unref (file_dest);
-    dest_basename = g_strdup_printf ("%s(%d)%s%s",
-                                     source_basename_noext,
-                                     i,
-                                     format_extension,
-                                     filter_extension);
-    file_dest = g_file_get_child (file_output, dest_basename);
-  }
+      source_basename = g_file_get_basename (file_source);
+      if (g_file_info_get_file_type (source_info) == G_FILE_TYPE_REGULAR)
+        priv->source_basename_noext = autoar_common_get_basename_remove_extension (source_basename);
+      else
+        priv->source_basename_noext = g_strdup (source_basename);
 
-  if (!g_file_query_exists (file_output, NULL)) {
-    g_file_make_directory_with_parents (file_output, NULL, &(arcreate->priv->error));
-    if (arcreate->priv->error) {
-      autoar_common_g_signal_emit (in_thread, arcreate,
-                                   autoar_create_signals[ERROR],
-                                   0, arcreate->priv->error);
       g_object_unref (file_source);
-      g_object_unref (file_output);
-      g_object_unref (file_dest);
+      g_object_unref (source_info);
       g_free (source_basename);
-      g_free (source_basename_noext);
-      g_free (dest_basename);
-      return;
     }
+
+    {
+      char *dest_basename;
+
+      file_output = g_file_new_for_commandline_arg (priv->output);
+      dest_basename = g_strconcat (priv->source_basename_noext,
+                                   format_extension,
+                                   filter_extension,
+                                   NULL);
+      file_dest = g_file_get_child (file_output, dest_basename);
+
+      for (i = 1; g_file_query_exists (file_dest, NULL); i++) {
+        g_free (dest_basename);
+        g_object_unref (file_dest);
+        dest_basename = g_strdup_printf ("%s(%d)%s%s",
+                                         priv->source_basename_noext,
+                                         i,
+                                         format_extension,
+                                         filter_extension);
+        file_dest = g_file_get_child (file_output, dest_basename);
+      }
+
+      g_free (dest_basename);
+    }
+
+    {
+      if (!g_file_query_exists (file_output, NULL)) {
+        g_file_make_directory_with_parents (file_output, NULL, &(arcreate->priv->error));
+        if (arcreate->priv->error) {
+          autoar_create_signal_error (arcreate);
+          g_object_unref (file_output);
+          g_object_unref (file_dest);
+          return;
+        }
+      }
+    }
+
+    arcreate->priv->dest = g_object_ref (file_dest);
+    autoar_create_signal_decide_dest (arcreate);
+
+    g_object_unref (file_output);
+    g_object_unref (file_dest);
   }
-
-  arcreate->priv->dest = g_object_ref (file_dest);
-  autoar_common_g_signal_emit (in_thread, arcreate,
-                               autoar_create_signals[DECIDE_DEST],
-                               0, file_dest);
-
-  g_object_unref (file_source);
-  g_object_unref (file_output);
-  g_object_unref (file_dest);
-  g_free (source_basename);
-  g_free (dest_basename);
 
   /* Step 2: Create and open the new archive file */
   g_debug ("autoar_extract_run: Step 2, Create and Write");
-  r = archive_write_open (a, arcreate,
+  r = archive_write_open (priv->a, arcreate,
                           libarchive_write_open_cb,
                           libarchive_write_write_cb,
                           libarchive_write_close_cb);
   if (r != ARCHIVE_OK) {
-    archive_write_free (a);
-    if (arcreate->priv->error == NULL)
-      arcreate->priv->error = g_error_new (autoar_create_quark,
-                                           archive_errno (a),
-                                           "%s",
-                                           archive_error_string (a));
-    autoar_common_g_signal_emit (in_thread, arcreate,
-                                 autoar_create_signals[ERROR],
-                                 0, arcreate->priv->error);
-    g_free (source_basename_noext);
+    if (priv->error == NULL)
+      priv->error = autoar_common_g_error_new_a (autoar_create_quark, priv->a, NULL);
+    autoar_create_signal_error (arcreate);
     return;
   }
 
 
   /* Check whether we have multiple source files */
   if (arcreate->priv->source[1] == NULL)
-    prepend_basename = FALSE;
+    priv->prepend_basename = FALSE;
   else
-    prepend_basename = TRUE;
+    priv->prepend_basename = TRUE;
 
-  entry = archive_entry_new ();
-  resolver = archive_entry_linkresolver_new ();
-  archive_entry_linkresolver_set_strategy (resolver, archive_format (a));
-  pathname_to_g_file = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_object_unref);
+  priv->entry = archive_entry_new ();
+  priv->resolver = archive_entry_linkresolver_new ();
+  archive_entry_linkresolver_set_strategy (priv->resolver, archive_format (priv->a));
 
   for (i = 0; arcreate->priv->source[i] != NULL; i++) {
     GFile *file;
@@ -1161,88 +1226,61 @@ autoar_create_run (AutoarCreate *arcreate,
                                   NULL,
                                   &(arcreate->priv->error));
     if (arcreate->priv->error != NULL) {
-      autoar_common_g_signal_emit (in_thread, arcreate,
-                                   autoar_create_signals[ERROR],
-                                   0, arcreate->priv->error);
+      autoar_create_signal_error (arcreate);
       g_object_unref (file);
       g_object_unref (fileinfo);
-      g_free (source_basename_noext);
-      archive_write_free (a);
-      archive_entry_free (entry);
-      archive_entry_linkresolver_free (resolver);
-      g_hash_table_unref (pathname_to_g_file);
       return;
     }
 
-    autoar_create_do_add_to_archive (arcreate, a, entry, resolver, file, file,
-                                     source_basename_noext, prepend_basename,
-                                     in_thread, pathname_to_g_file);
+    autoar_create_do_add_to_archive (arcreate, file, file);
 
     if (g_file_info_get_file_type (fileinfo) == G_FILE_TYPE_DIRECTORY)
-      autoar_create_do_recursive_read (arcreate, a, entry, resolver, file, file,
-                                       source_basename_noext, prepend_basename,
-                                       in_thread, pathname_to_g_file);
+      autoar_create_do_recursive_read (arcreate, file, file);
 
     g_object_unref (file);
     g_object_unref (fileinfo);
 
     if (arcreate->priv->error != NULL) {
-      autoar_common_g_signal_emit (in_thread, arcreate,
-                                   autoar_create_signals[ERROR],
-                                   0, arcreate->priv->error);
-      g_free (source_basename_noext);
-      archive_write_free (a);
-      archive_entry_free (entry);
-      archive_entry_linkresolver_free (resolver);
-      g_hash_table_unref (pathname_to_g_file);
+      autoar_create_signal_error (arcreate);
       return;
     }
   }
 
-  archive_entry_free (entry);
-  entry = NULL;
-  archive_entry_linkify (resolver, &entry, &sparse);
-  if (entry != NULL) {
-    GFile *file_to_read;
-    const char *pathname_in_entry;
-    pathname_in_entry = archive_entry_pathname (entry);
-    file_to_read = g_hash_table_lookup (pathname_to_g_file, pathname_in_entry);
-    autoar_create_do_write_data (arcreate, a, entry, file_to_read, in_thread);
-    /* I think we do not have to remove the entry in the hash table now
-     * because we are going to free the entire hash table. */
+  {
+    struct archive_entry *entry, *sparse;
+    entry = NULL;
+    archive_entry_linkify (priv->resolver, &entry, &sparse);
+    if (entry != NULL) {
+      GFile *file_to_read;
+      const char *pathname_in_entry;
+      pathname_in_entry = archive_entry_pathname (entry);
+      file_to_read = g_hash_table_lookup (priv->pathname_to_g_file, pathname_in_entry);
+      autoar_create_do_write_data (arcreate, entry, file_to_read);
+      /* I think we do not have to remove the entry in the hash table now
+       * because we are going to free the entire hash table. */
+    }
   }
 
-  g_free (source_basename_noext);
-  archive_entry_linkresolver_free (resolver);
-  g_hash_table_unref (pathname_to_g_file);
-
-  if (arcreate->priv->error != NULL) {
-    archive_write_free (a);
+  if (arcreate->priv->error != NULL)
     return;
-  }
 
-  r = archive_write_close (a);
+  r = archive_write_close (priv->a);
   if (r != ARCHIVE_OK) {
     if (arcreate->priv->error == NULL)
-      arcreate->priv->error = g_error_new (autoar_create_quark,
-                                           archive_errno (a),
-                                           "%s",
-                                           archive_error_string (a));
-
-    archive_write_free (a);
+      priv->error = autoar_common_g_error_new_a (autoar_create_quark, priv->a, NULL);
     return;
   }
 
-  archive_write_free (a);
-
-  autoar_common_g_signal_emit (in_thread, arcreate,
-                               autoar_create_signals[COMPLETED], 0);
+  autoar_create_signal_completed (arcreate);
 }
 
 void
-autoar_create_start (AutoarCreate *arcreate)
+autoar_create_start (AutoarCreate *arcreate,
+                     GCancellable *cancellable)
 {
-  autoar_create_run (arcreate, FALSE);
+  arcreate->priv->cancellable = cancellable;
+  arcreate->priv->in_thread = FALSE;
+  autoar_create_run (arcreate);
 }
 
 static void
@@ -1252,18 +1290,21 @@ autoar_create_start_async_thread (GTask *task,
                                   GCancellable *cancellable)
 {
   AutoarCreate *arcreate = source_object;
-  autoar_create_run (arcreate, TRUE);
+  autoar_create_run (arcreate);
   g_task_return_pointer (task, NULL, g_free);
   g_object_unref (arcreate);
   g_object_unref (task);
 }
 
 void
-autoar_create_start_async (AutoarCreate *arcreate)
+autoar_create_start_async (AutoarCreate *arcreate,
+                           GCancellable *cancellable)
 {
   GTask *task;
 
   g_object_ref (arcreate);
+  arcreate->priv->cancellable = cancellable;
+  arcreate->priv->in_thread = TRUE;
 
   task = g_task_new (arcreate, NULL, NULL, NULL);
   g_task_set_task_data (task, NULL, NULL);

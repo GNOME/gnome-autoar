@@ -60,6 +60,7 @@ struct _AutoarCreateClass
   void (* progress)   (AutoarCreate *arcreate,
                        guint64 completed_size,
                        guint completed_files);
+  void (* cancelled)  (AutoarCreate *arcreate);
   void (* completed)  (AutoarCreate *arcreate);
   void (* error)      (AutoarCreate *arcreate,
                        GError *error);
@@ -74,8 +75,10 @@ AutoarCreate*   autoar_create_newv                (AutoarPref  *arpref,
                                                    const char  *output,
                                                    const char **source);
 
-void            autoar_create_start               (AutoarCreate *arcreate);
-void            autoar_create_start_async         (AutoarCreate *arcreate);
+void            autoar_create_start               (AutoarCreate *arcreate,
+                                                   GCancellable *cancellable);
+void            autoar_create_start_async         (AutoarCreate *arcreate,
+                                                   GCancellable *cancellable);
 
 char          **autoar_create_get_source          (AutoarCreate *arcreate);
 char           *autoar_create_get_output          (AutoarCreate *arcreate);

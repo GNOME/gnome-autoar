@@ -836,10 +836,10 @@ autoar_extract_do_write_entry (AutoarExtract *arextract,
                 return;
               }
               if (g_cancellable_is_cancelled (priv->cancellable)) {
-                autoar_extract_signal_cancelled (arextract);
                 g_output_stream_close (ostream, priv->cancellable, NULL);
                 g_object_unref (ostream);
                 g_object_unref (info);
+                return;
               }
               priv->completed_size += written;
               autoar_extract_signal_progress (arextract);

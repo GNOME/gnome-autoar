@@ -256,22 +256,26 @@ static void
 autoar_create_dispose (GObject *object)
 {
   AutoarCreate *arcreate;
+  AutoarCreatePrivate *priv;
+
   arcreate = AUTOAR_CREATE (object);
+  priv = arcreate->priv;
 
   g_debug ("AutoarCreate: dispose");
 
-  g_clear_object (&(arcreate->priv->arpref));
-
-  if (arcreate->priv->ostream != NULL) {
-    if (!g_output_stream_is_closed (arcreate->priv->ostream)) {
-      g_output_stream_close (arcreate->priv->ostream, NULL, NULL);
+  if (priv->ostream != NULL) {
+    if (!g_output_stream_is_closed (priv->ostream)) {
+      g_output_stream_close (priv->ostream, priv->cancellable, NULL);
     }
-    g_object_unref (arcreate->priv->ostream);
+    g_object_unref (priv->ostream);
   }
 
-  if (arcreate->priv->pathname_to_g_file != NULL) {
-    g_hash_table_unref (arcreate->priv->pathname_to_g_file);
-    arcreate->priv->pathname_to_g_file = NULL;
+  g_clear_object (&(priv->arpref));
+  g_clear_object (&(priv->cancellable));
+
+  if (priv->pathname_to_g_file != NULL) {
+    g_hash_table_unref (priv->pathname_to_g_file);
+    priv->pathname_to_g_file = NULL;
   }
 
   G_OBJECT_CLASS (autoar_create_parent_class)->dispose (object);
@@ -344,7 +348,7 @@ libarchive_write_open_cb (struct archive *ar_write,
 
   arcreate->priv->ostream = (GOutputStream*)g_file_create (arcreate->priv->dest,
                                                            G_FILE_CREATE_NONE,
-                                                           NULL,
+                                                           arcreate->priv->cancellable,
                                                            &(arcreate->priv->error));
   g_return_val_if_fail (arcreate->priv->error == NULL, ARCHIVE_FATAL);
 
@@ -366,7 +370,7 @@ libarchive_write_close_cb (struct archive *ar_write,
   }
 
   if (arcreate->priv->ostream != NULL) {
-    g_output_stream_close (arcreate->priv->ostream, NULL, &(arcreate->priv->error));
+    g_output_stream_close (arcreate->priv->ostream, arcreate->priv->cancellable, &(arcreate->priv->error));
     g_object_unref (arcreate->priv->ostream);
     arcreate->priv->ostream = NULL;
   }
@@ -399,7 +403,7 @@ libarchive_write_write_cb (struct archive *ar_write,
   write_size = g_output_stream_write (arcreate->priv->ostream,
                                       buffer,
                                       length,
-                                      NULL,
+                                      arcreate->priv->cancellable,
                                       &(arcreate->priv->error));
   g_return_val_if_fail (arcreate->priv->error == NULL, -1);
 
@@ -443,9 +447,18 @@ autoar_create_signal_completed (AutoarCreate *arcreate)
 static inline void
 autoar_create_signal_error (AutoarCreate *arcreate)
 {
-  autoar_common_g_signal_emit (arcreate, arcreate->priv->in_thread,
-                               autoar_create_signals[ERROR], 0,
-                               arcreate->priv->error);
+  if (arcreate->priv->error != NULL) {
+    if (arcreate->priv->error->domain == G_IO_ERROR &&
+        arcreate->priv->error->code == G_IO_ERROR_CANCELLED) {
+      g_error_free (arcreate->priv->error);
+      arcreate->priv->error = NULL;
+      autoar_create_signal_cancelled (arcreate);
+    } else {
+      autoar_common_g_signal_emit (arcreate, arcreate->priv->in_thread,
+                                   autoar_create_signals[ERROR], 0,
+                                   arcreate->priv->error);
+    }
+  }
 }
 
 static void
@@ -459,6 +472,9 @@ autoar_create_do_write_data (AutoarCreate *arcreate,
   g_debug ("autoar_create_do_write_data: called");
 
   if (arcreate->priv->error != NULL)
+    return;
+
+  if (g_cancellable_is_cancelled (priv->cancellable))
     return;
 
   priv = arcreate->priv;
@@ -484,7 +500,7 @@ autoar_create_do_write_data (AutoarCreate *arcreate,
     written_actual = 0;
     written_try = 0;
 
-    istream = (GInputStream*)g_file_read (file, NULL, &(priv->error));
+    istream = (GInputStream*)g_file_read (file, priv->cancellable, &(priv->error));
     if (istream == NULL)
       return;
 
@@ -494,7 +510,7 @@ autoar_create_do_write_data (AutoarCreate *arcreate,
       read_actual = g_input_stream_read (istream,
                                          priv->buffer,
                                          priv->buffer_size,
-                                         NULL,
+                                         priv->cancellable,
                                          &(priv->error));
       priv->completed_size += read_actual > 0 ? read_actual : 0;
       autoar_create_signal_progress (arcreate);
@@ -512,7 +528,7 @@ autoar_create_do_write_data (AutoarCreate *arcreate,
     } while (read_actual > 0 && written_actual >= 0);
 
 
-    g_input_stream_close (istream, NULL, NULL);
+    g_input_stream_close (istream, priv->cancellable, NULL);
     g_object_unref (istream);
 
     if (read_actual < 0)
@@ -542,9 +558,15 @@ autoar_create_do_add_to_archive (AutoarCreate *arcreate,
 
   priv = arcreate->priv;
 
+  if (priv->error != NULL)
+    return;
+
+  if (g_cancellable_is_cancelled (priv->cancellable))
+    return;
+
   archive_entry_clear (priv->entry);
   info = g_file_query_info (file, "*", G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
-                            NULL, &(arcreate->priv->error));
+                            priv->cancellable, &(priv->error));
   if (info == NULL)
     return;
 
@@ -737,19 +759,22 @@ autoar_create_do_recursive_read (AutoarCreate *arcreate,
   GFile *thisfile;
   const char *thisname;
 
+  AutoarCreatePrivate *priv;
+
+  priv = arcreate->priv;
   enumerator = g_file_enumerate_children (file,
                                           "standard::*",
                                           G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
-                                          NULL,
-                                          &(arcreate->priv->error));
+                                          priv->cancellable,
+                                          &(priv->error));
   if (enumerator == NULL)
     return;
 
-  while ((info = g_file_enumerator_next_file (enumerator, NULL, &(arcreate->priv->error))) != NULL) {
+  while ((info = g_file_enumerator_next_file (enumerator, priv->cancellable, &(priv->error))) != NULL) {
     thisname = g_file_info_get_name (info);
     thisfile = g_file_get_child (file, thisname);
     autoar_create_do_add_to_archive (arcreate, root, thisfile);
-    if (arcreate->priv->error != NULL) {
+    if (priv->error != NULL) {
       g_object_unref (thisfile);
       g_object_unref (info);
       break;
@@ -760,7 +785,9 @@ autoar_create_do_recursive_read (AutoarCreate *arcreate,
     g_object_unref (thisfile);
     g_object_unref (info);
 
-    if (arcreate->priv->error != NULL)
+    if (priv->error != NULL)
+      break;
+    if (g_cancellable_is_cancelled (priv->cancellable))
       break;
   }
 }
@@ -998,6 +1025,11 @@ autoar_create_run (AutoarCreate *arcreate)
   /* A string array without a string is not allowed */
   g_return_if_fail (*(priv->source) != NULL);
 
+  if (g_cancellable_is_cancelled (priv->cancellable)) {
+    autoar_create_signal_cancelled (arcreate);
+    return;
+  }
+
   format = autoar_pref_get_default_format (priv->arpref);
   filter = autoar_pref_get_default_filter (priv->arpref);
   g_return_if_fail (format > 0 && format < AUTOAR_PREF_FORMAT_LAST);
@@ -1095,6 +1127,11 @@ autoar_create_run (AutoarCreate *arcreate)
       format_extension = "";
   }
 
+  if (g_cancellable_is_cancelled (priv->cancellable)) {
+    autoar_create_signal_cancelled (arcreate);
+    return;
+  }
+
   /* Step 1: Set the destination file name
    * Use the first source file name */
   g_debug ("autoar_extract_run: Step 1, Filename");
@@ -1113,7 +1150,7 @@ autoar_create_run (AutoarCreate *arcreate)
       source_info = g_file_query_info (file_source,
                                        G_FILE_ATTRIBUTE_STANDARD_TYPE,
                                        G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
-                                       NULL,
+                                       priv->cancellable,
                                        &(priv->error));
       if (source_info == NULL) {
         g_object_unref (file_source);
@@ -1142,9 +1179,16 @@ autoar_create_run (AutoarCreate *arcreate)
                                    NULL);
       file_dest = g_file_get_child (file_output, dest_basename);
 
-      for (i = 1; g_file_query_exists (file_dest, NULL); i++) {
+      for (i = 1; g_file_query_exists (file_dest, priv->cancellable); i++) {
         g_free (dest_basename);
         g_object_unref (file_dest);
+
+        if (g_cancellable_is_cancelled (priv->cancellable)) {
+          autoar_create_signal_cancelled (arcreate);
+          g_object_unref (file_output);
+          return;
+        }
+
         dest_basename = g_strdup_printf ("%s(%d)%s%s",
                                          priv->source_basename_noext,
                                          i,
@@ -1157,8 +1201,8 @@ autoar_create_run (AutoarCreate *arcreate)
     }
 
     {
-      if (!g_file_query_exists (file_output, NULL)) {
-        g_file_make_directory_with_parents (file_output, NULL, &(arcreate->priv->error));
+      if (!g_file_query_exists (file_output, priv->cancellable)) {
+        g_file_make_directory_with_parents (file_output, priv->cancellable, &(priv->error));
         if (arcreate->priv->error) {
           autoar_create_signal_error (arcreate);
           g_object_unref (file_output);
@@ -1173,6 +1217,11 @@ autoar_create_run (AutoarCreate *arcreate)
 
     g_object_unref (file_output);
     g_object_unref (file_dest);
+  }
+
+  if (g_cancellable_is_cancelled (priv->cancellable)) {
+    autoar_create_signal_cancelled (arcreate);
+    return;
   }
 
   /* Step 2: Create and open the new archive file */
@@ -1195,8 +1244,6 @@ autoar_create_run (AutoarCreate *arcreate)
   else
     priv->prepend_basename = TRUE;
 
-  priv->entry = archive_entry_new ();
-  priv->resolver = archive_entry_linkresolver_new ();
   archive_entry_linkresolver_set_strategy (priv->resolver, archive_format (priv->a));
 
   for (i = 0; arcreate->priv->source[i] != NULL; i++) {
@@ -1208,7 +1255,7 @@ autoar_create_run (AutoarCreate *arcreate)
     fileinfo = g_file_query_info (file,
                                   G_FILE_ATTRIBUTE_STANDARD_TYPE,
                                   G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
-                                  NULL,
+                                  priv->cancellable,
                                   &(arcreate->priv->error));
     if (arcreate->priv->error != NULL) {
       autoar_create_signal_error (arcreate);
@@ -1227,6 +1274,11 @@ autoar_create_run (AutoarCreate *arcreate)
 
     if (arcreate->priv->error != NULL) {
       autoar_create_signal_error (arcreate);
+      return;
+    }
+
+    if (g_cancellable_is_cancelled (priv->cancellable)) {
+      autoar_create_signal_cancelled (arcreate);
       return;
     }
   }
@@ -1263,6 +1315,8 @@ void
 autoar_create_start (AutoarCreate *arcreate,
                      GCancellable *cancellable)
 {
+  if (cancellable != NULL)
+    g_object_ref (cancellable);
   arcreate->priv->cancellable = cancellable;
   arcreate->priv->in_thread = FALSE;
   autoar_create_run (arcreate);
@@ -1288,6 +1342,8 @@ autoar_create_start_async (AutoarCreate *arcreate,
   GTask *task;
 
   g_object_ref (arcreate);
+  if (cancellable != NULL)
+    g_object_ref (cancellable);
   arcreate->priv->cancellable = cancellable;
   arcreate->priv->in_thread = TRUE;
 

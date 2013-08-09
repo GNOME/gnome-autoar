@@ -56,6 +56,7 @@ AC_CHECK_FUNCS([getgrnam getpwnam link mkfifo mknod stat])
 AC_CONFIG_FILES([Makefile
                  gnome-autoar/Makefile
                  gnome-autoar/gnome-autoar.pc
+                 data/Makefile
                  tests/Makefile])
 AC_OUTPUT
 

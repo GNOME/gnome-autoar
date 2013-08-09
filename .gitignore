@@ -28,9 +28,11 @@ m4/*.m4
 missing
 
 gnome-autoar/*-enum-types.[ch]
-gnome-autoar/*.enums.xml
-gnome-autoar/*.gschema.valid
 gnome-autoar/gnome-autoar.pc
 
+data/*.enums.xml
+data/*.gschema.valid
+
 tests/test-extract
+tests/test-create
 tests/test-pref

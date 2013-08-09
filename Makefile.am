@@ -4,7 +4,7 @@ ACLOCAL_AMFLAGS = -I m4
 
 NULL =
 
-SUBDIRS = gnome-autoar tests
+SUBDIRS = gnome-autoar data tests
 
 EXTRA_DISTS = \
 	autogen.sh \

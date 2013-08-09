@@ -51,7 +51,7 @@ main (int argc,
   AutoarPref *arpref;
 
   if (argc < 5) {
-    g_printerr ("Usage: %s format filter output_dir source ...", argv[0]);
+    g_printerr ("Usage: %s format filter output_dir source ...\n", argv[0]);
     return 255;
   }
 

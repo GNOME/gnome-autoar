@@ -110,17 +110,12 @@ autoar_create_get_property (GObject    *object,
   AutoarCreate *arcreate;
   AutoarCreatePrivate *priv;
 
-  GVariant *variant;
-  const char* const* strv;
-
   arcreate = AUTOAR_CREATE (object);
   priv = arcreate->priv;
 
   switch (property_id) {
     case PROP_SOURCE:
-      strv = (const char* const*)(priv->source);
-      variant = g_variant_new_strv (strv, -1);
-      g_value_take_variant (value, variant);
+      g_value_set_boxed (value, priv->source);
       break;
     case PROP_OUTPUT:
       g_value_set_string (value, priv->output);
@@ -151,8 +146,6 @@ autoar_create_set_property (GObject      *object,
   AutoarCreate *arcreate;
   AutoarCreatePrivate *priv;
 
-  const char **strv;
-
   arcreate = AUTOAR_CREATE (object);
   priv = arcreate->priv;
 
@@ -170,9 +163,8 @@ autoar_create_set_property (GObject      *object,
       autoar_create_set_completed_files (arcreate, g_value_get_uint (value));
       break;
     case PROP_SOURCE:
-      strv = g_variant_get_strv (g_value_get_variant (value), NULL);
-      g_strfreev (arcreate->priv->source);
-      arcreate->priv->source = g_strdupv ((char**)strv);
+      g_strfreev (priv->source);
+      priv->source = g_value_dup_boxed (value);
       break;
     case PROP_OUTPUT:
       g_free (priv->output);
@@ -778,7 +770,6 @@ autoar_create_class_init (AutoarCreateClass *klass)
 {
   GObjectClass *object_class;
   GType type;
-  GPtrArray *tmparr;
 
   object_class = G_OBJECT_CLASS (klass);
   type = G_TYPE_FROM_CLASS (klass);
@@ -792,20 +783,16 @@ autoar_create_class_init (AutoarCreateClass *klass)
   object_class->dispose = autoar_create_dispose;
   object_class->finalize = autoar_create_finalize;
 
-  tmparr = g_ptr_array_new ();
-  g_ptr_array_add (tmparr, NULL);
-
   g_object_class_install_property (object_class, PROP_SOURCE,
-                                   g_param_spec_variant ("source",
-                                                         "Source archive",
-                                                         "The source files and directories to be compressed",
-                                                         G_VARIANT_TYPE_STRING_ARRAY,
-                                                         g_variant_new_strv ((const char* const*)tmparr->pdata, -1),
-                                                         G_PARAM_READWRITE |
-                                                         G_PARAM_CONSTRUCT_ONLY |
-                                                         G_PARAM_STATIC_NAME |
-                                                         G_PARAM_STATIC_NICK |
-                                                         G_PARAM_STATIC_BLURB));
+                                   g_param_spec_boxed ("source",
+                                                       "Source archive",
+                                                       "The source files and directories to be compressed",
+                                                       G_TYPE_STRV,
+                                                       G_PARAM_READWRITE |
+                                                       G_PARAM_CONSTRUCT_ONLY |
+                                                       G_PARAM_STATIC_NAME |
+                                                       G_PARAM_STATIC_NICK |
+                                                       G_PARAM_STATIC_BLURB));
 
   g_object_class_install_property (object_class, PROP_OUTPUT,
                                    g_param_spec_string ("output",
@@ -911,8 +898,6 @@ autoar_create_class_init (AutoarCreateClass *klass)
                   G_TYPE_NONE,
                   1,
                   G_TYPE_POINTER);
-
-  g_ptr_array_unref (tmparr);
 }
 
 static void
@@ -962,7 +947,7 @@ autoar_create_newv (AutoarPref  *arpref,
   g_return_val_if_fail (output != NULL, NULL);
 
   arcreate = g_object_new (AUTOAR_TYPE_CREATE,
-                           "source", g_variant_new_strv (source, -1),
+                           "source", source,
                            "output", output,
                            NULL);
   arcreate->priv->arpref = g_object_ref (arpref);

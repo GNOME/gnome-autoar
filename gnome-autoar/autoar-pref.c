@@ -91,10 +91,6 @@ autoar_pref_get_property (GObject    *object,
   AutoarPref *arpref;
   AutoarPrefPrivate *priv;
 
-  GVariant *variant;
-
-  const char* const* strv;
-
   arpref = AUTOAR_PREF (object);
   priv = arpref->priv;
 
@@ -106,19 +102,13 @@ autoar_pref_get_property (GObject    *object,
       g_value_set_enum (value, priv->default_filter);
       break;
     case PROP_FILE_NAME_SUFFIX:
-      strv = (const char* const*)(priv->file_name_suffix);
-      variant = g_variant_new_strv (strv, -1);
-      g_value_take_variant (value, variant);
+      g_value_set_boxed (value, priv->file_name_suffix);
       break;
     case PROP_FILE_MIME_TYPE:
-      strv = (const char* const*)(priv->file_mime_type);
-      variant = g_variant_new_strv (strv, -1);
-      g_value_take_variant (value, variant);
+      g_value_set_boxed (value, priv->file_mime_type);
       break;
     case PROP_PATTERN_TO_IGNORE:
-      strv = (const char* const*)(priv->pattern_to_ignore);
-      variant = g_variant_new_strv (strv, -1);
-      g_value_take_variant (value, variant);
+      g_value_set_boxed (value, priv->pattern_to_ignore);
       break;
     case PROP_DELETE_IF_SUCCEED:
       g_value_set_boolean (value, priv->delete_if_succeed);
@@ -136,7 +126,6 @@ autoar_pref_set_property (GObject      *object,
                           GParamSpec   *pspec)
 {
   AutoarPref *arpref;
-  const char **strv;
 
   arpref = AUTOAR_PREF (object);
 
@@ -148,16 +137,13 @@ autoar_pref_set_property (GObject      *object,
       autoar_pref_set_default_filter (arpref, g_value_get_enum (value));
       break;
     case PROP_FILE_NAME_SUFFIX:
-      strv = g_variant_get_strv (g_value_get_variant (value), NULL);
-      autoar_pref_set_file_name_suffix (arpref, strv);
+      autoar_pref_set_file_name_suffix (arpref, g_value_get_boxed (value));
       break;
     case PROP_FILE_MIME_TYPE:
-      strv = g_variant_get_strv (g_value_get_variant (value), NULL);
-      autoar_pref_set_file_mime_type (arpref, strv);
+      autoar_pref_set_file_mime_type (arpref, g_value_get_boxed (value));
       break;
     case PROP_PATTERN_TO_IGNORE:
-      strv = g_variant_get_strv (g_value_get_variant (value), NULL);
-      autoar_pref_set_pattern_to_ignore (arpref, strv);
+      autoar_pref_set_pattern_to_ignore (arpref, g_value_get_boxed (value));
       break;
     case PROP_DELETE_IF_SUCCEED:
       autoar_pref_set_delete_if_succeed (arpref, g_value_get_boolean (value));
@@ -300,7 +286,6 @@ static void
 autoar_pref_class_init (AutoarPrefClass *klass)
 {
   GObjectClass *object_class;
-  GPtrArray *tmparr;
 
   object_class = G_OBJECT_CLASS (klass);
 
@@ -332,41 +317,35 @@ autoar_pref_class_init (AutoarPrefClass *klass)
                                                       G_PARAM_STATIC_NICK |
                                                       G_PARAM_STATIC_BLURB));
 
-  tmparr = g_ptr_array_new ();
-  g_ptr_array_add (tmparr, NULL);
-
   g_object_class_install_property (object_class, PROP_FILE_NAME_SUFFIX,
-                                   g_param_spec_variant (KEY_FILE_NAME_SUFFIX,
-                                                         "File name suffix",
-                                                         "File name suffix whitelist for automatic extraction",
-                                                         G_VARIANT_TYPE_STRING_ARRAY,
-                                                         g_variant_new_strv ((const char* const*)tmparr->pdata, -1),
-                                                         G_PARAM_READWRITE |
-                                                         G_PARAM_STATIC_NAME |
-                                                         G_PARAM_STATIC_NICK |
-                                                         G_PARAM_STATIC_BLURB));
+                                   g_param_spec_boxed (KEY_FILE_NAME_SUFFIX,
+                                                       "File name suffix",
+                                                       "File name suffix whitelist for automatic extraction",
+                                                       G_TYPE_STRV,
+                                                       G_PARAM_READWRITE |
+                                                       G_PARAM_STATIC_NAME |
+                                                       G_PARAM_STATIC_NICK |
+                                                       G_PARAM_STATIC_BLURB));
 
   g_object_class_install_property (object_class, PROP_FILE_MIME_TYPE,
-                                   g_param_spec_variant (KEY_FILE_MIME_TYPE,
-                                                         "File MIME type",
-                                                         "File MIME type whitelist for automatic extraction",
-                                                         G_VARIANT_TYPE_STRING_ARRAY,
-                                                         g_variant_new_strv ((const char* const*)tmparr->pdata, -1),
-                                                         G_PARAM_READWRITE |
-                                                         G_PARAM_STATIC_NAME |
-                                                         G_PARAM_STATIC_NICK |
-                                                         G_PARAM_STATIC_BLURB));
+                                   g_param_spec_boxed (KEY_FILE_MIME_TYPE,
+                                                       "File MIME type",
+                                                       "File MIME type whitelist for automatic extraction",
+                                                       G_TYPE_STRV,
+                                                       G_PARAM_READWRITE |
+                                                       G_PARAM_STATIC_NAME |
+                                                       G_PARAM_STATIC_NICK |
+                                                       G_PARAM_STATIC_BLURB));
 
   g_object_class_install_property (object_class, PROP_PATTERN_TO_IGNORE,
-                                   g_param_spec_variant (KEY_PATTERN_TO_IGNORE,
-                                                         "Pattern to ignore",
-                                                         "Pattern of file name to skip when extracting files",
-                                                         G_VARIANT_TYPE_STRING_ARRAY,
-                                                         g_variant_new_strv ((const char* const*)tmparr->pdata, -1),
-                                                         G_PARAM_READWRITE |
-                                                         G_PARAM_STATIC_NAME |
-                                                         G_PARAM_STATIC_NICK |
-                                                         G_PARAM_STATIC_BLURB));
+                                   g_param_spec_boxed (KEY_PATTERN_TO_IGNORE,
+                                                       "Pattern to ignore",
+                                                       "Pattern of file name to skip when extracting files",
+                                                       G_TYPE_STRV,
+                                                       G_PARAM_READWRITE |
+                                                       G_PARAM_STATIC_NAME |
+                                                       G_PARAM_STATIC_NICK |
+                                                       G_PARAM_STATIC_BLURB));
 
   g_object_class_install_property (object_class, PROP_DELETE_IF_SUCCEED,
                                    g_param_spec_boolean (KEY_DELETE_IF_SUCCEED,
@@ -377,7 +356,6 @@ autoar_pref_class_init (AutoarPrefClass *klass)
                                                          G_PARAM_STATIC_NAME |
                                                          G_PARAM_STATIC_NICK |
                                                          G_PARAM_STATIC_BLURB));
-  g_ptr_array_unref (tmparr);
 }
 
 static void

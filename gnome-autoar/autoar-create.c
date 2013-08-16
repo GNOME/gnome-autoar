@@ -474,7 +474,7 @@ autoar_create_do_write_data (AutoarCreate *arcreate,
   if (arcreate->priv->error != NULL)
     return;
 
-  if (g_cancellable_is_cancelled (priv->cancellable))
+  if (g_cancellable_is_cancelled (arcreate->priv->cancellable))
     return;
 
   priv = arcreate->priv;

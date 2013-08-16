@@ -73,6 +73,17 @@ GType           autoar_extract_get_type            (void) G_GNUC_CONST;
 AutoarExtract  *autoar_extract_new                 (const char *source,
                                                     const char *output,
                                                     AutoarPref *arpref);
+AutoarExtract  *autoar_extract_new_file            (GFile *source_file,
+                                                    GFile *output_file,
+                                                    AutoarPref *arpref);
+AutoarExtract  *autoar_extract_new_memory          (const void *buffer,
+                                                    gsize buffer_size,
+                                                    const char *output,
+                                                    AutoarPref *arpref);
+AutoarExtract  *autoar_extract_new_memory_file     (const void *buffer,
+                                                    gsize buffer_size,
+                                                    GFile *output_file,
+                                                    AutoarPref *arpref);
 
 void            autoar_extract_start               (AutoarExtract *arextract,
                                                     GCancellable *cancellable);
@@ -80,11 +91,15 @@ void            autoar_extract_start_async         (AutoarExtract *arextract,
                                                     GCancellable *cancellable);
 
 char           *autoar_extract_get_source          (AutoarExtract *arextract);
+GFile          *autoar_extract_get_source_file     (AutoarExtract *arextract);
 char           *autoar_extract_get_output          (AutoarExtract *arextract);
+GFile          *autoar_extract_get_output_file     (AutoarExtract *arextract);
 guint64         autoar_extract_get_size            (AutoarExtract *arextract);
 guint64         autoar_extract_get_completed_size  (AutoarExtract *arextract);
 guint           autoar_extract_get_files           (AutoarExtract *arextract);
 guint           autoar_extract_get_completed_files (AutoarExtract *arextract);
+gboolean        autoar_extract_get_source_is_mem   (AutoarExtract *arextract);
+gboolean        autoar_extract_get_output_is_dest  (AutoarExtract *arextract);
 
 void            autoar_extract_set_size            (AutoarExtract *arextract,
                                                     guint64 size);
@@ -94,6 +109,8 @@ void            autoar_extract_set_files           (AutoarExtract *arextract,
                                                     guint files);
 void            autoar_extract_set_completed_files (AutoarExtract *arextract,
                                                     guint completed_files);
+void            autoar_extract_set_output_is_dest  (AutoarExtract *arextract,
+                                                    gboolean output_is_dest);
 
 G_END_DECLS
 

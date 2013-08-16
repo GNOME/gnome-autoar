@@ -99,7 +99,7 @@ enum
 };
 
 static guint autoar_create_signals[LAST_SIGNAL] = { 0 };
-static GQuark autoar_create_quark;
+GQuark autoar_create_quark;
 
 static void
 autoar_create_get_property (GObject    *object,

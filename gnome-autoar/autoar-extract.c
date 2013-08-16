@@ -144,7 +144,7 @@ enum
 };
 
 static guint autoar_extract_signals[LAST_SIGNAL] = { 0 };
-static GQuark autoar_extract_quark;
+GQuark autoar_extract_quark;
 
 static void
 autoar_extract_get_property (GObject    *object,

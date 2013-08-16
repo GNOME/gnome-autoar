@@ -66,6 +66,7 @@ struct _AutoarCreateClass
                        GError *error);
 };
 
+extern GQuark   autoar_create_quark;
 GType           autoar_create_get_type            (void) G_GNUC_CONST;
 
 AutoarCreate*   autoar_create_new                 (AutoarPref *arpref,

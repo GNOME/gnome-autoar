@@ -68,6 +68,7 @@ struct _AutoarExtractClass
                        GError *error);
 };
 
+extern GQuark   autoar_extract_quark;
 GType           autoar_extract_get_type            (void) G_GNUC_CONST;
 
 AutoarExtract  *autoar_extract_new                 (const char *source,

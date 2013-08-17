@@ -1769,7 +1769,7 @@ autoar_extract_step_cleanup (AutoarExtract *arextract) {
   priv->completed_files = priv->files;
   autoar_extract_signal_progress (arextract);
   g_debug ("autoar_extract_step_cleanup: Update progress");
-  if (autoar_pref_get_delete_if_succeed (priv->arpref)) {
+  if (autoar_pref_get_delete_if_succeed (priv->arpref) && priv->source_file != NULL) {
     g_debug ("autoar_extract_step_cleanup: Delete");
     g_file_delete (priv->source_file, priv->cancellable, NULL);
   }

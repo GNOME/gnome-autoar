@@ -105,8 +105,16 @@ void               autoar_pref_forget_changes        (AutoarPref *arpref);
 
 gboolean           autoar_pref_check_file_name       (AutoarPref *arpref,
                                                       const char *filepath);
+gboolean           autoar_pref_check_file_name_file  (AutoarPref *arpref,
+                                                      GFile *file);
+gboolean           autoar_pref_check_file_name_d     (AutoarPref *arpref,
+                                                      const char *extension);
 gboolean           autoar_pref_check_mime_type       (AutoarPref *arpref,
                                                       const char *filepath);
+gboolean           autoar_pref_check_mime_type_file  (AutoarPref *arpref,
+                                                      GFile *file);
+gboolean           autoar_pref_check_mime_type_d     (AutoarPref *arpref,
+                                                      const char *mime_type);
 
 AutoarPrefFormat   autoar_pref_get_default_format    (AutoarPref *arpref);
 AutoarPrefFilter   autoar_pref_get_default_filter    (AutoarPref *arpref);

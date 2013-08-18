@@ -131,10 +131,10 @@ enum
 enum
 {
   PROP_0,
-  PROP_SOURCE,           /* Must not be NULL */
-  PROP_SOURCE_FILE,      /* It may be NULL if source-is-mem is TRUE */
-  PROP_OUTPUT,           /* Must not be NULL */
-  PROP_OUTPUT_FILE,      /* Must not be NULL */
+  PROP_SOURCE,           /* Only used to display messages */
+  PROP_SOURCE_FILE,      /* It may be invalid if source-is-mem is TRUE */
+  PROP_OUTPUT,           /* Only used to display messages */
+  PROP_OUTPUT_FILE,
   PROP_SIZE,
   PROP_COMPLETED_SIZE,
   PROP_FILES,
@@ -648,7 +648,7 @@ g_file_get_name (GFile *file) {
   char *name;
   name = g_file_get_path (file);
   if (name == NULL)
-    g_file_get_uri (file);
+    name = g_file_get_uri (file);
   return name;
 }
 
@@ -1342,7 +1342,7 @@ autoar_extract_new_full (const char *source,
 
   if (source_is_mem) {
     gen_source = g_strdup_printf ("(memory %p, size %" G_GSIZE_FORMAT ")", buffer, buffer_size);
-    gen_source_file = NULL;
+    gen_source_file = g_file_new_for_commandline_arg (gen_source);;
   } else {
     if (source == NULL)
       gen_source = g_file_get_name (source_file);
@@ -1362,7 +1362,7 @@ autoar_extract_new_full (const char *source,
                   "output",         output      != NULL ? output      : gen_output,
                   "output-file",    output_file != NULL ? output_file : gen_output_file,
                   "source-is-mem",  source_is_mem,
-                  "output-is-dest", output_is_dest);
+                  "output-is-dest", output_is_dest, NULL);
   arextract->priv->arpref = g_object_ref (arpref);
 
   if (source_is_mem) {

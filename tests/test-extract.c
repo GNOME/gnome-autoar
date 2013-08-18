@@ -58,6 +58,7 @@ main (int argc,
   AutoarExtract *arextract;
   AutoarPref *arpref;
   GSettings *settings;
+  char *content;
 
   if (argc < 3) {
     g_printerr ("Usage: %s archive_file output_dir pattern_to_ignore ...\n",
@@ -65,6 +66,7 @@ main (int argc,
     return 255;
   }
 
+  content = NULL;
   settings = g_settings_new (AUTOAR_PREF_DEFAULT_GSCHEMA_ID);
 
   arpref = autoar_pref_new_with_gsettings (settings);
@@ -74,7 +76,29 @@ main (int argc,
   autoar_pref_forget_changes (arpref);
   autoar_pref_write_gsettings (arpref, settings);
 
-  arextract = autoar_extract_new (argv[1], argv[2], arpref);
+  if (g_str_has_suffix (argv[0], "test-extract-memory")) {
+    gsize length;
+    GFile *file;
+    GError *error;
+
+    g_print ("Loading whole file into memory ... ");
+
+    error = NULL;
+    file = g_file_new_for_commandline_arg (argv[1]);
+    if (!g_file_load_contents (file, NULL, &content, &length, NULL, &error)) {
+      g_printerr ("\ntest-extract-memory: Error %d: %s\n", error->code, error->message);
+      g_object_unref (file);
+      g_error_free (error);
+      return 1;
+    }
+
+    g_print ("OK\n");
+    g_object_unref (file);
+    arextract = autoar_extract_new_memory (content, length, argv[2], arpref);
+  } else {
+    arextract = autoar_extract_new (argv[1], argv[2], arpref);
+  }
+
   g_signal_connect (arextract, "scanned", G_CALLBACK (my_handler_scanned), NULL);
   g_signal_connect (arextract, "decide-dest", G_CALLBACK (my_handler_decide_dest), NULL);
   g_signal_connect (arextract, "progress", G_CALLBACK (my_handler_progress), NULL);
@@ -86,6 +110,7 @@ main (int argc,
   g_object_unref (arextract);
   g_object_unref (arpref);
   g_object_unref (settings);
+  g_free (content);
 
   return 0;
 }

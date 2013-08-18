@@ -104,6 +104,7 @@ struct _AutoarExtractPrivate
 
   int   pathname_prefix_len;
   char *pathname_basename;
+  char *suggested_destname;
 
   int in_thread         : 1;
   int use_raw_format    : 1;
@@ -440,6 +441,9 @@ autoar_extract_finalize (GObject *object)
 
   g_free (priv->pathname_basename);
   priv->pathname_basename = NULL;
+
+  g_free (priv->suggested_destname);
+  priv->suggested_destname = NULL;
 
   G_OBJECT_CLASS (autoar_extract_parent_class)->finalize (object);
 }
@@ -1313,6 +1317,7 @@ autoar_extract_init (AutoarExtract *arextract)
 
   priv->pathname_prefix_len = 0;
   priv->pathname_basename = NULL;
+  priv->suggested_destname = NULL;
 
   priv->in_thread = FALSE;
   priv->use_raw_format = FALSE;
@@ -1329,7 +1334,8 @@ autoar_extract_new_full (const char *source,
                          gboolean output_is_dest,
                          AutoarPref *arpref,
                          const void *buffer,
-                         gsize buffer_size)
+                         gsize buffer_size,
+                         const char *suggested_destname)
 {
   AutoarExtract *arextract;
   char *gen_source, *gen_output;
@@ -1342,7 +1348,7 @@ autoar_extract_new_full (const char *source,
 
   if (source_is_mem) {
     gen_source = g_strdup_printf ("(memory %p, size %" G_GSIZE_FORMAT ")", buffer, buffer_size);
-    gen_source_file = g_file_new_for_commandline_arg (gen_source);;
+    gen_source_file = g_file_new_for_commandline_arg (gen_source);
   } else {
     if (source == NULL)
       gen_source = g_file_get_name (source_file);
@@ -1368,6 +1374,16 @@ autoar_extract_new_full (const char *source,
   if (source_is_mem) {
     arextract->priv->source_buffer = buffer;
     arextract->priv->source_buffer_size = buffer_size;
+    if (suggested_destname != NULL)
+      arextract->priv->suggested_destname =
+        autoar_common_get_basename_remove_extension (suggested_destname);
+    else
+      arextract->priv->suggested_destname =
+        autoar_common_get_basename_remove_extension (gen_source);
+  } else {
+    char *source_basename = g_file_get_basename (arextract->priv->source_file);
+    arextract->priv->suggested_destname =
+      autoar_common_get_basename_remove_extension (source_basename);
   }
 
   g_free (gen_source);
@@ -1391,7 +1407,8 @@ autoar_extract_new (const char *source,
   g_return_val_if_fail (output != NULL, NULL);
 
   return autoar_extract_new_full (source, NULL, output, NULL,
-                                  FALSE, FALSE, arpref, NULL, 0);
+                                  FALSE, FALSE, arpref,
+                                  NULL, 0, NULL);
 }
 
 AutoarExtract*
@@ -1403,12 +1420,14 @@ autoar_extract_new_file (GFile *source_file,
   g_return_val_if_fail (output_file != NULL, NULL);
 
   return autoar_extract_new_full (NULL, source_file, NULL, output_file,
-                                  FALSE, FALSE, arpref, NULL, 0);
+                                  FALSE, FALSE, arpref,
+                                  NULL, 0, NULL);
 }
 
 AutoarExtract*
 autoar_extract_new_memory (const void *buffer,
                            gsize buffer_size,
+                           const char *source_name,
                            const char *output,
                            AutoarPref *arpref)
 {
@@ -1417,12 +1436,14 @@ autoar_extract_new_memory (const void *buffer,
   g_return_val_if_fail (buffer != NULL, NULL);
 
   return autoar_extract_new_full (NULL, NULL, output, NULL,
-                                  TRUE, FALSE, arpref, buffer, buffer_size);
+                                  TRUE, FALSE, arpref,
+                                  buffer, buffer_size, source_name);
 }
 
 AutoarExtract*
 autoar_extract_new_memory_file (const void *buffer,
                                 gsize buffer_size,
+                                const char *source_name,
                                 GFile *output_file,
                                 AutoarPref *arpref)
 {
@@ -1430,7 +1451,8 @@ autoar_extract_new_memory_file (const void *buffer,
   g_return_val_if_fail (buffer != NULL, NULL);
 
   return autoar_extract_new_full (NULL, NULL, NULL, output_file,
-                                  TRUE, FALSE, arpref, buffer, buffer_size);
+                                  TRUE, FALSE, arpref,
+                                  buffer, buffer_size, source_name);
 }
 
 static void
@@ -1561,7 +1583,6 @@ autoar_extract_step_decide_dest (AutoarExtract *arextract) {
   /* Step 2: Create necessary directories
    * If the archive contains only one file, we don't create the directory */
 
-  char *top_level_dir_basename;
   const char *pathname_extension;
 
   AutoarExtractPrivate *priv;
@@ -1572,32 +1593,19 @@ autoar_extract_step_decide_dest (AutoarExtract *arextract) {
   g_debug ("autoar_extract_step_decide_dest: called");
 
   {
-    GFile *source;
-    char *source_basename;
-
-    source = g_file_new_for_commandline_arg (priv->source);
-    source_basename = g_file_get_basename (source);
-    top_level_dir_basename = autoar_common_get_basename_remove_extension (source_basename);
-    g_object_unref (source);
-    g_free (source_basename);
-  }
-
-  {
     pathname_extension = autoar_common_get_filename_extension (priv->pathname_basename);
     if (priv->has_only_one_file && (pathname_extension != priv->pathname_basename)) {
       /* If we only have one file, we have to add the file extension.
        * Although we use the variable `top_level_dir', it may be a regular
        * file, so the extension is important. */
-      char *new_filename = g_strconcat (top_level_dir_basename, pathname_extension, NULL);
+      char *new_filename = g_strconcat (priv->suggested_destname, pathname_extension, NULL);
       priv->top_level_dir = g_file_get_child (priv->output_file, new_filename);
       g_free (new_filename);
     } else {
-      priv->top_level_dir = g_file_get_child (priv->output_file, top_level_dir_basename);
+      priv->top_level_dir = g_file_get_child (priv->output_file, priv->suggested_destname);
       pathname_extension = "";
     }
   }
-
-  g_free (top_level_dir_basename);
 
   {
     char *top_level_dir_basename_modified = NULL;
@@ -1610,12 +1618,12 @@ autoar_extract_step_decide_dest (AutoarExtract *arextract) {
 
       if (priv->has_only_one_file) {
         top_level_dir_basename_modified = g_strdup_printf ("%s(%d)%s",
-                                                           top_level_dir_basename,
+                                                           priv->suggested_destname,
                                                            i,
                                                            pathname_extension);
       } else {
         top_level_dir_basename_modified = g_strdup_printf ("%s(%d)",
-                                                           top_level_dir_basename,
+                                                           priv->suggested_destname,
                                                            i);
       }
       priv->top_level_dir = g_file_get_child (priv->output_file,

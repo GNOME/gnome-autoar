@@ -79,10 +79,12 @@ AutoarExtract  *autoar_extract_new_file            (GFile *source_file,
                                                     AutoarPref *arpref);
 AutoarExtract  *autoar_extract_new_memory          (const void *buffer,
                                                     gsize buffer_size,
+                                                    const char *source_name,
                                                     const char *output,
                                                     AutoarPref *arpref);
 AutoarExtract  *autoar_extract_new_memory_file     (const void *buffer,
                                                     gsize buffer_size,
+                                                    const char *source_name,
                                                     GFile *output_file,
                                                     AutoarPref *arpref);
 

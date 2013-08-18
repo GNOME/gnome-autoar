@@ -94,7 +94,7 @@ main (int argc,
 
     g_print ("OK\n");
     g_object_unref (file);
-    arextract = autoar_extract_new_memory (content, length, argv[2], arpref);
+    arextract = autoar_extract_new_memory (content, length, argv[1], argv[2], arpref);
   } else {
     arextract = autoar_extract_new (argv[1], argv[2], arpref);
   }

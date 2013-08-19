@@ -1874,3 +1874,14 @@ autoar_extract_start_async (AutoarExtract *arextract,
   g_task_set_task_data (task, NULL, NULL);
   g_task_run_in_thread (task, autoar_extract_start_async_thread);
 }
+
+void
+autoar_extract_free_source_buffer (AutoarExtract *arextract,
+                                   GDestroyNotify free_func)
+{
+  if (arextract->priv->source_buffer != NULL)
+    (*free_func)((void*)(arextract->priv->source_buffer));
+
+  arextract->priv->source_buffer = NULL;
+  arextract->priv->source_buffer_size = 0;
+}

@@ -92,6 +92,8 @@ void            autoar_extract_start               (AutoarExtract *arextract,
                                                     GCancellable *cancellable);
 void            autoar_extract_start_async         (AutoarExtract *arextract,
                                                     GCancellable *cancellable);
+void            autoar_extract_free_source_buffer  (AutoarExtract *arextract,
+                                                    GDestroyNotify free_func);
 
 char           *autoar_extract_get_source          (AutoarExtract *arextract);
 GFile          *autoar_extract_get_source_file     (AutoarExtract *arextract);

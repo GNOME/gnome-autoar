@@ -2,6 +2,7 @@
 
 #include <gnome-autoar/autoar.h>
 #include <gio/gio.h>
+#include <locale.h>
 #include <stdlib.h>
 
 static void
@@ -65,6 +66,8 @@ main (int argc,
                 argv[0]);
     return 255;
   }
+
+  setlocale (LC_ALL, "");
 
   content = NULL;
   settings = g_settings_new (AUTOAR_PREF_DEFAULT_GSCHEMA_ID);

@@ -2,6 +2,7 @@
 
 #include <gnome-autoar/autoar.h>
 #include <glib.h>
+#include <locale.h>
 #include <stdlib.h>
 
 static void
@@ -54,6 +55,8 @@ main (int argc,
     g_printerr ("Usage: %s format filter output_dir source ...\n", argv[0]);
     return 255;
   }
+
+  setlocale (LC_ALL, "");
 
   arpref = autoar_pref_new ();
   autoar_pref_set_default_format (arpref, atoi (argv[1]));

@@ -790,6 +790,8 @@ autoar_create_do_recursive_read (AutoarCreate *arcreate,
     if (g_cancellable_is_cancelled (priv->cancellable))
       break;
   }
+
+  g_object_unref (enumerator);
 }
 
 static void

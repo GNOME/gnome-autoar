@@ -570,6 +570,31 @@ autoar_create_do_add_to_archive (AutoarCreate *arcreate,
   if (info == NULL)
     return;
 
+  filetype = g_file_info_get_file_type (info);
+  switch (archive_format (priv->a)) {
+    case ARCHIVE_FORMAT_AR:
+    case ARCHIVE_FORMAT_AR_GNU:
+    case ARCHIVE_FORMAT_AR_BSD:
+      if (filetype == G_FILE_TYPE_DIRECTORY ||
+          filetype == G_FILE_TYPE_SYMBOLIC_LINK ||
+          filetype == G_FILE_TYPE_SPECIAL) {
+        /* ar only support regular files, so we abort this operation to
+         * prevent producing a malformed archive. */
+        g_object_unref (info);
+        return;
+      }
+      break;
+
+    case ARCHIVE_FORMAT_ZIP:
+      if (filetype == G_FILE_TYPE_SPECIAL) {
+        /* Add special files to zip archives cause unknown fatal error
+         * in libarchive. */
+        g_object_unref (info);
+        return;
+      }
+      break;
+  }
+
   {
     char *root_basename;
     char *pathname_relative;
@@ -634,31 +659,6 @@ autoar_create_do_add_to_archive (AutoarCreate *arcreate,
   archive_entry_set_ino64 (priv->entry, g_file_info_get_attribute_uint64 (info, G_FILE_ATTRIBUTE_UNIX_INODE));
   archive_entry_set_nlink (priv->entry, g_file_info_get_attribute_uint32 (info, G_FILE_ATTRIBUTE_UNIX_NLINK));
   archive_entry_set_rdev (priv->entry, g_file_info_get_attribute_uint32 (info, G_FILE_ATTRIBUTE_UNIX_RDEV));
-
-  filetype = g_file_info_get_file_type (info);
-  switch (archive_format (priv->a)) {
-    case ARCHIVE_FORMAT_AR:
-    case ARCHIVE_FORMAT_AR_GNU:
-    case ARCHIVE_FORMAT_AR_BSD:
-      if (filetype == G_FILE_TYPE_DIRECTORY ||
-          filetype == G_FILE_TYPE_SYMBOLIC_LINK ||
-          filetype == G_FILE_TYPE_SPECIAL) {
-        /* ar only support regular files, so we abort this operation to
-         * prevent producing a malformed archive. */
-        g_object_unref (info);
-        return;
-      }
-      break;
-
-    case ARCHIVE_FORMAT_ZIP:
-      if (filetype == G_FILE_TYPE_SPECIAL) {
-        /* Add special files to zip archives cause unknown fatal error
-         * in libarchive. */
-        g_object_unref (info);
-        return;
-      }
-      break;
-  }
 
   switch (filetype) {
     case G_FILE_TYPE_DIRECTORY:

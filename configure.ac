@@ -29,12 +29,14 @@ AC_PATH_PROG(GLIB_COMPILE_RESOURCES, glib-compile-resources)
 
 # Checks for libraries.
 GLIB_REQUIRED=2.35.6
+GTK_REQUIRED=3.2
 LIBARCHIVE_REQUIRED=3.0.0
 PKG_CHECK_MODULES([DEPENDENCIES], [
-        glib-2.0 >= $GLIB_REQUIRED
+        glib-2.0    >= $GLIB_REQUIRED
         gobject-2.0 >= $GLIB_REQUIRED
-        gio-2.0 >= $GLIB_REQUIRED
-        libarchive >= $LIBARCHIVE_REQUIRED
+        gio-2.0     >= $GLIB_REQUIRED
+        gtk+-3.0    >= $GTK_REQUIRED
+        libarchive  >= $LIBARCHIVE_REQUIRED
         ])
 
 AM_CPPFLAGS="$AM_CPPFLAGS $DEPRECATION_FLAGS"

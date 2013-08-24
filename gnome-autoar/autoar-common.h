@@ -32,6 +32,8 @@
 #include <glib.h>
 #include <glib-object.h>
 
+G_BEGIN_DECLS
+
 char*     autoar_common_get_basename_remove_extension  (const char *filename);
 char*     autoar_common_get_filename_extension         (const char *filename);
 
@@ -47,5 +49,7 @@ GError*   autoar_common_g_error_new_a                  (GQuark quark,
 GError*   autoar_common_g_error_new_a_entry            (GQuark quark,
                                                         struct archive *a,
                                                         struct archive_entry *entry);
+
+G_END_DECLS
 
 #endif /* AUTOAR_COMMON_H */

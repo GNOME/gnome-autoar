@@ -29,41 +29,11 @@
 #include <glib-object.h>
 #include <gio/gio.h>
 
+#include <gnome-autoar/autoar-format-filter.h>
+
 G_BEGIN_DECLS
 
 #define AUTOAR_PREF_DEFAULT_GSCHEMA_ID  "org.gnome.desktop.archives"
-
-typedef enum {
-  AUTOAR_PREF_FORMAT_0, /*< skip >*/
-  AUTOAR_PREF_FORMAT_ZIP = 1,   /* .zip */
-  AUTOAR_PREF_FORMAT_TAR,       /* .tar, pax_restricted */
-  AUTOAR_PREF_FORMAT_CPIO,      /* .cpio, odc */
-  AUTOAR_PREF_FORMAT_7ZIP,      /* .7z */
-  AUTOAR_PREF_FORMAT_AR_BSD,    /* .a */
-  AUTOAR_PREF_FORMAT_AR_SVR4,   /* .a */
-  AUTOAR_PREF_FORMAT_CPIO_NEWC, /* .cpio, newc */
-  AUTOAR_PREF_FORMAT_GNUTAR,    /* .tar, gnutar */
-  AUTOAR_PREF_FORMAT_ISO9660,   /* .iso */
-  AUTOAR_PREF_FORMAT_PAX,       /* .tar, pax */
-  AUTOAR_PREF_FORMAT_USTAR,     /* .tar, ustar */
-  AUTOAR_PREF_FORMAT_XAR,       /* .xar, xar */
-  AUTOAR_PREF_FORMAT_LAST /*< skip >*/
-} AutoarPrefFormat;
-
-typedef enum {
-  AUTOAR_PREF_FILTER_0, /*< skip >*/
-  AUTOAR_PREF_FILTER_NONE = 1,
-  AUTOAR_PREF_FILTER_COMPRESS,  /* .Z */
-  AUTOAR_PREF_FILTER_GZIP,      /* .gz */
-  AUTOAR_PREF_FILTER_BZIP2,     /* .bz2 */
-  AUTOAR_PREF_FILTER_XZ,        /* .xz */
-  AUTOAR_PREF_FILTER_LZMA,      /* .lzma */
-  AUTOAR_PREF_FILTER_LZIP,      /* .lz */
-  AUTOAR_PREF_FILTER_LZOP,      /* .lzo */
-  AUTOAR_PREF_FILTER_GRZIP,     /* .grz */
-  AUTOAR_PREF_FILTER_LRZIP,     /* .lrz */
-  AUTOAR_PREF_FILTER_LAST /*< skip >*/
-} AutoarPrefFilter;
 
 #define AUTOAR_TYPE_PREF                autoar_pref_get_type ()
 #define AUTOAR_PREF(obj)                (G_TYPE_CHECK_INSTANCE_CAST ((obj), AUTOAR_TYPE_PREF, AutoarPref))
@@ -116,17 +86,17 @@ gboolean           autoar_pref_check_mime_type_file  (AutoarPref *arpref,
 gboolean           autoar_pref_check_mime_type_d     (AutoarPref *arpref,
                                                       const char *mime_type);
 
-AutoarPrefFormat   autoar_pref_get_default_format    (AutoarPref *arpref);
-AutoarPrefFilter   autoar_pref_get_default_filter    (AutoarPref *arpref);
+AutoarFormat       autoar_pref_get_default_format    (AutoarPref *arpref);
+AutoarFilter       autoar_pref_get_default_filter    (AutoarPref *arpref);
 const char       **autoar_pref_get_file_name_suffix  (AutoarPref *arpref);
 const char       **autoar_pref_get_file_mime_type    (AutoarPref *arpref);
 const char       **autoar_pref_get_pattern_to_ignore (AutoarPref *arpref);
 gboolean           autoar_pref_get_delete_if_succeed (AutoarPref *arpref);
 
 void               autoar_pref_set_default_format    (AutoarPref *arpref,
-                                                      AutoarPrefFormat format);
+                                                      AutoarFormat format);
 void               autoar_pref_set_default_filter    (AutoarPref *arpref,
-                                                      AutoarPrefFilter filter);
+                                                      AutoarFilter filter);
 void               autoar_pref_set_file_name_suffix  (AutoarPref *arpref,
                                                       const char **strv);
 void               autoar_pref_set_file_mime_type    (AutoarPref *arpref,
@@ -135,7 +105,6 @@ void               autoar_pref_set_pattern_to_ignore (AutoarPref *arpref,
                                                       const char **strv);
 void               autoar_pref_set_delete_if_succeed (AutoarPref *arpref,
                                                       gboolean delete_yes);
-
 
 G_END_DECLS
 

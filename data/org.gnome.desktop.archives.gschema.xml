@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <schemalist>
   <schema path="/org/gnome/desktop/archives/" id="org.gnome.desktop.archives">
-    <key name="default-format" enum="org.gnome.desktop.archives.AutoarPrefFormat">
+    <key name="default-format" enum="org.gnome.desktop.archives.AutoarFormat">
       <default>'zip'</default>
       <summary>Default file format for new archives (archive creation)</summary>
       <description>The default file format used to create new archives.</description>
     </key>
-    <key name="default-filter" enum="org.gnome.desktop.archives.AutoarPrefFilter">
+    <key name="default-filter" enum="org.gnome.desktop.archives.AutoarFilter">
       <default>'none'</default>
       <summary>Default filter to create archives (archive creation)</summary>
       <description>The default filter used to compress new archives.</description>

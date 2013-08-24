@@ -43,8 +43,8 @@ struct _AutoarPrefPrivate
   gboolean     modification_enabled;
 
   /* Archive creating preferences */
-  AutoarPrefFormat   default_format;
-  AutoarPrefFilter   default_filter;
+  AutoarFormat   default_format;
+  AutoarFilter   default_filter;
 
   /* Archive extracting preferences */
   char     **file_name_suffix;
@@ -154,17 +154,17 @@ autoar_pref_set_property (GObject      *object,
   }
 }
 
-AutoarPrefFormat
+AutoarFormat
 autoar_pref_get_default_format (AutoarPref *arpref)
 {
-  g_return_val_if_fail (AUTOAR_IS_PREF (arpref), AUTOAR_PREF_FORMAT_ZIP);
+  g_return_val_if_fail (AUTOAR_IS_PREF (arpref), AUTOAR_FORMAT_ZIP);
   return arpref->priv->default_format;
 }
 
-AutoarPrefFilter
+AutoarFilter
 autoar_pref_get_default_filter (AutoarPref *arpref)
 {
-  g_return_val_if_fail (AUTOAR_IS_PREF (arpref), AUTOAR_PREF_FILTER_NONE);
+  g_return_val_if_fail (AUTOAR_IS_PREF (arpref), AUTOAR_FILTER_NONE);
   return arpref->priv->default_filter;
 }
 
@@ -198,10 +198,10 @@ autoar_pref_get_delete_if_succeed (AutoarPref *arpref)
 
 void
 autoar_pref_set_default_format (AutoarPref *arpref,
-                                AutoarPrefFormat format)
+                                AutoarFormat format)
 {
   g_return_if_fail (AUTOAR_IS_PREF (arpref));
-  g_return_if_fail (format > 0 && format < AUTOAR_PREF_FORMAT_LAST);
+  g_return_if_fail (format > 0 && format < AUTOAR_FORMAT_LAST);
   if (arpref->priv->modification_enabled && format != arpref->priv->default_format)
     arpref->priv->modification_flags |= MODIFIED_DEFAULT_FORMAT;
   arpref->priv->default_format = format;
@@ -209,10 +209,10 @@ autoar_pref_set_default_format (AutoarPref *arpref,
 
 void
 autoar_pref_set_default_filter (AutoarPref *arpref,
-                                AutoarPrefFilter filter)
+                                AutoarFilter filter)
 {
   g_return_if_fail (AUTOAR_IS_PREF (arpref));
-  g_return_if_fail (filter > 0 && filter < AUTOAR_PREF_FILTER_LAST);
+  g_return_if_fail (filter > 0 && filter < AUTOAR_FILTER_LAST);
   if (arpref->priv->modification_enabled && filter != arpref->priv->default_filter)
     arpref->priv->modification_flags |= MODIFIED_DEFAULT_FILTER;
   arpref->priv->default_filter = filter;
@@ -299,8 +299,8 @@ autoar_pref_class_init (AutoarPrefClass *klass)
                                    g_param_spec_enum (KEY_DEFAULT_FORMAT,
                                                       "Default format",
                                                       "Default file format for new archives",
-                                                      AUTOAR_TYPE_PREF_FORMAT,
-                                                      AUTOAR_PREF_FORMAT_ZIP,
+                                                      AUTOAR_TYPE_FORMAT,
+                                                      AUTOAR_FORMAT_ZIP,
                                                       G_PARAM_READWRITE |
                                                       G_PARAM_STATIC_NAME |
                                                       G_PARAM_STATIC_NICK |
@@ -310,8 +310,8 @@ autoar_pref_class_init (AutoarPrefClass *klass)
                                    g_param_spec_enum (KEY_DEFAULT_FILTER,
                                                       "Default format",
                                                       "Default filter to create archives",
-                                                      AUTOAR_TYPE_PREF_FORMAT,
-                                                      AUTOAR_PREF_FORMAT_ZIP,
+                                                      AUTOAR_TYPE_FORMAT,
+                                                      AUTOAR_FORMAT_ZIP,
                                                       G_PARAM_READWRITE |
                                                       G_PARAM_STATIC_NAME |
                                                       G_PARAM_STATIC_NICK |
@@ -369,8 +369,8 @@ autoar_pref_init (AutoarPref *arpref)
   priv->modification_flags = MODIFIED_NONE;
   priv->modification_enabled = FALSE;
 
-  priv->default_format = AUTOAR_PREF_FORMAT_ZIP;
-  priv->default_filter = AUTOAR_PREF_FILTER_NONE;
+  priv->default_format = AUTOAR_FORMAT_ZIP;
+  priv->default_filter = AUTOAR_FILTER_NONE;
 
   priv->file_name_suffix = NULL;
   priv->file_mime_type = NULL;

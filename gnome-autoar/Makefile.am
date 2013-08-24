@@ -15,12 +15,14 @@ libgnome_autoar_h_sources = \
 	autoar-common.h		\
 	autoar-create.h		\
 	autoar-extract.h	\
+	autoar-format-filter.h	\
 	autoar-pref.h		\
 	$(NULL)
 libgnome_autoar_c_sources = \
 	autoar-common.c		\
 	autoar-create.c		\
 	autoar-extract.c	\
+	autoar-format-filter.c	\
 	autoar-pref.c		\
 	$(NULL)
 libgnome_autoar_generated_sources = \
@@ -44,6 +46,7 @@ libgnome_autoar_la_CPPFLAGS = \
 	$(NULL)
 libgnome_autoar_la_CFLAGS = \
 	$(DEPENDENCIES_CFLAGS)	\
+	-I$(top_srcdir)		\
 	$(AM_CFLAGS)		\
 	$(NULL)
 

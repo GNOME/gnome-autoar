@@ -1010,10 +1010,8 @@ autoar_create_new (AutoarPref *arpref,
 static void
 autoar_create_run (AutoarCreate *arcreate)
 {
-  AutoarPrefFormat format;
-  AutoarPrefFilter filter;
-  const char *format_extension;
-  const char *filter_extension;
+  AutoarFormat format;
+  AutoarFilter filter;
 
   AutoarCreatePrivate *priv;
   int i, r;
@@ -1034,100 +1032,12 @@ autoar_create_run (AutoarCreate *arcreate)
 
   format = autoar_pref_get_default_format (priv->arpref);
   filter = autoar_pref_get_default_filter (priv->arpref);
-  g_return_if_fail (format > 0 && format < AUTOAR_PREF_FORMAT_LAST);
-  g_return_if_fail (filter > 0 && filter < AUTOAR_PREF_FILTER_LAST);
+  g_return_if_fail (format > 0 && format < AUTOAR_FORMAT_LAST);
+  g_return_if_fail (filter > 0 && filter < AUTOAR_FILTER_LAST);
 
   archive_write_set_bytes_in_last_block (priv->a, 1);
-  switch (filter) {
-    case AUTOAR_PREF_FILTER_COMPRESS:
-      archive_write_add_filter_compress (priv->a);
-      filter_extension = ".Z";
-      break;
-    case AUTOAR_PREF_FILTER_GZIP:
-      archive_write_add_filter_gzip (priv->a);
-      filter_extension = ".gz";
-      break;
-    case AUTOAR_PREF_FILTER_BZIP2:
-      archive_write_add_filter_bzip2 (priv->a);
-      filter_extension = ".bz2";
-      break;
-    case AUTOAR_PREF_FILTER_XZ:
-      archive_write_add_filter_xz (priv->a);
-      filter_extension = ".xz";
-      break;
-    case AUTOAR_PREF_FILTER_LZMA:
-      archive_write_add_filter_lzma (priv->a);
-      filter_extension = ".lzma";
-      break;
-    case AUTOAR_PREF_FILTER_LZIP:
-      archive_write_add_filter_lzip (priv->a);
-      filter_extension = ".lz";
-      break;
-    case AUTOAR_PREF_FILTER_LZOP:
-      archive_write_add_filter_lzop (priv->a);
-      filter_extension = ".lzo";
-      break;
-    case AUTOAR_PREF_FILTER_GRZIP:
-      archive_write_add_filter_grzip (priv->a);
-      filter_extension = ".grz";
-      break;
-    case AUTOAR_PREF_FILTER_LRZIP:
-      archive_write_add_filter_lrzip (priv->a);
-      filter_extension = ".lrz";
-      break;
-    case AUTOAR_PREF_FILTER_NONE:
-    default:
-      filter_extension = "";
-  }
-
-  switch (format) {
-    case AUTOAR_PREF_FORMAT_ZIP:
-      archive_write_set_format_zip (priv->a);
-      format_extension = ".zip";
-      break;
-    case AUTOAR_PREF_FORMAT_TAR:
-      archive_write_set_format_pax_restricted (priv->a);
-      format_extension = ".tar";
-      break;
-    case AUTOAR_PREF_FORMAT_CPIO:
-      archive_write_set_format_cpio (priv->a);
-      format_extension = ".cpio";
-      break;
-    case AUTOAR_PREF_FORMAT_7ZIP:
-      archive_write_set_format_7zip (priv->a);
-      format_extension = ".7z";
-      break;
-    case AUTOAR_PREF_FORMAT_AR_BSD:
-      archive_write_set_format_ar_bsd (priv->a);
-      format_extension = ".a";
-      break;
-    case AUTOAR_PREF_FORMAT_AR_SVR4:
-      archive_write_set_format_ar_svr4 (priv->a);
-      format_extension = ".a";
-      break;
-    case AUTOAR_PREF_FORMAT_CPIO_NEWC:
-      archive_write_set_format_cpio_newc (priv->a);
-      format_extension = ".cpio";
-      break;
-    case AUTOAR_PREF_FORMAT_GNUTAR:
-      archive_write_set_format_gnutar (priv->a);
-      format_extension = ".tar";
-      break;
-    case AUTOAR_PREF_FORMAT_ISO9660:
-      archive_write_set_format_iso9660 (priv->a);
-      format_extension = ".iso";
-      break;
-    case AUTOAR_PREF_FORMAT_PAX:
-      archive_write_set_format_pax (priv->a);
-      format_extension = ".tar";
-      break;
-    case AUTOAR_PREF_FORMAT_XAR:
-      archive_write_set_format_xar (priv->a);
-      format_extension = ".xar";
-      break;
-    default:
-      format_extension = "";
-  }
+  archive_write_add_filter (priv->a, autoar_filter_get_filter_libarchive (filter));
+  archive_write_set_format (priv->a, autoar_format_get_format_libarchive (format));
 
   if (g_cancellable_is_cancelled (priv->cancellable)) {
     autoar_create_signal_cancelled (arcreate);
@@ -1173,12 +1083,12 @@ autoar_create_run (AutoarCreate *arcreate)
 
     {
       char *dest_basename;
+      char *extension;
 
       file_output = g_file_new_for_commandline_arg (priv->output);
+      extension = autoar_format_filter_get_extension (format, filter);
       dest_basename = g_strconcat (priv->source_basename_noext,
-                                   format_extension,
-                                   filter_extension,
-                                   NULL);
+                                   extension, NULL);
       file_dest = g_file_get_child (file_output, dest_basename);
 
       for (i = 1; g_file_query_exists (file_dest, priv->cancellable); i++) {
@@ -1188,18 +1098,19 @@ autoar_create_run (AutoarCreate *arcreate)
         if (g_cancellable_is_cancelled (priv->cancellable)) {
           autoar_create_signal_cancelled (arcreate);
           g_object_unref (file_output);
+          g_free (extension);
           return;
         }
 
-        dest_basename = g_strdup_printf ("%s(%d)%s%s",
+        extension = autoar_format_filter_get_extension (format, filter);
+        dest_basename = g_strdup_printf ("%s(%d)%s",
                                          priv->source_basename_noext,
-                                         i,
-                                         format_extension,
-                                         filter_extension);
+                                         i, extension);
         file_dest = g_file_get_child (file_output, dest_basename);
       }
 
       g_free (dest_basename);
+      g_free (extension);
     }
 
     {

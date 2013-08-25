@@ -85,23 +85,23 @@ static AutoarFilterDescription autoar_filter_description[] = {
   { AUTOAR_FILTER_NONE,      ARCHIVE_FILTER_NONE,                "",     "",
     "",                      "" },
   { AUTOAR_FILTER_COMPRESS,  ARCHIVE_FILTER_COMPRESS,            "Z",    "compress",
-    "application/x-compress", "UNIX-compressed file" },
+    "application/x-compress", "UNIX-compressed" },
   { AUTOAR_FILTER_GZIP,      ARCHIVE_FILTER_GZIP,                "gz",   "gzip",
-    "application/gzip",      "Gzip archive" },
+    "application/gzip",      "Gzip" },
   { AUTOAR_FILTER_BZIP2,     ARCHIVE_FILTER_BZIP2,               "bz2",  "bzip",
-    "application/x-bzip",    "Bzip archive" },
+    "application/x-bzip",    "Bzip2" },
   { AUTOAR_FILTER_XZ,        ARCHIVE_FILTER_XZ,                  "xz",   "xz",
-    "application/x-xz",      "XZ archive" },
+    "application/x-xz",      "XZ" },
   { AUTOAR_FILTER_LZMA,      ARCHIVE_FILTER_LZMA,                "lzma", "lzma",
-    "application/x-lzma",    "LZMA archive" },
+    "application/x-lzma",    "LZMA" },
   { AUTOAR_FILTER_LZIP,      ARCHIVE_FILTER_LZIP,                "lz",   "lzip",
-    "application/x-lzip",    "Lzip archive" },
+    "application/x-lzip",    "Lzip" },
   { AUTOAR_FILTER_LZOP,      ARCHIVE_FILTER_LZOP,                "lzo",  "lzop",
-    "application/x-lzop",    "LZO archive" },
+    "application/x-lzop",    "LZO" },
   { AUTOAR_FILTER_GRZIP,     ARCHIVE_FILTER_GRZIP,               "grz",  "grzip",
-    "application/x-grzip",   "GRZip archive" },
+    "application/x-grzip",   "GRZip" },
   { AUTOAR_FILTER_LRZIP,     ARCHIVE_FILTER_LRZIP,               "lrz",  "lrzip",
-    "application/x-lrzip",   "Long Range ZIP archive" }
+    "application/x-lrzip",   "Long Range ZIP (lrzip)" }
 };
 
 const char*

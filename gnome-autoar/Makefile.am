@@ -6,7 +6,6 @@ EXTRA_DIST = \
 	autoar-enum-types.h.template		\
 	autoar-enum-types.c.template		\
 	gnome-autoar.pc.in			\
-	org.gnome.desktop.archives.gschema.xml	\
 	$(NULL)
 
 lib_LTLIBRARIES = libgnome-autoar.la

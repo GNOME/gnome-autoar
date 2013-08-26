@@ -1,8 +1,8 @@
 /* vim: set sw=2 ts=2 sts=2 et: */
 /* -*- Mode: C; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /*
- * autoar-extract.h
- * Automatically extract archives in some GNOME programs
+ * autoar-gtk.h
+ * GTK+ user interfaces related to archives
  *
  * Copyright (C) 2013  Ting-Wei Lan
  *
@@ -23,13 +23,25 @@
  *
  */
 
-#ifndef AUTOARCHIVE_H
-#define AUTOARHICVE_H
+#ifndef AUTOAR_UI_H
+#define AUTOAR_UI_H
 
-#include <gnome-autoar/autoar-create.h>
-#include <gnome-autoar/autoar-format-filter.h>
-#include <gnome-autoar/autoar-extract.h>
-#include <gnome-autoar/autoar-gtk.h>
-#include <gnome-autoar/autoar-pref.h>
+#include <gtk/gtk.h>
 
-#endif /* AUTOARCHIVE_H */
+#include "autoar-format-filter.h"
+
+G_BEGIN_DECLS
+
+GtkWidget *autoar_gtk_format_filter_simple_new           (void);
+gboolean   autoar_gtk_format_filter_simple_get           (GtkWidget *simple,
+                                                          AutoarFormat *format,
+                                                          AutoarFilter *filter);
+
+GtkWidget *autoar_gtk_format_filter_advanced_new         (void);
+gboolean   autoar_gtk_format_filter_advanced_get         (GtkWidget *advanced,
+                                                          AutoarFormat *format,
+                                                          AutoarFilter *filter);
+
+G_END_DECLS
+
+#endif /* AUTOAR_UI_H */

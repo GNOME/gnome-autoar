@@ -16,6 +16,7 @@ libgnome_autoar_h_sources = \
 	autoar-create.h		\
 	autoar-extract.h	\
 	autoar-format-filter.h	\
+	autoar-gtk.h		\
 	autoar-pref.h		\
 	$(NULL)
 libgnome_autoar_c_sources = \
@@ -23,6 +24,7 @@ libgnome_autoar_c_sources = \
 	autoar-create.c		\
 	autoar-extract.c	\
 	autoar-format-filter.c	\
+	autoar-gtk.c		\
 	autoar-pref.c		\
 	$(NULL)
 libgnome_autoar_generated_sources = \

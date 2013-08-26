@@ -83,7 +83,7 @@ static AutoarFormatDescription autoar_format_description[] = {
 
 static AutoarFilterDescription autoar_filter_description[] = {
   { AUTOAR_FILTER_NONE,      ARCHIVE_FILTER_NONE,                "",     "",
-    "",                      "" },
+    "",                      "None" },
   { AUTOAR_FILTER_COMPRESS,  ARCHIVE_FILTER_COMPRESS,            "Z",    "compress",
     "application/x-compress", "UNIX-compressed" },
   { AUTOAR_FILTER_GZIP,      ARCHIVE_FILTER_GZIP,                "gz",   "gzip",

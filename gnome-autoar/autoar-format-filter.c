@@ -104,6 +104,12 @@ static AutoarFilterDescription autoar_filter_description[] = {
     "application/x-lrzip",   "Long Range ZIP (lrzip)" }
 };
 
+gboolean
+autoar_format_is_valid (AutoarFormat format)
+{
+  return (format > 0 && format < AUTOAR_FORMAT_LAST);
+}
+
 const char*
 autoar_format_get_mime_type (AutoarFormat format)
 {
@@ -146,6 +152,12 @@ autoar_format_get_description_libarchive (AutoarFormat format)
   archive_write_free (a);
 
   return str;
+}
+
+gboolean
+autoar_filter_is_valid (AutoarFilter filter)
+{
+  return (filter > 0 && filter < AUTOAR_FILTER_LAST);
 }
 
 const char*

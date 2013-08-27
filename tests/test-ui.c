@@ -10,8 +10,8 @@ before_deleted (GtkWindow *window,
                 GdkEvent *event,
                 GtkWidget *simple)
 {
-  AutoarFormat format;
-  AutoarFilter filter;
+  int format;
+  int filter;
   char *str;
 
   autoar_gtk_format_filter_simple_get (simple, &format, &filter);
@@ -43,13 +43,17 @@ main (int argc,
 {
   GtkWidget *window;
   GtkWidget *simple;
+  int format, filter;
 
   gtk_init (&argc, &argv);
 
   window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
   gtk_window_set_title (GTK_WINDOW (window), argv[0]);
 
-  simple = autoar_gtk_format_filter_simple_new ();
+  format = (argc >= 2) ? atoi (argv[1]) : 0;
+  filter = (argc >= 3) ? atoi (argv[2]) : 0;
+
+  simple = autoar_gtk_format_filter_simple_new (format, filter);
   gtk_container_add (GTK_CONTAINER (window), simple);
   g_signal_connect (window, "delete-event", G_CALLBACK (before_deleted), simple);
 

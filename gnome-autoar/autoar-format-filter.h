@@ -62,12 +62,14 @@ typedef enum {
   AUTOAR_FILTER_LAST /*< skip >*/
 } AutoarFilter;
 
+gboolean      autoar_format_is_valid                    (AutoarFormat format);
 const char   *autoar_format_get_mime_type               (AutoarFormat format);
 const char   *autoar_format_get_extension               (AutoarFormat format);
 const char   *autoar_format_get_description             (AutoarFormat format);
 int           autoar_format_get_format_libarchive       (AutoarFormat format);
 gchar        *autoar_format_get_description_libarchive  (AutoarFormat format);
 
+gboolean      autoar_filter_is_valid                    (AutoarFilter filter);
 const char   *autoar_filter_get_mime_type               (AutoarFilter filter);
 const char   *autoar_filter_get_extension               (AutoarFilter filter);
 const char   *autoar_filter_get_description             (AutoarFilter filter);

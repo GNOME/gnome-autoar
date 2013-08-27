@@ -106,17 +106,76 @@ simple_get_variable_row (GtkTreeModel *model,
 }
 
 static void
+simple_set_active (GtkComboBox *simple,
+                   GtkTreeModel *model,
+                   AutoarFormat format,
+                   AutoarFilter filter)
+{
+  GtkTreeIter iter, prev;
+  AutoarFormat this_format;
+  AutoarFilter this_filter;
+  int *previous;
+
+  previous = g_object_get_data ((GObject*)simple, "previous");
+  gtk_tree_model_get_iter_first (model, &iter);
+  do {
+    gtk_tree_model_get (model, &iter,
+                        SIMPLE_COL_FORMAT, &this_format,
+                        SIMPLE_COL_FILTER, &this_filter, -1);
+    if (this_format == format && this_filter == filter) {
+      gtk_combo_box_set_active_iter (simple, &iter);
+      previous[0] = format;
+      previous[1] = filter;
+      return;
+    }
+    prev = iter;
+  } while (gtk_tree_model_iter_next (model, &iter));
+
+  if (autoar_format_is_valid (format) && autoar_filter_is_valid (filter) &&
+      gtk_tree_model_iter_previous (model, &prev)) {
+    GtkTreeIter active;
+    char *description_string;
+
+    simple_get_variable_row (model, &prev, &active);
+    description_string = format_filter_full_description (format, filter);
+    gtk_list_store_set (GTK_LIST_STORE (model), &active,
+                        SIMPLE_COL_FORMAT, format,
+                        SIMPLE_COL_FILTER, filter,
+                        SIMPLE_COL_DESCRIPTION, description_string, -1);
+    g_free (description_string);
+
+    gtk_combo_box_set_active_iter (simple, &active);
+    previous[0] = format;
+    previous[1] = filter;
+  } else {
+    int get_format, get_filter;
+    gtk_tree_model_get_iter_first (model, &iter);
+    gtk_combo_box_set_active_iter (simple, &iter);
+    gtk_tree_model_get (model, &iter,
+                        SIMPLE_COL_FORMAT, &get_format,
+                        SIMPLE_COL_FILTER, &get_filter, -1);
+    previous[0] = format;
+    previous[1] = filter;
+  }
+}
+
+static void
 simple_changed_cb (GtkComboBox *simple,
                    void *data) {
   GtkTreeIter iter;
   GtkTreeModel* model;
-  AutoarFormat format;
+  int format, filter;
+  int *previous;
 
   if (!gtk_combo_box_get_active_iter (simple, &iter))
     return;
 
   model = gtk_combo_box_get_model (simple);
-  gtk_tree_model_get (model, &iter, SIMPLE_COL_FORMAT, &format, -1);
+  gtk_tree_model_get (model, &iter,
+                      SIMPLE_COL_FORMAT, &format,
+                      SIMPLE_COL_FILTER, &filter, -1);
+
+  previous = g_object_get_data ((GObject*)simple, "previous");
 
   if (!format) {
     GtkWidget *dialog_widget;
@@ -127,74 +186,53 @@ simple_changed_cb (GtkComboBox *simple,
     GtkWidget *advanced_widget;
     int response;
 
-    AutoarFormat format;
-    AutoarFilter filter;
-
     simple_widget = GTK_WIDGET (simple);
     dialog_widget =
       gtk_dialog_new_with_buttons (
         _("Choose an archive format"),
         GTK_WINDOW (gtk_widget_get_ancestor (simple_widget, GTK_TYPE_WINDOW)),
         GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+        _("Cancel"), GTK_RESPONSE_CANCEL,
         _("OK"), GTK_RESPONSE_ACCEPT, NULL);
     dialog = GTK_DIALOG (dialog_widget);
     gtk_dialog_set_default_response (dialog, GTK_RESPONSE_ACCEPT);
 
     dialog_content = gtk_dialog_get_content_area (dialog);
-    advanced_widget = autoar_gtk_format_filter_advanced_new ();
+    advanced_widget = autoar_gtk_format_filter_advanced_new (previous[0],
+                                                             previous[1]);
     gtk_container_add (GTK_CONTAINER (dialog_content), advanced_widget);
     gtk_widget_show_all (dialog_widget);
 
     response = gtk_dialog_run (dialog);
     if (response == GTK_RESPONSE_ACCEPT &&
         gtk_tree_model_iter_previous (model, &iter) &&
-        autoar_gtk_format_filter_advanced_get (advanced_widget, &format, &filter)) {
-      AutoarFormat scan_format;
-      AutoarFilter scan_filter;
-      GtkTreeIter scanner;
-      GtkTreeIter active_row;
-      char *description_string;
-
-      /* Scan the list to find the matching row */
-      gtk_tree_model_get_iter_first (model, &scanner);
-      do {
-        gtk_tree_model_get (model, &scanner,
-                            SIMPLE_COL_FORMAT, &scan_format,
-                            SIMPLE_COL_FILTER, &scan_filter, -1);
-        if (scan_format == format && scan_filter == filter) {
-          active_row = scanner;
-          goto got_new_active;
-        }
-      } while (gtk_tree_model_iter_next (model, &scanner));
-
-      /* No matching row, so we have to create it */
-      simple_get_variable_row (model, &iter, &active_row);
-      description_string = format_filter_full_description (format, filter);
-      gtk_list_store_set (GTK_LIST_STORE (model), &active_row,
-                          SIMPLE_COL_FORMAT, format,
-                          SIMPLE_COL_FILTER, filter,
-                          SIMPLE_COL_DESCRIPTION, description_string, -1);
-      g_free (description_string);
-
-got_new_active:
-      gtk_combo_box_set_active_iter (simple, &active_row);
-    }
+        autoar_gtk_format_filter_advanced_get (advanced_widget, &format, &filter))
+      simple_set_active (simple, model, format, filter);
+    else
+      simple_set_active (simple, model, previous[0], previous[1]);
 
     gtk_widget_destroy (dialog_widget);
+  } else {
+    previous[0] = format;
+    previous[1] = filter;
   }
 }
 
 GtkWidget*
-autoar_gtk_format_filter_simple_new (void)
+autoar_gtk_format_filter_simple_new (AutoarFormat default_format,
+                                     AutoarFilter default_filter)
 {
   GtkWidget *simple_widget;
   GtkComboBox *simple_combo;
   GtkCellLayout *simple;
   GtkCellRenderer *cell_renderer;
 
+  GtkTreeModel *model;
   GtkListStore *store;
   GtkTreeIter iter;
   int i;
+
+  int *previous;
 
   struct format_filter
   {
@@ -213,6 +251,7 @@ autoar_gtk_format_filter_simple_new (void)
   };
 
   store = gtk_list_store_new (N_SIMPLE_COLS, G_TYPE_INT, G_TYPE_INT, G_TYPE_STRING);
+  model = GTK_TREE_MODEL (store);
   for (i = 0; i < sizeof (defaults) / sizeof (struct format_filter); i++) {
     char *description;
 
@@ -239,7 +278,7 @@ autoar_gtk_format_filter_simple_new (void)
                       SIMPLE_COL_FILTER, 0,
                       SIMPLE_COL_DESCRIPTION, _("Other format…"), -1);
 
-  simple_widget = gtk_combo_box_new_with_model (GTK_TREE_MODEL (store));
+  simple_widget = gtk_combo_box_new_with_model (model);
   simple = GTK_CELL_LAYOUT (simple_widget);
   simple_combo = GTK_COMBO_BOX (simple_widget);
   cell_renderer = gtk_cell_renderer_text_new ();
@@ -247,7 +286,10 @@ autoar_gtk_format_filter_simple_new (void)
   gtk_cell_layout_pack_start (simple, cell_renderer, FALSE);
   gtk_cell_layout_add_attribute (simple, cell_renderer, "text", SIMPLE_COL_DESCRIPTION);
 
-  gtk_combo_box_set_active (simple_combo, 0);
+  previous = g_new (int, 2);
+  g_object_set_data_full ((GObject*)simple, "previous", previous, g_free);
+  simple_set_active (simple_combo, model, default_format, default_filter);
+
   gtk_combo_box_set_row_separator_func (simple_combo, simple_row_separator_cb, NULL, NULL);
   g_signal_connect (simple, "changed", G_CALLBACK (simple_changed_cb), NULL);
 
@@ -258,8 +300,8 @@ autoar_gtk_format_filter_simple_new (void)
 
 gboolean
 autoar_gtk_format_filter_simple_get (GtkWidget *simple,
-                                     AutoarFormat *format,
-                                     AutoarFilter *filter)
+                                     int *format,
+                                     int *filter)
 {
   GtkComboBox *combo;
   GtkTreeModel *model;
@@ -296,8 +338,8 @@ static void
 advanced_update_description_cb (GtkTreeView *unused_variable,
                                 GtkWidget *advanced)
 {
-  AutoarFormat format;
-  AutoarFilter filter;
+  int format;
+  int filter;
   GtkLabel *description;
   char *description_string;
 
@@ -353,7 +395,8 @@ advanced_filter_store (void)
 }
 
 GtkWidget*
-autoar_gtk_format_filter_advanced_new (void)
+autoar_gtk_format_filter_advanced_new (AutoarFormat default_format,
+                                       AutoarFilter default_filter)
 {
   GtkWidget *advanced_widget;
   GtkGrid *advanced;
@@ -391,7 +434,26 @@ autoar_gtk_format_filter_advanced_new (void)
                                                format_renderer, "text",
                                                ADVANCED_FORMAT_COL_DESCRIPTION,
                                                NULL);
-  format_path = gtk_tree_path_new_first ();
+  if (autoar_format_is_valid (default_format)) {
+    GtkTreeIter iter;
+    gboolean valid;
+    format_path = NULL;
+    for (valid = gtk_tree_model_get_iter_first (format_model, &iter);
+         valid;
+         valid = gtk_tree_model_iter_next (format_model, &iter)) {
+      int get_format;
+      gtk_tree_model_get (format_model, &iter,
+                          ADVANCED_FORMAT_COL_FORMAT, &get_format, -1);
+      if (default_format == get_format) {
+        format_path = gtk_tree_model_get_path (format_model, &iter);
+        break;
+      }
+    }
+    if (format_path == NULL)
+      format_path = gtk_tree_path_new_first ();
+  } else {
+    format_path = gtk_tree_path_new_first ();
+  }
   gtk_tree_view_set_cursor (format, format_path, NULL, FALSE);
   gtk_tree_path_free (format_path);
   gtk_grid_attach (advanced, format_widget, 0, 0, 1, 1);
@@ -407,7 +469,26 @@ autoar_gtk_format_filter_advanced_new (void)
                                                filter_renderer, "text",
                                                ADVANCED_FILTER_COL_DESCRIPTION,
                                                NULL);
-  filter_path = gtk_tree_path_new_first ();
+  if (autoar_filter_is_valid (default_filter)) {
+    GtkTreeIter iter;
+    gboolean valid;
+    filter_path = NULL;
+    for (valid = gtk_tree_model_get_iter_first (filter_model, &iter);
+         valid;
+         valid = gtk_tree_model_iter_next (filter_model, &iter)) {
+      int get_filter;
+      gtk_tree_model_get (filter_model, &iter,
+                          ADVANCED_FILTER_COL_FILTER, &get_filter, -1);
+      if (default_filter == get_filter) {
+        filter_path = gtk_tree_model_get_path (filter_model, &iter);
+        break;
+      }
+    }
+    if (filter_path == NULL)
+      filter_path = gtk_tree_path_new_first ();
+  } else {
+    filter_path = gtk_tree_path_new_first ();
+  }
   gtk_tree_view_set_cursor (filter, filter_path, NULL, FALSE);
   gtk_tree_path_free (filter_path);
   gtk_grid_attach (advanced, filter_widget, 1, 0, 1, 1);
@@ -431,8 +512,8 @@ autoar_gtk_format_filter_advanced_new (void)
 
 gboolean
 autoar_gtk_format_filter_advanced_get (GtkWidget *advanced,
-                                       AutoarFormat *format,
-                                       AutoarFilter *filter)
+                                       int *format,
+                                       int *filter)
 {
   GtkGrid *grid;
   GtkTreeIter format_iter, filter_iter;

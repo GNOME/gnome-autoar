@@ -32,15 +32,17 @@
 
 G_BEGIN_DECLS
 
-GtkWidget *autoar_gtk_format_filter_simple_new           (void);
-gboolean   autoar_gtk_format_filter_simple_get           (GtkWidget *simple,
-                                                          AutoarFormat *format,
-                                                          AutoarFilter *filter);
+GtkWidget *autoar_gtk_format_filter_simple_new    (AutoarFormat default_format,
+                                                   AutoarFilter default_filter);
+gboolean   autoar_gtk_format_filter_simple_get    (GtkWidget *simple,
+                                                   int *format,
+                                                   int *filter);
 
-GtkWidget *autoar_gtk_format_filter_advanced_new         (void);
-gboolean   autoar_gtk_format_filter_advanced_get         (GtkWidget *advanced,
-                                                          AutoarFormat *format,
-                                                          AutoarFilter *filter);
+GtkWidget *autoar_gtk_format_filter_advanced_new  (AutoarFormat default_format,
+                                                   AutoarFilter default_filter);
+gboolean   autoar_gtk_format_filter_advanced_get  (GtkWidget *advanced,
+                                                   int *format,
+                                                   int *filter);
 
 G_END_DECLS
 

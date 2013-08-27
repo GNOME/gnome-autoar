@@ -449,7 +449,7 @@ autoar_pref_write_gsettings (AutoarPref *arpref,
         arpref->priv->modification_flags ^= MODIFIED_DELETE_IF_SUCCEED;
     }
   } else {
-    return autoar_pref_write_gsettings_force (arpref, settings);
+    autoar_pref_write_gsettings_force (arpref, settings);
   }
 }
 

@@ -27,6 +27,9 @@
 #ifndef AUTOAR_COMMON_H
 #define AUTOAR_COMMON_H
 
+/* archive.h use time_t */
+#include <time.h>
+
 #include <archive.h>
 #include <archive_entry.h>
 #include <glib.h>

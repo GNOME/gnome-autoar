@@ -42,6 +42,8 @@ struct _AutoarCommonSignalData
   GQuark detail;
 };
 
+G_DEFINE_QUARK (libarchive-quark, autoar_common_libarchive)
+
 char*
 autoar_common_get_filename_extension (const char *filename)
 {
@@ -164,12 +166,11 @@ autoar_common_g_signal_emit (gpointer instance,
 }
 
 GError*
-autoar_common_g_error_new_a (GQuark quark,
-                             struct archive *a,
+autoar_common_g_error_new_a (struct archive *a,
                              const char *pathname)
 {
   GError *newerror;
-  newerror = g_error_new (quark,
+  newerror = g_error_new (AUTOAR_LIBARCHIVE_ERROR,
                           archive_errno (a),
                           "%s%s%s%s",
                           pathname != NULL ? "\'" : "",
@@ -180,9 +181,8 @@ autoar_common_g_error_new_a (GQuark quark,
 }
 
 GError*
-autoar_common_g_error_new_a_entry (GQuark quark,
-                                   struct archive *a,
+autoar_common_g_error_new_a_entry (struct archive *a,
                                    struct archive_entry *entry)
 {
-  return autoar_common_g_error_new_a (quark, a, archive_entry_pathname (entry));
+  return autoar_common_g_error_new_a (a, archive_entry_pathname (entry));
 }

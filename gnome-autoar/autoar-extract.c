@@ -54,6 +54,7 @@
 
 
 G_DEFINE_TYPE (AutoarExtract, autoar_extract, G_TYPE_OBJECT)
+G_DEFINE_QUARK (autoar-extract, autoar_extract)
 
 #define AUTOAR_EXTRACT_GET_PRIVATE(o) \
   (G_TYPE_INSTANCE_GET_PRIVATE ((o), AUTOAR_TYPE_EXTRACT, AutoarExtractPrivate))
@@ -145,7 +146,6 @@ enum
 };
 
 static guint autoar_extract_signals[LAST_SIGNAL] = { 0 };
-GQuark autoar_extract_quark;
 
 static void
 autoar_extract_get_property (GObject    *object,
@@ -1114,8 +1114,6 @@ autoar_extract_class_init (AutoarExtractClass *klass)
 
   g_type_class_add_private (klass, sizeof (AutoarExtractPrivate));
 
-  autoar_extract_quark = g_quark_from_static_string ("autoar-extract");
-
   object_class->get_property = autoar_extract_get_property;
   object_class->set_property = autoar_extract_set_property;
   object_class->dispose = autoar_extract_dispose;
@@ -1497,12 +1495,12 @@ autoar_extract_step_scan_toplevel (AutoarExtract *arextract) {
     r = libarchive_create_read_object (TRUE, arextract, &a);
     if (priv->error == NULL) {
       if (r != ARCHIVE_OK) {
-        priv->error = autoar_common_g_error_new_a (autoar_extract_quark, a, priv->source);
+        priv->error = autoar_common_g_error_new_a (a, priv->source);
       } else if (archive_filter_count (a) <= 1){
         /* If we only use raw format and filter count is one, libarchive will
          * not do anything except for just copying the source file. We do not
          * want this thing to happen because it does unnecesssary copying. */
-        priv->error = g_error_new (autoar_extract_quark, NOT_AN_ARCHIVE_ERRNO,
+        priv->error = g_error_new (AUTOAR_EXTRACT_ERROR, NOT_AN_ARCHIVE_ERRNO,
                                    "\'%s\': %s", priv->source, "not an archive");
       }
     }
@@ -1561,7 +1559,7 @@ autoar_extract_step_scan_toplevel (AutoarExtract *arextract) {
 
   if (r != ARCHIVE_EOF) {
     if (priv->error == NULL) {
-      priv->error = autoar_common_g_error_new_a (autoar_extract_quark, a, priv->source);
+      priv->error = autoar_common_g_error_new_a (a, priv->source);
     }
     g_free (pathname_prefix);
     archive_read_free (a);
@@ -1666,7 +1664,7 @@ autoar_extract_step_extract (AutoarExtract *arextract) {
   r = libarchive_create_read_object (priv->use_raw_format, arextract, &a);
   if (r != ARCHIVE_OK) {
     if (priv->error == NULL) {
-      priv->error = autoar_common_g_error_new_a (autoar_extract_quark, a, priv->source);
+      priv->error = autoar_common_g_error_new_a (a, priv->source);
     }
     archive_read_free (a);
     return;
@@ -1727,7 +1725,7 @@ autoar_extract_step_extract (AutoarExtract *arextract) {
 
   if (r != ARCHIVE_EOF) {
     if (priv->error == NULL) {
-      priv->error = autoar_common_g_error_new_a (autoar_extract_quark, a, priv->source);
+      priv->error = autoar_common_g_error_new_a (a, priv->source);
     }
     archive_read_free (a);
     return;

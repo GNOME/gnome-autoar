@@ -39,6 +39,7 @@
 #include <unistd.h>
 
 G_DEFINE_TYPE (AutoarCreate, autoar_create, G_TYPE_OBJECT)
+G_DEFINE_QUARK (autoar-create, autoar_create)
 
 #define AUTOAR_CREATE_GET_PRIVATE(o) \
   (G_TYPE_INSTANCE_GET_PRIVATE ((o), AUTOAR_TYPE_CREATE, AutoarCreatePrivate))
@@ -99,7 +100,6 @@ enum
 };
 
 static guint autoar_create_signals[LAST_SIGNAL] = { 0 };
-GQuark autoar_create_quark;
 
 static void
 autoar_create_get_property (GObject    *object,
@@ -482,7 +482,7 @@ autoar_create_do_write_data (AutoarCreate *arcreate,
   while ((r = archive_write_header (priv->a, entry)) == ARCHIVE_RETRY);
   if (r == ARCHIVE_FATAL) {
     if (priv->error == NULL)
-      priv->error = autoar_common_g_error_new_a_entry (autoar_create_quark, priv->a, entry);
+      priv->error = autoar_common_g_error_new_a_entry (priv->a, entry);
     return;
   }
 
@@ -536,7 +536,7 @@ autoar_create_do_write_data (AutoarCreate *arcreate,
 
     if (written_actual < 0 || written_try >= ARCHIVE_WRITE_RETRY_TIMES) {
       if (priv->error == NULL)
-        priv->error = autoar_common_g_error_new_a_entry (autoar_create_quark, priv->a, entry);
+        priv->error = autoar_common_g_error_new_a_entry (priv->a, entry);
       return;
     }
     g_debug ("autoar_create_do_write_data: write data OK");
@@ -804,8 +804,6 @@ autoar_create_class_init (AutoarCreateClass *klass)
   type = G_TYPE_FROM_CLASS (klass);
 
   g_type_class_add_private (klass, sizeof (AutoarCreatePrivate));
-
-  autoar_create_quark = g_quark_from_static_string ("autoar-create");
 
   object_class->get_property = autoar_create_get_property;
   object_class->set_property = autoar_create_set_property;
@@ -1145,7 +1143,7 @@ autoar_create_run (AutoarCreate *arcreate)
                           libarchive_write_close_cb);
   if (r != ARCHIVE_OK) {
     if (priv->error == NULL)
-      priv->error = autoar_common_g_error_new_a (autoar_create_quark, priv->a, NULL);
+      priv->error = autoar_common_g_error_new_a (priv->a, NULL);
     autoar_create_signal_error (arcreate);
     return;
   }
@@ -1217,7 +1215,7 @@ autoar_create_run (AutoarCreate *arcreate)
   r = archive_write_close (priv->a);
   if (r != ARCHIVE_OK) {
     if (arcreate->priv->error == NULL)
-      priv->error = autoar_common_g_error_new_a (autoar_create_quark, priv->a, NULL);
+      priv->error = autoar_common_g_error_new_a (priv->a, NULL);
     return;
   }
 

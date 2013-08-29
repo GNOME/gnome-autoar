@@ -37,6 +37,10 @@
 
 G_BEGIN_DECLS
 
+#define AUTOAR_LIBARCHIVE_ERROR autoar_common_libarchive_quark()
+
+GQuark    autoar_common_libarchive_quark               (void);
+
 char*     autoar_common_get_basename_remove_extension  (const char *filename);
 char*     autoar_common_get_filename_extension         (const char *filename);
 
@@ -46,11 +50,9 @@ void      autoar_common_g_signal_emit                  (gpointer instance,
                                                         GQuark detail,
                                                         ...);
 
-GError*   autoar_common_g_error_new_a                  (GQuark quark,
-                                                        struct archive *a,
+GError*   autoar_common_g_error_new_a                  (struct archive *a,
                                                         const char *pathname);
-GError*   autoar_common_g_error_new_a_entry            (GQuark quark,
-                                                        struct archive *a,
+GError*   autoar_common_g_error_new_a_entry            (struct archive *a,
                                                         struct archive_entry *entry);
 
 G_END_DECLS

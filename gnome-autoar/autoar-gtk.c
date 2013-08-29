@@ -114,49 +114,51 @@ simple_set_active (GtkComboBox *simple,
   GtkTreeIter iter, prev;
   AutoarFormat this_format;
   AutoarFilter this_filter;
+  int get_format, get_filter;
   int *previous;
 
   previous = g_object_get_data ((GObject*)simple, "previous");
-  gtk_tree_model_get_iter_first (model, &iter);
-  do {
-    gtk_tree_model_get (model, &iter,
-                        SIMPLE_COL_FORMAT, &this_format,
-                        SIMPLE_COL_FILTER, &this_filter, -1);
-    if (this_format == format && this_filter == filter) {
-      gtk_combo_box_set_active_iter (simple, &iter);
+  if (autoar_format_is_valid (format) && autoar_filter_is_valid (filter)) {
+    gtk_tree_model_get_iter_first (model, &iter);
+    do {
+      gtk_tree_model_get (model, &iter,
+                          SIMPLE_COL_FORMAT, &this_format,
+                          SIMPLE_COL_FILTER, &this_filter, -1);
+      if (this_format == format && this_filter == filter) {
+        gtk_combo_box_set_active_iter (simple, &iter);
+        previous[0] = format;
+        previous[1] = filter;
+        return;
+      }
+      prev = iter;
+    } while (gtk_tree_model_iter_next (model, &iter));
+
+    if (gtk_tree_model_iter_previous (model, &prev)) {
+      GtkTreeIter active;
+      char *description_string;
+
+      simple_get_variable_row (model, &prev, &active);
+      description_string = format_filter_full_description (format, filter);
+      gtk_list_store_set (GTK_LIST_STORE (model), &active,
+                          SIMPLE_COL_FORMAT, format,
+                          SIMPLE_COL_FILTER, filter,
+                          SIMPLE_COL_DESCRIPTION, description_string, -1);
+      g_free (description_string);
+
+      gtk_combo_box_set_active_iter (simple, &active);
       previous[0] = format;
       previous[1] = filter;
       return;
     }
-    prev = iter;
-  } while (gtk_tree_model_iter_next (model, &iter));
-
-  if (autoar_format_is_valid (format) && autoar_filter_is_valid (filter) &&
-      gtk_tree_model_iter_previous (model, &prev)) {
-    GtkTreeIter active;
-    char *description_string;
-
-    simple_get_variable_row (model, &prev, &active);
-    description_string = format_filter_full_description (format, filter);
-    gtk_list_store_set (GTK_LIST_STORE (model), &active,
-                        SIMPLE_COL_FORMAT, format,
-                        SIMPLE_COL_FILTER, filter,
-                        SIMPLE_COL_DESCRIPTION, description_string, -1);
-    g_free (description_string);
-
-    gtk_combo_box_set_active_iter (simple, &active);
-    previous[0] = format;
-    previous[1] = filter;
-  } else {
-    int get_format, get_filter;
-    gtk_tree_model_get_iter_first (model, &iter);
-    gtk_combo_box_set_active_iter (simple, &iter);
-    gtk_tree_model_get (model, &iter,
-                        SIMPLE_COL_FORMAT, &get_format,
-                        SIMPLE_COL_FILTER, &get_filter, -1);
-    previous[0] = format;
-    previous[1] = filter;
   }
+
+  gtk_tree_model_get_iter_first (model, &iter);
+  gtk_combo_box_set_active_iter (simple, &iter);
+  gtk_tree_model_get (model, &iter,
+                      SIMPLE_COL_FORMAT, &get_format,
+                      SIMPLE_COL_FILTER, &get_filter, -1);
+  previous[0] = format;
+  previous[1] = filter;
 }
 
 static void

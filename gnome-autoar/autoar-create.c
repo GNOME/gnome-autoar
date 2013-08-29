@@ -47,11 +47,18 @@ G_DEFINE_QUARK (autoar-create, autoar_create)
 #define BUFFER_SIZE (64 * 1024)
 #define ARCHIVE_WRITE_RETRY_TIMES 5
 
+#define INVALID_FORMAT 1
+#define INVALID_FILTER 2
+
 struct _AutoarCreatePrivate
 {
   char **source;
   char  *output;
-  GFile *dest;
+
+  GPtrArray *source_file; /* An array of GFile, terminated by NULL */
+  GFile     *output_file;
+
+  int output_is_dest : 1;
 
   guint64 size; /* This field is currently unused */
   guint64 completed_size;
@@ -71,10 +78,12 @@ struct _AutoarCreatePrivate
   struct archive                    *a;
   struct archive_entry              *entry;
   struct archive_entry_linkresolver *resolver;
+  GFile                             *dest;
   GHashTable                        *pathname_to_g_file;
   char                              *source_basename_noext;
+  char                              *extension;
 
-  int in_thread : 1;
+  int in_thread        : 1;
   int prepend_basename : 1;
 };
 
@@ -92,11 +101,14 @@ enum
 {
   PROP_0,
   PROP_SOURCE,
+  PROP_SOURCE_FILE,
   PROP_OUTPUT,
+  PROP_OUTPUT_FILE,
   PROP_SIZE, /* This property is currently unused */
   PROP_COMPLETED_SIZE,
   PROP_FILES,
-  PROP_COMPLETED_FILES
+  PROP_COMPLETED_FILES,
+  PROP_OUTPUT_IS_DEST
 };
 
 static guint autoar_create_signals[LAST_SIGNAL] = { 0 };
@@ -117,11 +129,18 @@ autoar_create_get_property (GObject    *object,
     case PROP_SOURCE:
       g_value_set_boxed (value, priv->source);
       break;
+    case PROP_SOURCE_FILE:
+      g_value_set_boxed (value, priv->source_file);
+      break;
     case PROP_OUTPUT:
       g_value_set_string (value, priv->output);
       break;
+    case PROP_OUTPUT_FILE:
+      g_value_set_object (value, priv->output_file);
+      break;
     case PROP_SIZE:
       g_value_set_uint64 (value, priv->size);
+      break;
     case PROP_COMPLETED_SIZE:
       g_value_set_uint64 (value, priv->completed_size);
       break;
@@ -130,6 +149,9 @@ autoar_create_get_property (GObject    *object,
       break;
     case PROP_COMPLETED_FILES:
       g_value_set_uint (value, priv->completed_files);
+      break;
+    case PROP_OUTPUT_IS_DEST:
+      g_value_set_boolean (value, priv->output_is_dest);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
@@ -166,9 +188,21 @@ autoar_create_set_property (GObject      *object,
       g_strfreev (priv->source);
       priv->source = g_value_dup_boxed (value);
       break;
+    case PROP_SOURCE_FILE:
+      if (priv->source_file != NULL)
+        g_ptr_array_unref (priv->source_file);
+      priv->source_file = g_value_dup_boxed (value);
+      break;
     case PROP_OUTPUT:
       g_free (priv->output);
       priv->output = g_value_dup_string (value);
+      break;
+    case PROP_OUTPUT_FILE:
+      autoar_common_g_object_unref (priv->output_file);
+      priv->output_file = g_object_ref (g_value_get_object (value));
+      break;
+    case PROP_OUTPUT_IS_DEST:
+      priv->output_is_dest = g_value_get_boolean (value);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
@@ -183,11 +217,25 @@ autoar_create_get_source (AutoarCreate *arcreate)
   return arcreate->priv->source;
 }
 
+GPtrArray*
+autoar_create_get_source_file (AutoarCreate *arcreate)
+{
+  g_return_val_if_fail (AUTOAR_IS_CREATE (arcreate), NULL);
+  return arcreate->priv->source_file;
+}
+
 char*
 autoar_create_get_output (AutoarCreate *arcreate)
 {
   g_return_val_if_fail (AUTOAR_IS_CREATE (arcreate), NULL);
   return arcreate->priv->output;
+}
+
+GFile*
+autoar_create_get_output_file (AutoarCreate *arcreate)
+{
+  g_return_val_if_fail (AUTOAR_IS_CREATE (arcreate), NULL);
+  return arcreate->priv->output_file;
 }
 
 guint64
@@ -216,6 +264,13 @@ autoar_create_get_completed_files (AutoarCreate *arcreate)
 {
   g_return_val_if_fail (AUTOAR_IS_CREATE (arcreate), 0);
   return arcreate->priv->completed_files;
+}
+
+gboolean
+autoar_create_get_output_is_dest (AutoarCreate *arcreate)
+{
+  g_return_val_if_fail (AUTOAR_IS_CREATE (arcreate), 0);
+  return arcreate->priv->output_is_dest;
 }
 
 void
@@ -252,6 +307,14 @@ autoar_create_set_completed_files (AutoarCreate *arcreate,
   arcreate->priv->completed_files = completed_files;
 }
 
+void
+autoar_create_set_output_is_dest (AutoarCreate *arcreate,
+                                  gboolean output_is_dest)
+{
+  g_return_if_fail (AUTOAR_IS_CREATE (arcreate));
+  arcreate->priv->output_is_dest = output_is_dest;
+}
+
 static void
 autoar_create_dispose (GObject *object)
 {
@@ -268,14 +331,22 @@ autoar_create_dispose (GObject *object)
       g_output_stream_close (priv->ostream, priv->cancellable, NULL);
     }
     g_object_unref (priv->ostream);
+    priv->ostream = NULL;
   }
 
+  g_clear_object (&(priv->dest));
   g_clear_object (&(priv->arpref));
   g_clear_object (&(priv->cancellable));
+  g_clear_object (&(priv->output_file));
 
   if (priv->pathname_to_g_file != NULL) {
     g_hash_table_unref (priv->pathname_to_g_file);
     priv->pathname_to_g_file = NULL;
+  }
+
+  if (priv->source_file != NULL) {
+    g_ptr_array_unref (priv->source_file);
+    priv->source_file = NULL;
   }
 
   G_OBJECT_CLASS (autoar_create_parent_class)->dispose (object);
@@ -329,6 +400,9 @@ autoar_create_finalize (GObject *object)
 
   g_free (priv->source_basename_noext);
   priv->source_basename_noext = NULL;
+
+  g_free (priv->extension);
+  priv->extension = NULL;
 
   G_OBJECT_CLASS (autoar_create_parent_class)->finalize (object);
 }
@@ -817,9 +891,16 @@ autoar_create_class_init (AutoarCreateClass *klass)
                                                        G_TYPE_STRV,
                                                        G_PARAM_READWRITE |
                                                        G_PARAM_CONSTRUCT_ONLY |
-                                                       G_PARAM_STATIC_NAME |
-                                                       G_PARAM_STATIC_NICK |
-                                                       G_PARAM_STATIC_BLURB));
+                                                       G_PARAM_STATIC_STRINGS));
+
+  g_object_class_install_property (object_class, PROP_SOURCE_FILE,
+                                   g_param_spec_boxed ("source-file",
+                                                       "Source archive GFile",
+                                                       "The source GFiles to be compressed",
+                                                       G_TYPE_PTR_ARRAY,
+                                                       G_PARAM_READWRITE |
+                                                       G_PARAM_CONSTRUCT_ONLY |
+                                                       G_PARAM_STATIC_STRINGS));
 
   g_object_class_install_property (object_class, PROP_OUTPUT,
                                    g_param_spec_string ("output",
@@ -828,9 +909,16 @@ autoar_create_class_init (AutoarCreateClass *klass)
                                                         NULL,
                                                         G_PARAM_READWRITE |
                                                         G_PARAM_CONSTRUCT_ONLY |
-                                                        G_PARAM_STATIC_NAME |
-                                                        G_PARAM_STATIC_NICK |
-                                                        G_PARAM_STATIC_BLURB));
+                                                        G_PARAM_STATIC_STRINGS));
+
+  g_object_class_install_property (object_class, PROP_OUTPUT_FILE,
+                                   g_param_spec_object ("output-file",
+                                                        "Output directory GFile",
+                                                        "Output directory GFile of created archive",
+                                                        G_TYPE_FILE,
+                                                        G_PARAM_READWRITE |
+                                                        G_PARAM_CONSTRUCT_ONLY |
+                                                        G_PARAM_STATIC_STRINGS));
 
   g_object_class_install_property (object_class, PROP_SIZE, /* This propery is unused! */
                                    g_param_spec_uint64 ("size",
@@ -838,9 +926,7 @@ autoar_create_class_init (AutoarCreateClass *klass)
                                                         "Total bytes will be read from disk",
                                                         0, G_MAXUINT64, 0,
                                                         G_PARAM_READWRITE |
-                                                        G_PARAM_STATIC_NAME |
-                                                        G_PARAM_STATIC_NICK |
-                                                        G_PARAM_STATIC_BLURB));
+                                                        G_PARAM_STATIC_STRINGS));
 
   g_object_class_install_property (object_class, PROP_COMPLETED_SIZE,
                                    g_param_spec_uint64 ("completed-size",
@@ -848,9 +934,7 @@ autoar_create_class_init (AutoarCreateClass *klass)
                                                         "Bytes read from disk",
                                                         0, G_MAXUINT64, 0,
                                                         G_PARAM_READWRITE |
-                                                        G_PARAM_STATIC_NAME |
-                                                        G_PARAM_STATIC_NICK |
-                                                        G_PARAM_STATIC_BLURB));
+                                                        G_PARAM_STATIC_STRINGS));
 
   g_object_class_install_property (object_class, PROP_FILES,
                                    g_param_spec_uint ("files",
@@ -858,9 +942,7 @@ autoar_create_class_init (AutoarCreateClass *klass)
                                                       "Number of files to be compressed",
                                                       0, G_MAXUINT32, 0,
                                                       G_PARAM_READWRITE |
-                                                      G_PARAM_STATIC_NAME |
-                                                      G_PARAM_STATIC_NICK |
-                                                      G_PARAM_STATIC_BLURB));
+                                                      G_PARAM_STATIC_STRINGS));
 
   g_object_class_install_property (object_class, PROP_COMPLETED_FILES,
                                    g_param_spec_uint ("completed-files",
@@ -868,9 +950,15 @@ autoar_create_class_init (AutoarCreateClass *klass)
                                                       "Number of files has been read",
                                                       0, G_MAXUINT32, 0,
                                                       G_PARAM_READWRITE |
-                                                      G_PARAM_STATIC_NAME |
-                                                      G_PARAM_STATIC_NICK |
-                                                      G_PARAM_STATIC_BLURB));
+                                                      G_PARAM_STATIC_STRINGS));
+
+  g_object_class_install_property (object_class, PROP_OUTPUT_IS_DEST,
+                                   g_param_spec_boolean ("output-is-dest",
+                                                         "Output is destination",
+                                                         "Whether output file is used as destination",
+                                                         FALSE,
+                                                         G_PARAM_READWRITE |
+                                                         G_PARAM_STATIC_STRINGS));
 
   autoar_create_signals[DECIDE_DEST] =
     g_signal_new ("decide-dest",
@@ -938,6 +1026,10 @@ autoar_create_init (AutoarCreate *arcreate)
   priv->source = NULL;
   priv->output = NULL;
 
+  priv->source_file = NULL;
+  priv->output_file = NULL;
+
+  priv->size = 0;
   priv->completed_size = 0;
 
   priv->files = 0;
@@ -957,27 +1049,72 @@ autoar_create_init (AutoarCreate *arcreate)
   priv->resolver = archive_entry_linkresolver_new ();;
   priv->pathname_to_g_file = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_object_unref);
   priv->source_basename_noext = NULL;
+  priv->extension = NULL;
 
   priv->in_thread = FALSE;
   priv->prepend_basename = FALSE;
+  priv->output_is_dest = FALSE;
 }
 
-AutoarCreate*
-autoar_create_newv (AutoarPref  *arpref,
-                    const char  *output,
-                    const char **source)
+static AutoarCreate*
+autoar_create_new_full (const char **source,
+                        GFile **source_file,
+                        const char *output,
+                        GFile *output_file,
+                        gboolean output_is_dest,
+                        AutoarPref *arpref)
 {
   AutoarCreate *arcreate;
+  const char **gen_source;
+  char *gen_output;
+  GPtrArray *gen_source_file;
+  GFile *gen_output_file;
+  int i;
 
-  g_return_val_if_fail (source != NULL, NULL);
-  g_return_val_if_fail (*source != NULL, NULL);
-  g_return_val_if_fail (output != NULL, NULL);
+  gen_source      = NULL;
+  gen_source_file = NULL;
+  gen_output      = NULL;
+  gen_output_file = NULL;
 
-  arcreate = g_object_new (AUTOAR_TYPE_CREATE,
-                           "source", source,
-                           "output", output,
-                           NULL);
+  if (source == NULL) {
+    GPtrArray *strv;
+    strv = g_ptr_array_new ();
+    for (i = 0; source_file[i] != NULL; i++)
+      g_ptr_array_add (strv, autoar_common_g_file_get_name (source_file[i]));
+    g_ptr_array_add (strv, NULL);
+    gen_source = (const char**) g_ptr_array_free (strv, FALSE);
+  }
+
+  gen_source_file = g_ptr_array_new_with_free_func (g_object_unref);
+  if (source_file == NULL) {
+    for (i = 0; source[i] != NULL; i++)
+      g_ptr_array_add (gen_source_file, g_file_new_for_commandline_arg (source[i]));
+  } else {
+    for (i = 0; source_file[i] != NULL; i++)
+      g_ptr_array_add (gen_source_file, g_object_ref (source_file[i]));
+  }
+
+  if (output == NULL)
+    gen_output = autoar_common_g_file_get_name (output_file);
+  if (output_file == NULL)
+    gen_output_file = g_file_new_for_commandline_arg (output);
+
+  arcreate =
+    g_object_new (AUTOAR_TYPE_CREATE,
+                  "source",         source      != NULL ? source      : gen_source,
+                  "source-file",                                        gen_source_file,
+                  "output",         output      != NULL ? output      : gen_output,
+                  "output-file",    output_file != NULL ? output_file : gen_output_file,
+                  "output-is-dest", output_is_dest, NULL);
   arcreate->priv->arpref = g_object_ref (arpref);
+
+  g_strfreev ((char**)gen_source);
+  g_free (gen_output);
+
+  if (gen_source_file != NULL)
+    g_ptr_array_unref (gen_source_file);
+  if (gen_output_file != NULL)
+    g_object_unref (gen_output_file);
 
   return arcreate;
 }
@@ -992,151 +1129,200 @@ autoar_create_new (AutoarPref *arpref,
   va_list ap;
   GPtrArray *strv;
 
+  g_return_val_if_fail (output != NULL, NULL);
+
   va_start (ap, output);
   strv = g_ptr_array_new_with_free_func (g_free);
-  while ((str = va_arg (ap, char*)) != NULL) {
+  while ((str = va_arg (ap, char*)) != NULL)
     g_ptr_array_add (strv, str);
-  }
   g_ptr_array_add (strv, NULL);
   va_end (ap);
 
-  arcreate = autoar_create_newv (arpref, output, (const char**)(strv->pdata));
+  arcreate = autoar_create_new_full ((const char**) strv->pdata, NULL,
+                                     output, NULL,
+                                     FALSE, arpref);
   g_ptr_array_unref (strv);
   return arcreate;
 }
 
-static void
-autoar_create_run (AutoarCreate *arcreate)
+AutoarCreate*
+autoar_create_new_file (AutoarPref *arpref,
+                        GFile      *output_file,
+                        ...)
 {
+  AutoarCreate *arcreate;
+  GFile *file;
+  va_list ap;
+  GPtrArray *filev;
+
+  g_return_val_if_fail (output_file != NULL, NULL);
+
+  va_start (ap, output_file);
+  filev = g_ptr_array_new_with_free_func (autoar_common_g_object_unref);
+  while ((file = va_arg (ap, GFile*)) != NULL)
+    g_ptr_array_add (filev, file);
+  g_ptr_array_add (filev, NULL);
+  va_end (ap);
+
+  arcreate = autoar_create_new_full (NULL, (GFile**)filev->pdata,
+                                     NULL, output_file,
+                                     FALSE, arpref);
+  g_ptr_array_unref (filev);
+  return arcreate;
+}
+
+AutoarCreate*
+autoar_create_newv (AutoarPref  *arpref,
+                    const char  *output,
+                    const char **source)
+{
+  g_return_val_if_fail (source != NULL, NULL);
+  g_return_val_if_fail (*source != NULL, NULL);
+  g_return_val_if_fail (output != NULL, NULL);
+
+  return autoar_create_new_full (source, NULL,
+                                 output, NULL,
+                                 FALSE, arpref);
+
+}
+
+AutoarCreate*
+autoar_create_new_filev (AutoarPref  *arpref,
+                         GFile       *output_file,
+                         GFile      **source_file)
+{
+  g_return_val_if_fail (source_file != NULL, NULL);
+  g_return_val_if_fail (*source_file != NULL, NULL);
+  g_return_val_if_fail (output_file != NULL, NULL);
+
+  return autoar_create_new_full (NULL, source_file,
+                                 NULL, output_file,
+                                 FALSE, arpref);
+}
+
+static void
+autoar_create_step_initialize_object (AutoarCreate *arcreate)
+{
+  /* Step 0: Setup the libarchive object and the file name extension */
+
   AutoarFormat format;
   AutoarFilter filter;
 
   AutoarCreatePrivate *priv;
-  int i, r;
 
-  g_return_if_fail (AUTOAR_IS_CREATE (arcreate));
   priv = arcreate->priv;
 
-  g_return_if_fail (priv->source != NULL);
-  g_return_if_fail (priv->output != NULL);
-
-  /* A string array without a string is not allowed */
-  g_return_if_fail (*(priv->source) != NULL);
-
-  if (g_cancellable_is_cancelled (priv->cancellable)) {
-    autoar_create_signal_cancelled (arcreate);
+  format = autoar_pref_get_default_format (priv->arpref);
+  if (!autoar_format_is_valid (format)) {
+    priv->error = g_error_new (AUTOAR_CREATE_ERROR, INVALID_FORMAT,
+                               "Format %d is invalid", format);
     return;
   }
 
-  format = autoar_pref_get_default_format (priv->arpref);
   filter = autoar_pref_get_default_filter (priv->arpref);
-  g_return_if_fail (format > 0 && format < AUTOAR_FORMAT_LAST);
-  g_return_if_fail (filter > 0 && filter < AUTOAR_FILTER_LAST);
+  if (!autoar_filter_is_valid (filter)) {
+    priv->error = g_error_new (AUTOAR_CREATE_ERROR, INVALID_FILTER,
+                               "Filter %d is invalid", filter);
+    return;
+  }
+
+  priv->extension = autoar_format_filter_get_extension (format, filter);
 
   archive_write_set_bytes_in_last_block (priv->a, 1);
   archive_write_add_filter (priv->a, autoar_filter_get_filter_libarchive (filter));
   archive_write_set_format (priv->a, autoar_format_get_format_libarchive (format));
+}
 
-  if (g_cancellable_is_cancelled (priv->cancellable)) {
-    autoar_create_signal_cancelled (arcreate);
-    return;
-  }
-
+static void
+autoar_create_step_decide_dest (AutoarCreate *arcreate)
+{
   /* Step 1: Set the destination file name
    * Use the first source file name */
-  g_debug ("autoar_extract_run: Step 1, Filename");
+
+  AutoarCreatePrivate *priv;
+
+  g_debug ("autoar_create_step_decide_dest: called");
+
+  priv = arcreate->priv;
+
   {
-    GFile *file_output;
-    GFile *file_dest;
+    GFile *file_source; /* Do not unref */
+    GFileInfo *source_info;
+    char *source_basename;
 
-    {
-      GFile *file_source;
-      GFileInfo *source_info;
-      char *source_basename;
-      const char *basename;
+    file_source = g_ptr_array_index (priv->source_file, 0);
+    source_info = g_file_query_info (file_source,
+                                     G_FILE_ATTRIBUTE_STANDARD_TYPE,
+                                     G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
+                                     priv->cancellable,
+                                     &(priv->error));
+    if (source_info == NULL)
+      return;
 
-      basename = *(priv->source);
-      file_source = g_file_new_for_commandline_arg (basename);
-      source_info = g_file_query_info (file_source,
-                                       G_FILE_ATTRIBUTE_STANDARD_TYPE,
-                                       G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
-                                       priv->cancellable,
-                                       &(priv->error));
-      if (source_info == NULL) {
-        g_object_unref (file_source);
-        autoar_create_signal_error (arcreate);
-        return;
-      }
+    source_basename = g_file_get_basename (file_source);
+    if (g_file_info_get_file_type (source_info) == G_FILE_TYPE_REGULAR)
+      priv->source_basename_noext = autoar_common_get_basename_remove_extension (source_basename);
+    else
+      priv->source_basename_noext = g_strdup (source_basename);
 
-      source_basename = g_file_get_basename (file_source);
-      if (g_file_info_get_file_type (source_info) == G_FILE_TYPE_REGULAR)
-        priv->source_basename_noext = autoar_common_get_basename_remove_extension (source_basename);
-      else
-        priv->source_basename_noext = g_strdup (source_basename);
+    g_object_unref (source_info);
+    g_free (source_basename);
+  }
 
-      g_object_unref (file_source);
-      g_object_unref (source_info);
-      g_free (source_basename);
-    }
+  {
+    char *dest_basename;
+    int i;
 
-    {
-      char *dest_basename;
-      char *extension;
+    dest_basename = g_strconcat (priv->source_basename_noext,
+                                 priv->extension, NULL);
+    priv->dest = g_file_get_child (priv->output_file, dest_basename);
 
-      file_output = g_file_new_for_commandline_arg (priv->output);
-      extension = autoar_format_filter_get_extension (format, filter);
-      dest_basename = g_strconcat (priv->source_basename_noext,
-                                   extension, NULL);
-      file_dest = g_file_get_child (file_output, dest_basename);
-
-      for (i = 1; g_file_query_exists (file_dest, priv->cancellable); i++) {
-        g_free (dest_basename);
-        g_object_unref (file_dest);
-
-        if (g_cancellable_is_cancelled (priv->cancellable)) {
-          autoar_create_signal_cancelled (arcreate);
-          g_object_unref (file_output);
-          g_free (extension);
-          return;
-        }
-
-        extension = autoar_format_filter_get_extension (format, filter);
-        dest_basename = g_strdup_printf ("%s(%d)%s",
-                                         priv->source_basename_noext,
-                                         i, extension);
-        file_dest = g_file_get_child (file_output, dest_basename);
-      }
-
+    for (i = 1; g_file_query_exists (priv->dest, priv->cancellable); i++) {
       g_free (dest_basename);
-      g_free (extension);
+      g_object_unref (priv->dest);
+
+      if (g_cancellable_is_cancelled (priv->cancellable))
+        return;
+
+      dest_basename = g_strdup_printf ("%s(%d)%s",
+                                       priv->source_basename_noext,
+                                       i, priv->extension);
+      priv->dest = g_file_get_child (priv->output_file, dest_basename);
     }
 
-    {
-      if (!g_file_query_exists (file_output, priv->cancellable)) {
-        g_file_make_directory_with_parents (file_output, priv->cancellable, &(priv->error));
-        if (arcreate->priv->error) {
-          autoar_create_signal_error (arcreate);
-          g_object_unref (file_output);
-          g_object_unref (file_dest);
-          return;
-        }
-      }
-    }
-
-    arcreate->priv->dest = g_object_ref (file_dest);
-    autoar_create_signal_decide_dest (arcreate);
-
-    g_object_unref (file_output);
-    g_object_unref (file_dest);
+    g_free (dest_basename);
   }
 
-  if (g_cancellable_is_cancelled (priv->cancellable)) {
-    autoar_create_signal_cancelled (arcreate);
-    return;
+  if (!g_file_query_exists (priv->output_file, priv->cancellable)) {
+    g_file_make_directory_with_parents (priv->output_file,
+                                        priv->cancellable,
+                                        &(priv->error));
+    if (priv->error != NULL)
+      return;
   }
 
+  autoar_create_signal_decide_dest (arcreate);
+}
+
+static void
+autoar_create_step_decide_dest_already (AutoarCreate *arcreate)
+{
+  /* Alternative step 1: Output is destination */
+  arcreate->priv->dest = g_object_ref (arcreate->priv->output_file);
+  autoar_create_signal_decide_dest (arcreate);
+}
+
+static void
+autoar_create_step_create (AutoarCreate *arcreate)
+{
   /* Step 2: Create and open the new archive file */
-  g_debug ("autoar_extract_run: Step 2, Create and Write");
+  AutoarCreatePrivate *priv;
+  int i, r;
+
+  g_debug ("autoar_create_step_create: called");
+
+  priv = arcreate->priv;
+
   r = archive_write_open (priv->a, arcreate,
                           libarchive_write_open_cb,
                           libarchive_write_write_cb,
@@ -1144,56 +1330,48 @@ autoar_create_run (AutoarCreate *arcreate)
   if (r != ARCHIVE_OK) {
     if (priv->error == NULL)
       priv->error = autoar_common_g_error_new_a (priv->a, NULL);
-    autoar_create_signal_error (arcreate);
     return;
   }
 
-
   /* Check whether we have multiple source files */
-  if (arcreate->priv->source[1] == NULL)
+  if (priv->source[1] == NULL)
     priv->prepend_basename = FALSE;
   else
     priv->prepend_basename = TRUE;
 
   archive_entry_linkresolver_set_strategy (priv->resolver, archive_format (priv->a));
 
-  for (i = 0; arcreate->priv->source[i] != NULL; i++) {
-    GFile *file;
+  for (i = 0; i < priv->source_file->len; i++) {
+    GFile *file; /* Do not unref */
+    GFileType filetype;
     GFileInfo *fileinfo;
 
-    g_debug ("autoar_create_run: source[%d] (%s)", i, arcreate->priv->source[i]);
-    file = g_file_new_for_commandline_arg (arcreate->priv->source[i]);
+    g_debug ("autoar_create_run: source[%d] (%s)", i, priv->source[i]);
+    file = g_ptr_array_index (priv->source_file, i);
     fileinfo = g_file_query_info (file,
                                   G_FILE_ATTRIBUTE_STANDARD_TYPE,
                                   G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
                                   priv->cancellable,
-                                  &(arcreate->priv->error));
-    if (arcreate->priv->error != NULL) {
-      autoar_create_signal_error (arcreate);
-      g_object_unref (file);
-      g_object_unref (fileinfo);
+                                  &(priv->error));
+    if (priv->error != NULL)
       return;
-    }
+
+    filetype = g_file_info_get_file_type (fileinfo);
+    g_object_unref (fileinfo);
 
     autoar_create_do_add_to_archive (arcreate, file, file);
 
-    if (g_file_info_get_file_type (fileinfo) == G_FILE_TYPE_DIRECTORY)
+    if (filetype == G_FILE_TYPE_DIRECTORY)
       autoar_create_do_recursive_read (arcreate, file, file);
 
-    g_object_unref (file);
-    g_object_unref (fileinfo);
-
-    if (arcreate->priv->error != NULL) {
-      autoar_create_signal_error (arcreate);
+    if (priv->error != NULL)
       return;
-    }
 
-    if (g_cancellable_is_cancelled (priv->cancellable)) {
-      autoar_create_signal_cancelled (arcreate);
+    if (g_cancellable_is_cancelled (priv->cancellable))
       return;
-    }
   }
 
+  /* Process the final entry */
   {
     struct archive_entry *entry, *sparse;
     entry = NULL;
@@ -1208,15 +1386,67 @@ autoar_create_run (AutoarCreate *arcreate)
        * because we are going to free the entire hash table. */
     }
   }
+}
 
-  if (arcreate->priv->error != NULL)
+static void
+autoar_create_step_cleanup (AutoarCreate *arcreate)
+{
+  /* Step 3: Close the libarchive object. We do not have to do other cleanup
+   * because they are handled in dispose and finalize functions. */
+  AutoarCreatePrivate *priv;
+  priv = arcreate->priv;
+  if (archive_write_close (priv->a) != ARCHIVE_OK) {
+    if (priv->error == NULL)
+      priv->error = autoar_common_g_error_new_a (priv->a, priv->output);
     return;
+  }
+}
 
-  r = archive_write_close (priv->a);
-  if (r != ARCHIVE_OK) {
-    if (arcreate->priv->error == NULL)
-      priv->error = autoar_common_g_error_new_a (priv->a, NULL);
+static void
+autoar_create_run (AutoarCreate *arcreate)
+{
+  /* Numbers of steps.
+   * The array size must be modified if more steps are added. */
+  void (*steps[5])(AutoarCreate*);
+
+  AutoarCreatePrivate *priv;
+  int i;
+
+  g_return_if_fail (AUTOAR_IS_CREATE (arcreate));
+  priv = arcreate->priv;
+
+  g_return_if_fail (priv->source_file != NULL);
+  g_return_if_fail (priv->output_file != NULL);
+
+  /* A GFile* array without a GFile* is not allowed */
+  g_return_if_fail (*((GFile**)(priv->source_file->pdata)) != NULL);
+
+  if (g_cancellable_is_cancelled (priv->cancellable)) {
+    autoar_create_signal_cancelled (arcreate);
     return;
+  }
+
+  i = 0;
+  steps[i++] = autoar_create_step_initialize_object;
+  steps[i++] = priv->output_is_dest ?
+               autoar_create_step_decide_dest_already :
+               autoar_create_step_decide_dest;
+  steps[i++] = autoar_create_step_create;
+  steps[i++] = autoar_create_step_cleanup;
+  steps[i++] = NULL;
+
+  for (i = 0; steps[i] != NULL; i++) {
+    g_debug ("autoar_create_run: Step %d Begin", i);
+    (*steps[i])(arcreate);
+    g_debug ("autoar_create_run: Step %d End", i);
+    if (priv->error != NULL) {
+      autoar_create_signal_error (arcreate);
+      return;
+    }
+    if (g_cancellable_is_cancelled (priv->cancellable)) {
+      autoar_create_signal_cancelled (arcreate);
+      return;
+    }
   }
 
   autoar_create_signal_completed (arcreate);

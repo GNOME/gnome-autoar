@@ -165,6 +165,13 @@ autoar_common_g_signal_emit (gpointer instance,
   va_end (ap);
 }
 
+void
+autoar_common_g_object_unref (gpointer object)
+{
+  if (object != NULL)
+    g_object_unref (object);
+}
+
 GError*
 autoar_common_g_error_new_a (struct archive *a,
                              const char *pathname)
@@ -185,4 +192,14 @@ autoar_common_g_error_new_a_entry (struct archive *a,
                                    struct archive_entry *entry)
 {
   return autoar_common_g_error_new_a (a, archive_entry_pathname (entry));
+}
+
+char*
+autoar_common_g_file_get_name (GFile *file)
+{
+  char *name;
+  name = g_file_get_path (file);
+  if (name == NULL)
+    name = g_file_get_uri (file);
+  return name;
 }

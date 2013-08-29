@@ -641,19 +641,11 @@ g_pattern_spec_free_safe (void *pattern_compiled)
 }
 
 static void
-g_file_and_info_free (void *g_file_and_info) {
+g_file_and_info_free (void *g_file_and_info)
+{
   GFileAndInfo *fi = g_file_and_info;
   g_object_unref (fi->file);
   g_object_unref (fi->info);
-}
-
-static char*
-g_file_get_name (GFile *file) {
-  char *name;
-  name = g_file_get_path (file);
-  if (name == NULL)
-    name = g_file_get_uri (file);
-  return name;
 }
 
 static inline void
@@ -1349,13 +1341,13 @@ autoar_extract_new_full (const char *source,
     gen_source_file = g_file_new_for_commandline_arg (gen_source);
   } else {
     if (source == NULL)
-      gen_source = g_file_get_name (source_file);
+      gen_source = autoar_common_g_file_get_name (source_file);
     if (source_file == NULL)
       gen_source_file = g_file_new_for_commandline_arg (source);
   }
 
   if (output == NULL)
-    gen_output = g_file_get_name (output_file);
+    gen_output = autoar_common_g_file_get_name (output_file);
   if (output_file == NULL)
     gen_output_file = g_file_new_for_commandline_arg (output);
 

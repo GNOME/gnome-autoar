@@ -32,6 +32,7 @@
 
 #include <archive.h>
 #include <archive_entry.h>
+#include <gio/gio.h>
 #include <glib.h>
 #include <glib-object.h>
 
@@ -49,11 +50,14 @@ void      autoar_common_g_signal_emit                  (gpointer instance,
                                                         guint signal_id,
                                                         GQuark detail,
                                                         ...);
+void      autoar_common_g_object_unref                 (gpointer object);
 
 GError*   autoar_common_g_error_new_a                  (struct archive *a,
                                                         const char *pathname);
 GError*   autoar_common_g_error_new_a_entry            (struct archive *a,
                                                         struct archive_entry *entry);
+
+char*     autoar_common_g_file_get_name                (GFile *file);
 
 G_END_DECLS
 

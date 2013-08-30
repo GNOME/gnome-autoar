@@ -1132,7 +1132,7 @@ autoar_create_new (AutoarPref *arpref,
   g_return_val_if_fail (output != NULL, NULL);
 
   va_start (ap, output);
-  strv = g_ptr_array_new_with_free_func (g_free);
+  strv = g_ptr_array_new_with_free_func (NULL);
   while ((str = va_arg (ap, char*)) != NULL)
     g_ptr_array_add (strv, str);
   g_ptr_array_add (strv, NULL);
@@ -1158,7 +1158,7 @@ autoar_create_new_file (AutoarPref *arpref,
   g_return_val_if_fail (output_file != NULL, NULL);
 
   va_start (ap, output_file);
-  filev = g_ptr_array_new_with_free_func (autoar_common_g_object_unref);
+  filev = g_ptr_array_new_with_free_func (NULL);
   while ((file = va_arg (ap, GFile*)) != NULL)
     g_ptr_array_add (filev, file);
   g_ptr_array_add (filev, NULL);

@@ -55,7 +55,7 @@ struct _AutoarCreatePrivate
   char **source;
   char  *output;
 
-  GPtrArray *source_file; /* An array of GFile, terminated by NULL */
+  GPtrArray *source_file; /* An array of GFile, not terminated by NULL */
   GFile     *output_file;
 
   int output_is_dest : 1;
@@ -1346,7 +1346,7 @@ autoar_create_step_create (AutoarCreate *arcreate)
     GFileType filetype;
     GFileInfo *fileinfo;
 
-    g_debug ("autoar_create_run: source[%d] (%s)", i, priv->source[i]);
+    g_debug ("autoar_create_step_create: source[%d] (%s)", i, priv->source[i]);
     file = g_ptr_array_index (priv->source_file, i);
     fileinfo = g_file_query_info (file,
                                   G_FILE_ATTRIBUTE_STANDARD_TYPE,

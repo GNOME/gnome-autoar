@@ -1374,6 +1374,7 @@ autoar_extract_new_full (const char *source,
     char *source_basename = g_file_get_basename (arextract->priv->source_file);
     arextract->priv->suggested_destname =
       autoar_common_get_basename_remove_extension (source_basename);
+    g_free (source_basename);
   }
 
   g_free (gen_source);

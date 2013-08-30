@@ -26,6 +26,7 @@ main (int argc,
            autoar_pref_check_mime_type (arpref, argv[1]),
            autoar_pref_check_mime_type_file (arpref, file));
 
+  g_object_unref (settings);
   g_object_unref (arpref);
   g_object_unref (file);
 

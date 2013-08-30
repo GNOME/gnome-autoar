@@ -555,7 +555,7 @@ autoar_pref_check_mime_type_file  (AutoarPref *arpref,
 {
   GFileInfo *fileinfo;
   const char *content_type;
-  const char *mime_type;
+  char *mime_type;
   gboolean result;
 
   g_return_val_if_fail (AUTOAR_IS_PREF (arpref), FALSE);
@@ -576,6 +576,8 @@ autoar_pref_check_mime_type_file  (AutoarPref *arpref,
   g_debug ("MIME Type: %s\n", mime_type);
 
   result = autoar_pref_check_mime_type_d (arpref, mime_type);
+
+  g_free (mime_type);
   g_object_unref (fileinfo);
 
   return result;

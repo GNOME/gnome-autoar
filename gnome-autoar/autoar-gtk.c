@@ -358,10 +358,11 @@ static GtkTreeModel*
 advanced_format_store (void)
 {
   GtkListStore *store;
-  int i;
+  int i, last;
 
   store = gtk_list_store_new (N_ADVANCED_FORMAT_COLS, G_TYPE_INT, G_TYPE_STRING);
-  for (i = 1; i < AUTOAR_FORMAT_LAST; i++) {
+  last = autoar_format_last ();
+  for (i = 1; i < last; i++) {
     GtkTreeIter iter;
     const char *description;
 
@@ -379,10 +380,11 @@ static GtkTreeModel*
 advanced_filter_store (void)
 {
   GtkListStore *store;
-  int i;
+  int i, last;
 
   store = gtk_list_store_new (N_ADVANCED_FILTER_COLS, G_TYPE_INT, G_TYPE_STRING);
-  for (i = 1; i < AUTOAR_FILTER_LAST; i++) {
+  last = autoar_filter_last ();
+  for (i = 1; i < last; i++) {
     GtkTreeIter iter;
     const char *description;
 

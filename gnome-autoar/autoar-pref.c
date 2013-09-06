@@ -201,7 +201,7 @@ autoar_pref_set_default_format (AutoarPref *arpref,
                                 AutoarFormat format)
 {
   g_return_if_fail (AUTOAR_IS_PREF (arpref));
-  g_return_if_fail (format > 0 && format < AUTOAR_FORMAT_LAST);
+  g_return_if_fail (autoar_format_is_valid (format));
   if (arpref->priv->modification_enabled && format != arpref->priv->default_format)
     arpref->priv->modification_flags |= MODIFIED_DEFAULT_FORMAT;
   arpref->priv->default_format = format;
@@ -212,7 +212,7 @@ autoar_pref_set_default_filter (AutoarPref *arpref,
                                 AutoarFilter filter)
 {
   g_return_if_fail (AUTOAR_IS_PREF (arpref));
-  g_return_if_fail (filter > 0 && filter < AUTOAR_FILTER_LAST);
+  g_return_if_fail (autoar_filter_is_valid (filter));
   if (arpref->priv->modification_enabled && filter != arpref->priv->default_filter)
     arpref->priv->modification_flags |= MODIFIED_DEFAULT_FILTER;
   arpref->priv->default_filter = filter;

@@ -104,6 +104,12 @@ static AutoarFilterDescription autoar_filter_description[] = {
     "application/x-lrzip",   "Long Range ZIP (lrzip)" }
 };
 
+AutoarFormat
+autoar_format_last (void)
+{
+  return AUTOAR_FORMAT_LAST;
+}
+
 gboolean
 autoar_format_is_valid (AutoarFormat format)
 {
@@ -113,28 +119,28 @@ autoar_format_is_valid (AutoarFormat format)
 const char*
 autoar_format_get_mime_type (AutoarFormat format)
 {
-  g_return_val_if_fail (format > 0 && format < AUTOAR_FORMAT_LAST, NULL);
+  g_return_val_if_fail (autoar_format_is_valid (format) , NULL);
   return autoar_format_description[format - 1].mime_type;
 }
 
 const char*
 autoar_format_get_extension (AutoarFormat format)
 {
-  g_return_val_if_fail (format > 0 && format < AUTOAR_FORMAT_LAST, NULL);
+  g_return_val_if_fail (autoar_format_is_valid (format), NULL);
   return autoar_format_description[format - 1].extension;
 }
 
 const char*
 autoar_format_get_description (AutoarFormat format)
 {
-  g_return_val_if_fail (format > 0 && format < AUTOAR_FORMAT_LAST, NULL);
+  g_return_val_if_fail (autoar_format_is_valid (format), NULL);
   return autoar_format_description[format - 1].description;
 }
 
 int
 autoar_format_get_format_libarchive (AutoarFormat format)
 {
-  g_return_val_if_fail (format > 0 && format < AUTOAR_FORMAT_LAST, -1);
+  g_return_val_if_fail (autoar_format_is_valid (format), -1);
   return autoar_format_description[format - 1].libarchive_format;
 }
 
@@ -144,7 +150,7 @@ autoar_format_get_description_libarchive (AutoarFormat format)
   struct archive* a;
   gchar *str;
 
-  g_return_val_if_fail (format > 0 && format < AUTOAR_FORMAT_LAST, NULL);
+  g_return_val_if_fail (autoar_format_is_valid (format), NULL);
 
   a = archive_write_new ();
   archive_write_set_format (a, autoar_format_description[format - 1].libarchive_format);
@@ -152,6 +158,12 @@ autoar_format_get_description_libarchive (AutoarFormat format)
   archive_write_free (a);
 
   return str;
+}
+
+AutoarFilter
+autoar_filter_last (void)
+{
+  return AUTOAR_FILTER_LAST;
 }
 
 gboolean
@@ -163,28 +175,28 @@ autoar_filter_is_valid (AutoarFilter filter)
 const char*
 autoar_filter_get_mime_type (AutoarFilter filter)
 {
-  g_return_val_if_fail (filter > 0 && filter < AUTOAR_FILTER_LAST, NULL);
+  g_return_val_if_fail (autoar_filter_is_valid (filter), NULL);
   return autoar_filter_description[filter - 1].mime_type;
 }
 
 const char*
 autoar_filter_get_extension (AutoarFilter filter)
 {
-  g_return_val_if_fail (filter > 0 && filter < AUTOAR_FILTER_LAST, NULL);
+  g_return_val_if_fail (autoar_filter_is_valid (filter), NULL);
   return autoar_filter_description[filter - 1].extension;
 }
 
 const char*
 autoar_filter_get_description (AutoarFilter filter)
 {
-  g_return_val_if_fail (filter > 0 && filter < AUTOAR_FILTER_LAST, NULL);
+  g_return_val_if_fail (autoar_filter_is_valid (filter), NULL);
   return autoar_filter_description[filter - 1].description;
 }
 
 int
 autoar_filter_get_filter_libarchive (AutoarFilter filter)
 {
-  g_return_val_if_fail (filter > 0 && filter < AUTOAR_FILTER_LAST, -1);
+  g_return_val_if_fail (autoar_filter_is_valid (filter), -1);
   return autoar_filter_description[filter - 1].libarchive_filter;
 }
 
@@ -194,7 +206,7 @@ autoar_filter_get_description_libarchive (AutoarFilter filter)
   struct archive *a;
   gchar *str;
 
-  g_return_val_if_fail (filter > 0 && filter < AUTOAR_FILTER_LAST, NULL);
+  g_return_val_if_fail (autoar_filter_is_valid (filter), NULL);
 
   a = archive_write_new ();
   archive_write_add_filter (a, autoar_filter_description[filter - 1].libarchive_filter);
@@ -208,8 +220,8 @@ gchar*
 autoar_format_filter_get_mime_type (AutoarFormat format,
                                     AutoarFilter filter)
 {
-  g_return_val_if_fail (format > 0 && format < AUTOAR_FORMAT_LAST, NULL);
-  g_return_val_if_fail (filter > 0 && filter < AUTOAR_FILTER_LAST, NULL);
+  g_return_val_if_fail (autoar_format_is_valid (format), NULL);
+  g_return_val_if_fail (autoar_filter_is_valid (filter), NULL);
 
   switch (filter) {
     case AUTOAR_FILTER_NONE:
@@ -235,8 +247,8 @@ gchar*
 autoar_format_filter_get_extension (AutoarFormat format,
                                     AutoarFilter filter)
 {
-  g_return_val_if_fail (format > 0 && format < AUTOAR_FORMAT_LAST, NULL);
-  g_return_val_if_fail (filter > 0 && filter < AUTOAR_FILTER_LAST, NULL);
+  g_return_val_if_fail (autoar_format_is_valid (format), NULL);
+  g_return_val_if_fail (autoar_filter_is_valid (filter), NULL);
 
   return g_strconcat (".",
                       autoar_format_description[format - 1].extension,
@@ -252,8 +264,8 @@ autoar_format_filter_get_description (AutoarFormat format,
   gchar *mime_type;
   gchar *description;
 
-  g_return_val_if_fail (format > 0 && format < AUTOAR_FORMAT_LAST, NULL);
-  g_return_val_if_fail (filter > 0 && filter < AUTOAR_FILTER_LAST, NULL);
+  g_return_val_if_fail (autoar_format_is_valid (format), NULL);
+  g_return_val_if_fail (autoar_filter_is_valid (filter), NULL);
 
   mime_type = autoar_format_filter_get_mime_type (format, filter);
   description = g_content_type_get_description (mime_type);

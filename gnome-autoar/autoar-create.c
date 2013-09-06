@@ -286,7 +286,7 @@ autoar_create_set_completed_size (AutoarCreate *arcreate,
                                   guint64 completed_size)
 {
   g_return_if_fail (AUTOAR_IS_CREATE (arcreate));
-  g_return_if_fail (completed_size <= arcreate->priv->completed_size);
+  g_return_if_fail (completed_size >= arcreate->priv->completed_size);
   arcreate->priv->completed_size = completed_size;
 }
 
@@ -303,7 +303,7 @@ autoar_create_set_completed_files (AutoarCreate *arcreate,
                                    guint completed_files)
 {
   g_return_if_fail (AUTOAR_IS_CREATE (arcreate));
-  g_return_if_fail (completed_files <= arcreate->priv->completed_files);
+  g_return_if_fail (completed_files >= arcreate->priv->completed_files);
   arcreate->priv->completed_files = completed_files;
 }
 

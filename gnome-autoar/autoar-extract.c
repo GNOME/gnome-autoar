@@ -332,7 +332,7 @@ autoar_extract_set_completed_size (AutoarExtract *arextract,
                                    guint64 completed_size)
 {
   g_return_if_fail (AUTOAR_IS_EXTRACT (arextract));
-  g_return_if_fail (completed_size <= arextract->priv->completed_size);
+  g_return_if_fail (completed_size >= arextract->priv->completed_size);
   arextract->priv->completed_size = completed_size;
 }
 
@@ -349,7 +349,7 @@ autoar_extract_set_completed_files (AutoarExtract *arextract,
                                     guint completed_files)
 {
   g_return_if_fail (AUTOAR_IS_EXTRACT (arextract));
-  g_return_if_fail (completed_files <= arextract->priv->completed_files);
+  g_return_if_fail (completed_files >= arextract->priv->completed_files);
   arextract->priv->completed_files = completed_files;
 }
 

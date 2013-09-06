@@ -424,7 +424,10 @@ libarchive_write_open_cb (struct archive *ar_write,
                                                            G_FILE_CREATE_NONE,
                                                            arcreate->priv->cancellable,
                                                            &(arcreate->priv->error));
-  g_return_val_if_fail (arcreate->priv->error == NULL, ARCHIVE_FATAL);
+  if (arcreate->priv->error != NULL) {
+    g_debug ("libarchive_write_open_cb: ARCHIVE_FATAL");
+    return ARCHIVE_FATAL;
+  }
 
   g_debug ("libarchive_write_open_cb: ARCHIVE_OK");
   return ARCHIVE_OK;
@@ -479,7 +482,8 @@ libarchive_write_write_cb (struct archive *ar_write,
                                       length,
                                       arcreate->priv->cancellable,
                                       &(arcreate->priv->error));
-  g_return_val_if_fail (arcreate->priv->error == NULL, -1);
+  if (arcreate->priv->error != NULL)
+    return -1;
 
   g_debug ("libarchive_write_write_cb: %lu", write_size);
   return write_size;

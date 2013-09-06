@@ -1211,8 +1211,11 @@ autoar_create_step_initialize_object (AutoarCreate *arcreate)
 
   AutoarFormat format;
   AutoarFilter filter;
+  AutoarFormatFunc format_func;
+  AutoarFilterFunc filter_func;
 
   AutoarCreatePrivate *priv;
+  int r;
 
   priv = arcreate->priv;
 
@@ -1232,9 +1235,25 @@ autoar_create_step_initialize_object (AutoarCreate *arcreate)
 
   priv->extension = autoar_format_filter_get_extension (format, filter);
 
-  archive_write_set_bytes_in_last_block (priv->a, 1);
-  archive_write_add_filter (priv->a, autoar_filter_get_filter_libarchive (filter));
-  archive_write_set_format (priv->a, autoar_format_get_format_libarchive (format));
+  r = archive_write_set_bytes_in_last_block (priv->a, 1);
+  if (r != ARCHIVE_OK) {
+    priv->error = autoar_common_g_error_new_a (priv->a, NULL);
+    return;
+  }
+
+  format_func = autoar_format_get_libarchive_write (format);
+  r = (*format_func)(priv->a);
+  if (r != ARCHIVE_OK) {
+    priv->error = autoar_common_g_error_new_a (priv->a, NULL);
+    return;
+  }
+
+  filter_func = autoar_filter_get_libarchive_write (filter);
+  r = (*filter_func)(priv->a);
+  if (r != ARCHIVE_OK) {
+    priv->error = autoar_common_g_error_new_a (priv->a, NULL);
+    return;
+  }
 }
 
 static void

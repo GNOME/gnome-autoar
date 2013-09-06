@@ -26,6 +26,7 @@
 #ifndef AUTOAR_FORMAT_H
 #define AUTOAR_FORMAT_H
 
+#include <archive.h>
 #include <glib.h>
 
 G_BEGIN_DECLS
@@ -62,21 +63,28 @@ typedef enum {
   AUTOAR_FILTER_LAST /*< skip >*/
 } AutoarFilter;
 
+typedef int (*AutoarFormatFunc) (struct archive*);
+typedef int (*AutoarFilterFunc) (struct archive*);
+
 AutoarFormat  autoar_format_last                        (void);
 gboolean      autoar_format_is_valid                    (AutoarFormat format);
 const char   *autoar_format_get_mime_type               (AutoarFormat format);
 const char   *autoar_format_get_extension               (AutoarFormat format);
 const char   *autoar_format_get_description             (AutoarFormat format);
-int           autoar_format_get_format_libarchive       (AutoarFormat format);
 gchar        *autoar_format_get_description_libarchive  (AutoarFormat format);
+int           autoar_format_get_format_libarchive       (AutoarFormat format);
+AutoarFormatFunc autoar_format_get_libarchive_read      (AutoarFormat format);
+AutoarFormatFunc autoar_format_get_libarchive_write     (AutoarFormat format);
 
 AutoarFilter  autoar_filter_last                        (void);
 gboolean      autoar_filter_is_valid                    (AutoarFilter filter);
 const char   *autoar_filter_get_mime_type               (AutoarFilter filter);
 const char   *autoar_filter_get_extension               (AutoarFilter filter);
 const char   *autoar_filter_get_description             (AutoarFilter filter);
-int           autoar_filter_get_filter_libarchive       (AutoarFilter filter);
 gchar        *autoar_filter_get_description_libarchive  (AutoarFilter filter);
+int           autoar_filter_get_filter_libarchive       (AutoarFilter filter);
+AutoarFilterFunc autoar_filter_get_libarchive_read      (AutoarFilter filter);
+AutoarFilterFunc autoar_filter_get_libarchive_write     (AutoarFilter filter);
 
 gchar        *autoar_format_filter_get_mime_type        (AutoarFormat format,
                                                          AutoarFilter filter);

@@ -26,6 +26,7 @@
 #ifndef AUTOARCHIVE_H
 #define AUTOARHICVE_H
 
+#include <gnome-autoar/autoar-common.h>
 #include <gnome-autoar/autoar-create.h>
 #include <gnome-autoar/autoar-format-filter.h>
 #include <gnome-autoar/autoar-extract.h>

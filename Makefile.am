@@ -9,3 +9,5 @@ SUBDIRS = gnome-autoar data tests docs
 EXTRA_DISTS = \
 	autogen.sh \
 	$(NULL)
+
+DISTCHECK_CONFIGURE_FLAGS = --enable-gtk-doc

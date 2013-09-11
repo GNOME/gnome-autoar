@@ -473,7 +473,7 @@ libarchive_write_write_cb (struct archive *ar_write,
   g_debug ("libarchive_write_write_cb: called");
 
   arcreate = (AutoarCreate*)client_data;
-  if (arcreate->priv->error != NULL) {
+  if (arcreate->priv->error != NULL || arcreate->priv->ostream == NULL) {
     return -1;
   }
 

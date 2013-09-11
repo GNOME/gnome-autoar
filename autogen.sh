@@ -4,7 +4,7 @@
 srcdir=`dirname $0`
 test -z "$srcdir" && srcdir=.
 
-PKG_NAME="libgnome-autoar"
+PKG_NAME="gnome-autoar"
 
 (test -f $srcdir/configure.ac \
 ) || {

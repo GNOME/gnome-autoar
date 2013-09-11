@@ -64,8 +64,7 @@ AC_CONFIG_FILES([Makefile
                  data/Makefile
                  tests/Makefile
                  docs/Makefile
-                 docs/reference/Makefile
-                 docs/reference/gnome-autoar/Makefile])
+                 docs/reference/Makefile])
 AC_OUTPUT
 
 echo "

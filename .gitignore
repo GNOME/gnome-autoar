@@ -46,13 +46,12 @@ tests/test-create
 tests/test-pref
 tests/test-ui
 
-docs/reference/gnome-autoar/html
-docs/reference/gnome-autoar/xml
-docs/reference/gnome-autoar/*.args
-docs/reference/gnome-autoar/*.hierarchy
-docs/reference/gnome-autoar/*.interfaces
-docs/reference/gnome-autoar/*.prerequisites
-docs/reference/gnome-autoar/*.signals
-docs/reference/gnome-autoar/*.txt
-docs/reference/gnome-autoar/*.types
-docs/reference/gnome-autoar/gnome-autoar-docs.xml
+docs/reference/html
+docs/reference/xml
+docs/reference/*.args
+docs/reference/*.hierarchy
+docs/reference/*.interfaces
+docs/reference/*.prerequisites
+docs/reference/*.signals
+docs/reference/*.txt
+docs/reference/*.types

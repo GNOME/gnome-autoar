@@ -6,13 +6,13 @@ noinst_PROGRAMS = test-extract test-pref test-create test-ui
 
 test_cflags = \
 	$(DEPENDENCIES_CFLAGS)	\
-	$(AM_CFLAGS)		\
 	-I$(top_srcdir)		\
+	$(AM_CFLAGS)		\
 	$(NULL)
 
 test_libs = \
-	$(DEPENDENCIES_LIBS)	\
 	$(top_builddir)/gnome-autoar/libgnome-autoar.la	\
+	$(DEPENDENCIES_LIBS)	\
 	$(NULL)
 
 

@@ -20,8 +20,8 @@ GTKDOC_CFLAGS = \
 	$(NULL)
 
 GTKDOC_LIBS = \
-	$(DEPENDENCIES_LIBS) \
 	$(top_builddir)/gnome-autoar/libgnome-autoar.la \
+	$(DEPENDENCIES_LIBS) \
 	$(NULL)
 
 # This includes the standard gtk-doc make rules, copied by gtkdocize.

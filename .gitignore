@@ -2,16 +2,21 @@
 *.o
 *.lo
 *.la
+*.stamp
 .deps
 .libs
 .*.sw[op]
 stamp-*
+
+cscope.out
+tags
 
 Makefile
 Makefile.in
 aclocal.m4
 autom4te.cache
 autoscan.log
+compile
 config.guess
 config.h
 config.h.in
@@ -21,11 +26,13 @@ config.sub
 configure
 configure.scan
 depcomp
+gtk-doc.make
 install-sh
 libtool
 ltmain.sh
 m4/*.m4
 missing
+gnome-autoar-*.tar.*
 
 gnome-autoar/*-enum-types.[ch]
 gnome-autoar/gnome-autoar.pc
@@ -34,5 +41,18 @@ data/*.enums.xml
 data/*.gschema.valid
 
 tests/test-extract
+tests/test-extract-memory
 tests/test-create
 tests/test-pref
+tests/test-ui
+
+docs/reference/gnome-autoar/html
+docs/reference/gnome-autoar/xml
+docs/reference/gnome-autoar/*.args
+docs/reference/gnome-autoar/*.hierarchy
+docs/reference/gnome-autoar/*.interfaces
+docs/reference/gnome-autoar/*.prerequisites
+docs/reference/gnome-autoar/*.signals
+docs/reference/gnome-autoar/*.txt
+docs/reference/gnome-autoar/*.types
+docs/reference/gnome-autoar/gnome-autoar-docs.xml

@@ -27,6 +27,9 @@ AC_PATH_PROG(GLIB_GENMARSHAL, glib-genmarshal)
 AC_PATH_PROG(GLIB_MKENUMS, glib-mkenums)
 AC_PATH_PROG(GLIB_COMPILE_RESOURCES, glib-compile-resources)
 
+# check for gtk-doc
+GTK_DOC_CHECK([1.14],[--flavour no-tmpl])
+
 # Checks for libraries.
 GLIB_REQUIRED=2.35.6
 GTK_REQUIRED=3.2
@@ -59,7 +62,10 @@ AC_CONFIG_FILES([Makefile
                  gnome-autoar/Makefile
                  gnome-autoar/gnome-autoar.pc
                  data/Makefile
-                 tests/Makefile])
+                 tests/Makefile
+                 docs/Makefile
+                 docs/reference/Makefile
+                 docs/reference/gnome-autoar/Makefile])
 AC_OUTPUT
 
 echo "

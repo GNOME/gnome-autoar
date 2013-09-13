@@ -101,14 +101,6 @@ guint           autoar_create_get_completed_files (AutoarCreate *arcreate);
 gboolean        autoar_create_get_output_is_dest  (AutoarCreate *arcreate);
 gint64          autoar_create_get_notify_interval (AutoarCreate *arcreate);
 
-void            autoar_create_set_size            (AutoarCreate *arcreate,
-                                                   guint64 size);
-void            autoar_create_set_completed_size  (AutoarCreate *arcreate,
-                                                   guint64 completed_size);
-void            autoar_create_set_files           (AutoarCreate *arcreate,
-                                                   guint files);
-void            autoar_create_set_completed_files (AutoarCreate *arcreate,
-                                                   guint completed_files);
 void            autoar_create_set_output_is_dest  (AutoarCreate *arcreate,
                                                    gboolean output_is_dest);
 void            autoar_create_set_notify_interval (AutoarCreate *arcreate,

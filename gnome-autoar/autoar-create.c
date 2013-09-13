@@ -178,18 +178,6 @@ autoar_create_set_property (GObject      *object,
   priv = arcreate->priv;
 
   switch (property_id) {
-    case PROP_SIZE:
-      autoar_create_set_size (arcreate, g_value_get_uint64 (value));
-      break;
-    case PROP_COMPLETED_SIZE:
-      autoar_create_set_completed_size (arcreate, g_value_get_uint64 (value));
-      break;
-    case PROP_FILES:
-      autoar_create_set_files (arcreate, g_value_get_uint (value));
-      break;
-    case PROP_COMPLETED_FILES:
-      autoar_create_set_completed_files (arcreate, g_value_get_uint (value));
-      break;
     case PROP_SOURCE:
       g_strfreev (priv->source);
       priv->source = g_value_dup_boxed (value);
@@ -287,40 +275,6 @@ autoar_create_get_notify_interval (AutoarCreate *arcreate)
 {
   g_return_val_if_fail (AUTOAR_IS_CREATE (arcreate), G_MININT64);
   return arcreate->priv->notify_interval;
-}
-
-void
-autoar_create_set_size (AutoarCreate *arcreate,
-                        guint64 size)
-{
-  g_return_if_fail (AUTOAR_IS_CREATE (arcreate));
-  arcreate->priv->size = size;
-}
-
-void
-autoar_create_set_completed_size (AutoarCreate *arcreate,
-                                  guint64 completed_size)
-{
-  g_return_if_fail (AUTOAR_IS_CREATE (arcreate));
-  g_return_if_fail (completed_size >= arcreate->priv->completed_size);
-  arcreate->priv->completed_size = completed_size;
-}
-
-void
-autoar_create_set_files (AutoarCreate *arcreate,
-                         guint files)
-{
-  g_return_if_fail (AUTOAR_IS_CREATE (arcreate));
-  arcreate->priv->files = files;
-}
-
-void
-autoar_create_set_completed_files (AutoarCreate *arcreate,
-                                   guint completed_files)
-{
-  g_return_if_fail (AUTOAR_IS_CREATE (arcreate));
-  g_return_if_fail (completed_files >= arcreate->priv->completed_files);
-  arcreate->priv->completed_files = completed_files;
 }
 
 void
@@ -959,7 +913,7 @@ autoar_create_class_init (AutoarCreateClass *klass)
                                                         "Size",
                                                         "Total bytes will be read from disk",
                                                         0, G_MAXUINT64, 0,
-                                                        G_PARAM_READWRITE |
+                                                        G_PARAM_READABLE |
                                                         G_PARAM_STATIC_STRINGS));
 
   g_object_class_install_property (object_class, PROP_COMPLETED_SIZE,
@@ -967,7 +921,7 @@ autoar_create_class_init (AutoarCreateClass *klass)
                                                         "Read file size",
                                                         "Bytes read from disk",
                                                         0, G_MAXUINT64, 0,
-                                                        G_PARAM_READWRITE |
+                                                        G_PARAM_READABLE |
                                                         G_PARAM_STATIC_STRINGS));
 
   g_object_class_install_property (object_class, PROP_FILES,
@@ -975,7 +929,7 @@ autoar_create_class_init (AutoarCreateClass *klass)
                                                       "Files",
                                                       "Number of files to be compressed",
                                                       0, G_MAXUINT32, 0,
-                                                      G_PARAM_READWRITE |
+                                                      G_PARAM_READABLE |
                                                       G_PARAM_STATIC_STRINGS));
 
   g_object_class_install_property (object_class, PROP_COMPLETED_FILES,
@@ -983,7 +937,7 @@ autoar_create_class_init (AutoarCreateClass *klass)
                                                       "Read files",
                                                       "Number of files has been read",
                                                       0, G_MAXUINT32, 0,
-                                                      G_PARAM_READWRITE |
+                                                      G_PARAM_READABLE |
                                                       G_PARAM_STATIC_STRINGS));
 
   g_object_class_install_property (object_class, PROP_OUTPUT_IS_DEST,

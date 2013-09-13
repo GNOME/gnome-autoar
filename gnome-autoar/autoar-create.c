@@ -66,6 +66,8 @@ struct _AutoarCreatePrivate
   guint files;
   guint completed_files;
 
+  gint64 notify_last;
+  gint64 notify_interval;
   AutoarPref *arpref;
 
   GOutputStream *ostream;
@@ -108,7 +110,8 @@ enum
   PROP_COMPLETED_SIZE,
   PROP_FILES,
   PROP_COMPLETED_FILES,
-  PROP_OUTPUT_IS_DEST
+  PROP_OUTPUT_IS_DEST,
+  PROP_NOTIFY_INTERVAL
 };
 
 static guint autoar_create_signals[LAST_SIGNAL] = { 0 };
@@ -152,6 +155,9 @@ autoar_create_get_property (GObject    *object,
       break;
     case PROP_OUTPUT_IS_DEST:
       g_value_set_boolean (value, priv->output_is_dest);
+      break;
+    case PROP_NOTIFY_INTERVAL:
+      g_value_set_int64 (value, priv->notify_interval);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
@@ -203,6 +209,9 @@ autoar_create_set_property (GObject      *object,
       break;
     case PROP_OUTPUT_IS_DEST:
       priv->output_is_dest = g_value_get_boolean (value);
+      break;
+    case PROP_NOTIFY_INTERVAL:
+      priv->notify_interval = g_value_get_int64 (value);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
@@ -273,6 +282,13 @@ autoar_create_get_output_is_dest (AutoarCreate *arcreate)
   return arcreate->priv->output_is_dest;
 }
 
+gint64
+autoar_create_get_notify_interval (AutoarCreate *arcreate)
+{
+  g_return_val_if_fail (AUTOAR_IS_CREATE (arcreate), G_MININT64);
+  return arcreate->priv->notify_interval;
+}
+
 void
 autoar_create_set_size (AutoarCreate *arcreate,
                         guint64 size)
@@ -313,6 +329,15 @@ autoar_create_set_output_is_dest (AutoarCreate *arcreate,
 {
   g_return_if_fail (AUTOAR_IS_CREATE (arcreate));
   arcreate->priv->output_is_dest = output_is_dest;
+}
+
+void
+autoar_create_set_notify_interval (AutoarCreate *arcreate,
+                                   gint64 notify_interval)
+{
+  g_return_if_fail (AUTOAR_IS_CREATE (arcreate));
+  g_return_if_fail (notify_interval >= 0);
+  arcreate->priv->notify_interval = notify_interval;
 }
 
 static void
@@ -500,10 +525,15 @@ autoar_create_signal_decide_dest (AutoarCreate *arcreate)
 static inline void
 autoar_create_signal_progress (AutoarCreate *arcreate)
 {
-  autoar_common_g_signal_emit (arcreate, arcreate->priv->in_thread,
-                               autoar_create_signals[PROGRESS], 0,
-                               arcreate->priv->completed_size,
-                               arcreate->priv->completed_files);
+  gint64 mtime;
+  mtime = g_get_monotonic_time ();
+  if (mtime - arcreate->priv->notify_last >= arcreate->priv->notify_interval) {
+    autoar_common_g_signal_emit (arcreate, arcreate->priv->in_thread,
+                                 autoar_create_signals[PROGRESS], 0,
+                                 arcreate->priv->completed_size,
+                                 arcreate->priv->completed_files);
+    arcreate->priv->notify_last = mtime;
+  }
 }
 
 static inline void
@@ -962,7 +992,17 @@ autoar_create_class_init (AutoarCreateClass *klass)
                                                          "Whether output file is used as destination",
                                                          FALSE,
                                                          G_PARAM_READWRITE |
+                                                         G_PARAM_CONSTRUCT |
                                                          G_PARAM_STATIC_STRINGS));
+
+  g_object_class_install_property (object_class, PROP_NOTIFY_INTERVAL,
+                                   g_param_spec_int64 ("notify-interval",
+                                                       "Notify interval",
+                                                       "Minimal time interval between progress signal",
+                                                       0, G_MAXINT64, 100000,
+                                                       G_PARAM_READWRITE |
+                                                       G_PARAM_CONSTRUCT |
+                                                       G_PARAM_STATIC_STRINGS));
 
   autoar_create_signals[DECIDE_DEST] =
     g_signal_new ("decide-dest",
@@ -1027,19 +1067,10 @@ autoar_create_init (AutoarCreate *arcreate)
   priv = AUTOAR_CREATE_GET_PRIVATE (arcreate);
   arcreate->priv = priv;
 
-  priv->source = NULL;
-  priv->output = NULL;
-
-  priv->source_file = NULL;
-  priv->output_file = NULL;
-
   priv->size = 0;
   priv->completed_size = 0;
-
   priv->files = 0;
   priv->completed_files = 0;
-
-  priv->arpref = NULL;
 
   priv->ostream = NULL;
   priv->buffer_size = BUFFER_SIZE;
@@ -1057,7 +1088,6 @@ autoar_create_init (AutoarCreate *arcreate)
 
   priv->in_thread = FALSE;
   priv->prepend_basename = FALSE;
-  priv->output_is_dest = FALSE;
 }
 
 static AutoarCreate*
@@ -1065,7 +1095,6 @@ autoar_create_new_full (const char **source,
                         GFile **source_file,
                         const char *output,
                         GFile *output_file,
-                        gboolean output_is_dest,
                         AutoarPref *arpref)
 {
   AutoarCreate *arcreate;
@@ -1109,7 +1138,7 @@ autoar_create_new_full (const char **source,
                   "source-file",                                        gen_source_file,
                   "output",         output      != NULL ? output      : gen_output,
                   "output-file",    output_file != NULL ? output_file : gen_output_file,
-                  "output-is-dest", output_is_dest, NULL);
+                  NULL);
   arcreate->priv->arpref = g_object_ref (arpref);
 
   g_strfreev ((char**)gen_source);
@@ -1143,8 +1172,7 @@ autoar_create_new (AutoarPref *arpref,
   va_end (ap);
 
   arcreate = autoar_create_new_full ((const char**) strv->pdata, NULL,
-                                     output, NULL,
-                                     FALSE, arpref);
+                                     output, NULL, arpref);
   g_ptr_array_unref (strv);
   return arcreate;
 }
@@ -1169,8 +1197,7 @@ autoar_create_new_file (AutoarPref *arpref,
   va_end (ap);
 
   arcreate = autoar_create_new_full (NULL, (GFile**)filev->pdata,
-                                     NULL, output_file,
-                                     FALSE, arpref);
+                                     NULL, output_file, arpref);
   g_ptr_array_unref (filev);
   return arcreate;
 }
@@ -1184,9 +1211,7 @@ autoar_create_newv (AutoarPref  *arpref,
   g_return_val_if_fail (*source != NULL, NULL);
   g_return_val_if_fail (output != NULL, NULL);
 
-  return autoar_create_new_full (source, NULL,
-                                 output, NULL,
-                                 FALSE, arpref);
+  return autoar_create_new_full (source, NULL, output, NULL, arpref);
 
 }
 
@@ -1199,9 +1224,7 @@ autoar_create_new_filev (AutoarPref  *arpref,
   g_return_val_if_fail (*source_file != NULL, NULL);
   g_return_val_if_fail (output_file != NULL, NULL);
 
-  return autoar_create_new_full (NULL, source_file,
-                                 NULL, output_file,
-                                 FALSE, arpref);
+  return autoar_create_new_full (NULL, source_file, NULL, output_file, arpref);
 }
 
 static void

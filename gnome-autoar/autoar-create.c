@@ -1007,10 +1007,10 @@ autoar_create_class_init (AutoarCreateClass *klass)
                   G_SIGNAL_RUN_LAST,
                   G_STRUCT_OFFSET (AutoarCreateClass, error),
                   NULL, NULL,
-                  g_cclosure_marshal_VOID__POINTER,
+                  g_cclosure_marshal_generic,
                   G_TYPE_NONE,
                   1,
-                  G_TYPE_POINTER);
+                  G_TYPE_ERROR);
 }
 
 static void

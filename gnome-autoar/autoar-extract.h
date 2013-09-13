@@ -110,14 +110,6 @@ gboolean        autoar_extract_get_source_is_mem   (AutoarExtract *arextract);
 gboolean        autoar_extract_get_output_is_dest  (AutoarExtract *arextract);
 gint64          autoar_extract_get_notify_interval (AutoarExtract *arextract);
 
-void            autoar_extract_set_size            (AutoarExtract *arextract,
-                                                    guint64 size);
-void            autoar_extract_set_completed_size  (AutoarExtract *arextract,
-                                                    guint64 completed_size);
-void            autoar_extract_set_files           (AutoarExtract *arextract,
-                                                    guint files);
-void            autoar_extract_set_completed_files (AutoarExtract *arextract,
-                                                    guint completed_files);
 void            autoar_extract_set_output_is_dest  (AutoarExtract *arextract,
                                                     gboolean output_is_dest);
 void            autoar_extract_set_notify_interval (AutoarExtract *arextract,

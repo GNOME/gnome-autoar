@@ -233,18 +233,6 @@ autoar_extract_set_property (GObject      *object,
       g_clear_object (&(priv->output_file));
       priv->output_file = g_object_ref (g_value_get_object (value));
       break;
-    case PROP_SIZE:
-      autoar_extract_set_size (arextract, g_value_get_uint64 (value));
-      break;
-    case PROP_COMPLETED_SIZE:
-      autoar_extract_set_completed_size (arextract, g_value_get_uint64 (value));
-      break;
-    case PROP_FILES:
-      autoar_extract_set_files (arextract, g_value_get_uint (value));
-      break;
-    case PROP_COMPLETED_FILES:
-      autoar_extract_set_completed_files (arextract, g_value_get_uint (value));
-      break;
     case PROP_SOURCE_IS_MEM:
       priv->source_is_mem = g_value_get_boolean (value);
       break;
@@ -335,40 +323,6 @@ autoar_extract_get_notify_interval (AutoarExtract *arextract)
 {
   g_return_val_if_fail (AUTOAR_IS_EXTRACT (arextract), 0);
   return arextract->priv->notify_interval;
-}
-
-void
-autoar_extract_set_size (AutoarExtract *arextract,
-                         guint64 size)
-{
-  g_return_if_fail (AUTOAR_IS_EXTRACT (arextract));
-  arextract->priv->size = size;
-}
-
-void
-autoar_extract_set_completed_size (AutoarExtract *arextract,
-                                   guint64 completed_size)
-{
-  g_return_if_fail (AUTOAR_IS_EXTRACT (arextract));
-  g_return_if_fail (completed_size >= arextract->priv->completed_size);
-  arextract->priv->completed_size = completed_size;
-}
-
-void
-autoar_extract_set_files (AutoarExtract *arextract,
-                          guint files)
-{
-  g_return_if_fail (AUTOAR_IS_EXTRACT (arextract));
-  arextract->priv->files = files;
-}
-
-void
-autoar_extract_set_completed_files (AutoarExtract *arextract,
-                                    guint completed_files)
-{
-  g_return_if_fail (AUTOAR_IS_EXTRACT (arextract));
-  g_return_if_fail (completed_files >= arextract->priv->completed_files);
-  arextract->priv->completed_files = completed_files;
 }
 
 void
@@ -1184,7 +1138,7 @@ autoar_extract_class_init (AutoarExtractClass *klass)
                                                         "File size",
                                                         "Size of the extracted files",
                                                         0, G_MAXUINT64, 0,
-                                                        G_PARAM_READWRITE |
+                                                        G_PARAM_READABLE |
                                                         G_PARAM_STATIC_STRINGS));
 
   g_object_class_install_property (object_class, PROP_COMPLETED_SIZE,
@@ -1192,7 +1146,7 @@ autoar_extract_class_init (AutoarExtractClass *klass)
                                                         "Written file size",
                                                         "Bytes written to disk",
                                                         0, G_MAXUINT64, 0,
-                                                        G_PARAM_READWRITE |
+                                                        G_PARAM_READABLE |
                                                         G_PARAM_STATIC_STRINGS));
 
   g_object_class_install_property (object_class, PROP_FILES,
@@ -1200,7 +1154,7 @@ autoar_extract_class_init (AutoarExtractClass *klass)
                                                       "Files",
                                                       "Number of files in the archive",
                                                       0, G_MAXUINT32, 0,
-                                                      G_PARAM_READWRITE |
+                                                      G_PARAM_READABLE |
                                                       G_PARAM_STATIC_STRINGS));
 
   g_object_class_install_property (object_class, PROP_COMPLETED_FILES,
@@ -1208,7 +1162,7 @@ autoar_extract_class_init (AutoarExtractClass *klass)
                                                       "Written files",
                                                       "Number of files has been written",
                                                       0, G_MAXUINT32, 0,
-                                                      G_PARAM_READWRITE |
+                                                      G_PARAM_READABLE |
                                                       G_PARAM_STATIC_STRINGS));
 
   g_object_class_install_property (object_class, PROP_SOURCE_IS_MEM,

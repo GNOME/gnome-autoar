@@ -273,7 +273,7 @@ autoar_create_get_output_is_dest (AutoarCreate *arcreate)
 gint64
 autoar_create_get_notify_interval (AutoarCreate *arcreate)
 {
-  g_return_val_if_fail (AUTOAR_IS_CREATE (arcreate), G_MININT64);
+  g_return_val_if_fail (AUTOAR_IS_CREATE (arcreate), 0);
   return arcreate->priv->notify_interval;
 }
 
@@ -1026,6 +1026,8 @@ autoar_create_init (AutoarCreate *arcreate)
   priv->files = 0;
   priv->completed_files = 0;
 
+  priv->notify_last = 0;
+
   priv->ostream = NULL;
   priv->buffer_size = BUFFER_SIZE;
   priv->buffer = g_new (char, priv->buffer_size);
@@ -1391,10 +1393,13 @@ autoar_create_step_create (AutoarCreate *arcreate)
 static void
 autoar_create_step_cleanup (AutoarCreate *arcreate)
 {
-  /* Step 3: Close the libarchive object. We do not have to do other cleanup
-   * because they are handled in dispose and finalize functions. */
+  /* Step 3: Close the libarchive object and force progress to be updated.
+   * We do not have to do other cleanup because they are handled in dispose
+   * and finalize functions. */
   AutoarCreatePrivate *priv;
   priv = arcreate->priv;
+  priv->notify_last = 0;
+  autoar_create_signal_progress (arcreate);
   if (archive_write_close (priv->a) != ARCHIVE_OK) {
     if (priv->error == NULL)
       priv->error = autoar_common_g_error_new_a (priv->a, priv->output);

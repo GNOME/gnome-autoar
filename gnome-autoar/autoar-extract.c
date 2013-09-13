@@ -83,12 +83,16 @@ struct _AutoarExtractPrivate
 
   GCancellable *cancellable;
 
+  gint64 notify_interval;
+
   /* Variables used to show progess */
   guint64 size;
   guint64 completed_size;
 
   guint files;
   guint completed_files;
+
+  gint64 notify_last;
 
   /* Internal variables */
   GInputStream *istream;
@@ -142,7 +146,8 @@ enum
   PROP_FILES,
   PROP_COMPLETED_FILES,
   PROP_SOURCE_IS_MEM,    /* Must be set when constructing object */
-  PROP_OUTPUT_IS_DEST
+  PROP_OUTPUT_IS_DEST,
+  PROP_NOTIFY_INTERVAL
 };
 
 static guint autoar_extract_signals[LAST_SIGNAL] = { 0 };
@@ -189,6 +194,9 @@ autoar_extract_get_property (GObject    *object,
       break;
     case PROP_OUTPUT_IS_DEST:
       g_value_set_boolean (value, priv->output_is_dest);
+      break;
+    case PROP_NOTIFY_INTERVAL:
+      g_value_set_int64 (value, priv->notify_interval);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
@@ -242,6 +250,9 @@ autoar_extract_set_property (GObject      *object,
       break;
     case PROP_OUTPUT_IS_DEST:
       autoar_extract_set_output_is_dest (arextract, g_value_get_boolean (value));
+      break;
+    case PROP_NOTIFY_INTERVAL:
+      autoar_extract_set_notify_interval (arextract, g_value_get_int64 (value));
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
@@ -319,6 +330,13 @@ autoar_extract_get_output_is_dest (AutoarExtract *arextract)
   return arextract->priv->source_is_mem;
 }
 
+gint64
+autoar_extract_get_notify_interval (AutoarExtract *arextract)
+{
+  g_return_val_if_fail (AUTOAR_IS_EXTRACT (arextract), 0);
+  return arextract->priv->notify_interval;
+}
+
 void
 autoar_extract_set_size (AutoarExtract *arextract,
                          guint64 size)
@@ -359,6 +377,15 @@ autoar_extract_set_output_is_dest  (AutoarExtract *arextract,
 {
   g_return_if_fail (AUTOAR_IS_EXTRACT (arextract));
   arextract->priv->output_is_dest = output_is_dest;
+}
+
+void
+autoar_extract_set_notify_interval (AutoarExtract *arextract,
+                                    gint64 notify_interval)
+{
+  g_return_if_fail (AUTOAR_IS_EXTRACT (arextract));
+  g_return_if_fail (notify_interval >= 0);
+  arextract->priv->notify_interval = notify_interval;
 }
 
 static void
@@ -667,12 +694,17 @@ autoar_extract_signal_decide_dest (AutoarExtract *arextract)
 static inline void
 autoar_extract_signal_progress (AutoarExtract *arextract)
 {
-  autoar_common_g_signal_emit (arextract, arextract->priv->in_thread,
-                               autoar_extract_signals[PROGRESS], 0,
-                               ((double)(arextract->priv->completed_size)) /
-                               ((double)(arextract->priv->size)),
-                               ((double)(arextract->priv->completed_files)) /
-                               ((double)(arextract->priv->files)));
+  gint64 mtime;
+  mtime = g_get_monotonic_time ();
+  if (mtime - arextract->priv->notify_last >= arextract->priv->notify_interval) {
+    autoar_common_g_signal_emit (arextract, arextract->priv->in_thread,
+                                 autoar_extract_signals[PROGRESS], 0,
+                                 ((double)(arextract->priv->completed_size)) /
+                                 ((double)(arextract->priv->size)),
+                                 ((double)(arextract->priv->completed_files)) /
+                                 ((double)(arextract->priv->files)));
+    arextract->priv->notify_last = mtime;
+  }
 }
 
 static inline void
@@ -1194,7 +1226,17 @@ autoar_extract_class_init (AutoarExtractClass *klass)
                                                          "Whether output direcotry is used as destination",
                                                          FALSE,
                                                          G_PARAM_READWRITE |
+                                                         G_PARAM_CONSTRUCT |
                                                          G_PARAM_STATIC_STRINGS));
+
+  g_object_class_install_property (object_class, PROP_NOTIFY_INTERVAL,
+                                   g_param_spec_int64 ("notify-interval",
+                                                       "Notify interval",
+                                                       "Minimal time interval between progress signal",
+                                                       0, G_MAXINT64, 100000,
+                                                       G_PARAM_READWRITE |
+                                                       G_PARAM_CONSTRUCT |
+                                                       G_PARAM_STATIC_STRINGS));
 
   autoar_extract_signals[SCANNED] =
     g_signal_new ("scanned",
@@ -1270,17 +1312,6 @@ autoar_extract_init (AutoarExtract *arextract)
   priv = AUTOAR_EXTRACT_GET_PRIVATE (arextract);
   arextract->priv = priv;
 
-  priv->source = NULL;
-  priv->output = NULL;
-
-  priv->source_file = NULL;
-  priv->output_file = NULL;
-
-  priv->arpref = NULL;
-
-  priv->source_is_mem = FALSE;
-  priv->output_is_dest = FALSE;
-
   priv->source_buffer = NULL;
   priv->source_buffer_size = 0;
 
@@ -1291,6 +1322,8 @@ autoar_extract_init (AutoarExtract *arextract)
 
   priv->files = 0;
   priv->completed_files = 0;
+
+  priv->notify_last = 0;
 
   priv->istream = NULL;
   priv->buffer_size = BUFFER_SIZE;
@@ -1321,7 +1354,6 @@ autoar_extract_new_full (const char *source,
                          const char *output,
                          GFile *output_file,
                          gboolean source_is_mem,
-                         gboolean output_is_dest,
                          AutoarPref *arpref,
                          const void *buffer,
                          gsize buffer_size,
@@ -1357,8 +1389,7 @@ autoar_extract_new_full (const char *source,
                   "source-file",    source_file != NULL ? source_file : gen_source_file,
                   "output",         output      != NULL ? output      : gen_output,
                   "output-file",    output_file != NULL ? output_file : gen_output_file,
-                  "source-is-mem",  source_is_mem,
-                  "output-is-dest", output_is_dest, NULL);
+                  "source-is-mem",  source_is_mem, NULL);
   arextract->priv->arpref = g_object_ref (arpref);
 
   if (source_is_mem) {
@@ -1398,7 +1429,7 @@ autoar_extract_new (const char *source,
   g_return_val_if_fail (output != NULL, NULL);
 
   return autoar_extract_new_full (source, NULL, output, NULL,
-                                  FALSE, FALSE, arpref,
+                                  FALSE, arpref,
                                   NULL, 0, NULL);
 }
 
@@ -1411,7 +1442,7 @@ autoar_extract_new_file (GFile *source_file,
   g_return_val_if_fail (output_file != NULL, NULL);
 
   return autoar_extract_new_full (NULL, source_file, NULL, output_file,
-                                  FALSE, FALSE, arpref,
+                                  FALSE, arpref,
                                   NULL, 0, NULL);
 }
 
@@ -1427,7 +1458,7 @@ autoar_extract_new_memory (const void *buffer,
   g_return_val_if_fail (buffer != NULL, NULL);
 
   return autoar_extract_new_full (NULL, NULL, output, NULL,
-                                  TRUE, FALSE, arpref,
+                                  TRUE, arpref,
                                   buffer, buffer_size, source_name);
 }
 
@@ -1442,7 +1473,7 @@ autoar_extract_new_memory_file (const void *buffer,
   g_return_val_if_fail (buffer != NULL, NULL);
 
   return autoar_extract_new_full (NULL, NULL, NULL, output_file,
-                                  TRUE, FALSE, arpref,
+                                  TRUE, arpref,
                                   buffer, buffer_size, source_name);
 }
 
@@ -1766,6 +1797,7 @@ autoar_extract_step_cleanup (AutoarExtract *arextract) {
 
   priv->completed_size = priv->size;
   priv->completed_files = priv->files;
+  priv->notify_last = 0;
   autoar_extract_signal_progress (arextract);
   g_debug ("autoar_extract_step_cleanup: Update progress");
   if (autoar_pref_get_delete_if_succeed (priv->arpref) && priv->source_file != NULL) {

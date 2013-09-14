@@ -1310,7 +1310,14 @@ static void
 autoar_create_step_decide_dest_already (AutoarCreate *arcreate)
 {
   /* Alternative step 1: Output is destination */
+
+  char *output_basename;
   arcreate->priv->dest = g_object_ref (arcreate->priv->output_file);
+  output_basename = g_file_get_basename (arcreate->priv->output_file);
+  arcreate->priv->source_basename_noext =
+    autoar_common_get_basename_remove_extension (output_basename);
+  g_free (output_basename);
+
   autoar_create_signal_decide_dest (arcreate);
 }
 

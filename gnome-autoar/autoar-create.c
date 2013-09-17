@@ -273,7 +273,7 @@ autoar_create_get_source_file (AutoarCreate *arcreate)
  * autoar_create_get_output:
  * @arcreate: an #AutoarCreate
  *
- * If #AutoarCreate:output_is_dest is @FALSE, gets the directory which contains
+ * If #AutoarCreate:output_is_dest is %FALSE, gets the directory which contains
  * the new archive. Otherwise, get the filename of the new archive. See
  * autoar_create_set_output_is_dest().
  *
@@ -1128,7 +1128,7 @@ autoar_create_class_init (AutoarCreateClass *klass)
  * @completed_size: bytes has been read from source files and directories
  * @completed_files: number of files and directories has been read
  *
- * This signal used to report progress of creating archives. The value of
+ * This signal is used to report progress of creating archives. The value of
  * @completed_size and @completed_files are the same as the
  * #AutoarCreate:completed_size and #AutoarCreate:completed_files properties,
  * respectively.
@@ -1149,7 +1149,7 @@ autoar_create_class_init (AutoarCreateClass *klass)
  * AutoarCreate::cancelled:
  * @arcreate: the #AutoarCreate
  *
- * This signal is emitted when after archive creating job is cancelled by the
+ * This signal is emitted after archive creating job is cancelled by the
  * #GCancellable.
  **/
   autoar_create_signals[CANCELLED] =
@@ -1187,7 +1187,8 @@ autoar_create_class_init (AutoarCreateClass *klass)
  * This signal is emitted when error occurs and all jobs should be terminated.
  * Possible error domains are %AUTOAR_CREATE_ERROR, %G_IO_ERROR, and
  * %AUTOAR_LIBARCHIVE_ERROR, which represent error occurs in #AutoarCreate,
- * GIO, and libarchive, respectively.
+ * GIO, and libarchive, respectively. The #GError is owned by #AutoarCreate
+ * and should not be freed.
  **/
   autoar_create_signals[ERROR] =
     g_signal_new ("error",

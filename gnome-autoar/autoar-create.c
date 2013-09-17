@@ -38,7 +38,37 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+/**
+ * SECTION:autoar-create
+ * @Short_description: Automatically create an archive
+ * @Title: AutoarCreate
+ * @Include: gnome-autoar/autoar.h
+ *
+ * The #AutoarCreate object is used to automatically create an archive from
+ * files and directories. The new archive will contain a top-level directory,
+ * and its file format can be set via autoar_pref_set_default_format() and
+ * autoar_pref_set_default_filter() on the provided #AutoarPref object.
+ * Applying multiple filters is currently not supported because most
+ * applications do not need this function. GIO is used for both read and write
+ * operations. A few POSIX functions are also used to get more information from
+ * files if GIO does not provide relevant functions.
+ *
+ * When #AutoarCreate stop all work, it will emit one of the three signals:
+ * #AutoarCreate::cancelled, #AutoarCreate::error, and #AutoarCreate::completed.
+ * After one of these signals is received, the #AutoarCreate object should be
+ * destroyed because it cannot be used to start another archive operation.
+ * An #AutoarCreate object can only be used once and create one archive.
+ **/
+
 G_DEFINE_TYPE (AutoarCreate, autoar_create, G_TYPE_OBJECT)
+
+/**
+ * autoar_create_quark:
+ *
+ * Gets the #AutoarCreate Error Quark.
+ *
+ * Returns: a #GQuark.
+ **/
 G_DEFINE_QUARK (autoar-create, autoar_create)
 
 #define AUTOAR_CREATE_GET_PRIVATE(o) \
@@ -207,6 +237,15 @@ autoar_create_set_property (GObject      *object,
   }
 }
 
+/**
+ * autoar_create_get_source:
+ * @arcreate: an #AutoarCreate
+ *
+ * Gets the source files will be archived for this object. It may be an array of
+ * filenames or URIs.
+ *
+ * Returns: (transfer none): a %NULL-terminated array of strings
+ **/
 char**
 autoar_create_get_source (AutoarCreate *arcreate)
 {
@@ -214,6 +253,15 @@ autoar_create_get_source (AutoarCreate *arcreate)
   return arcreate->priv->source;
 }
 
+/**
+ * autoar_create_get_source_file:
+ * @arcreate: an #AutoarCreate
+ *
+ * This function is similar to autoar_create_get_source(), except for the return
+ * value is an array of #GFile.
+ *
+ * Returns: (transfer none): a #GPtrArray, which is an array of #GFile
+ **/
 GPtrArray*
 autoar_create_get_source_file (AutoarCreate *arcreate)
 {
@@ -221,6 +269,16 @@ autoar_create_get_source_file (AutoarCreate *arcreate)
   return arcreate->priv->source_file;
 }
 
+/**
+ * autoar_create_get_output:
+ * @arcreate: an #AutoarCreate
+ *
+ * If #AutoarCreate:output_is_dest is @FALSE, gets the directory which contains
+ * the new archive. Otherwise, get the filename of the new archive. See
+ * autoar_create_set_output_is_dest().
+ *
+ * Returns: (transfer none): a filename
+ **/
 char*
 autoar_create_get_output (AutoarCreate *arcreate)
 {
@@ -228,6 +286,15 @@ autoar_create_get_output (AutoarCreate *arcreate)
   return arcreate->priv->output;
 }
 
+/**
+ * autoar_create_get_output_file:
+ * @arcreate: an #AutoarCreate
+ *
+ * This function is similar to autoar_create_get_output(), except for the return
+ * value is a #GFile.
+ *
+ * Returns: (transfer none): a #GFile
+ **/
 GFile*
 autoar_create_get_output_file (AutoarCreate *arcreate)
 {
@@ -235,6 +302,15 @@ autoar_create_get_output_file (AutoarCreate *arcreate)
   return arcreate->priv->output_file;
 }
 
+/**
+ * autoar_create_get_size:
+ * @arcreate: an #AutoarCreate
+ *
+ * Gets the size in bytes will be read when the operation is completed. This
+ * value is currently unset, so calling this function is useless.
+ *
+ * Returns: total file size in bytes
+ **/
 guint64
 autoar_create_get_size (AutoarCreate *arcreate)
 {
@@ -242,6 +318,14 @@ autoar_create_get_size (AutoarCreate *arcreate)
   return arcreate->priv->size;
 }
 
+/**
+ * autoar_create_get_completed_size:
+ * @arcreate: an #AutoarCreate
+ *
+ * Gets the size in bytes has been read from the source files and directories.
+ *
+ * Returns: file size in bytes has been read
+ **/
 guint64
 autoar_create_get_completed_size (AutoarCreate *arcreate)
 {
@@ -249,6 +333,15 @@ autoar_create_get_completed_size (AutoarCreate *arcreate)
   return arcreate->priv->completed_size;
 }
 
+/**
+ * autoar_create_get_files:
+ * @arcreate: an #AutoarCreate
+ *
+ * Gets the number of files will be read when the operation is completed. This
+ * value is currently unset, so calling this function is useless.
+ *
+ * Returns: total number of files
+ **/
 guint
 autoar_create_get_files (AutoarCreate *arcreate)
 {
@@ -256,6 +349,14 @@ autoar_create_get_files (AutoarCreate *arcreate)
   return arcreate->priv->files;
 }
 
+/**
+ * autoar_create_get_completed_files:
+ * @arcreate: an #AutoarCreate
+ *
+ * Gets the number of files has been read
+ *
+ * Returns: number of files has been read
+ **/
 guint
 autoar_create_get_completed_files (AutoarCreate *arcreate)
 {
@@ -263,6 +364,14 @@ autoar_create_get_completed_files (AutoarCreate *arcreate)
   return arcreate->priv->completed_files;
 }
 
+/**
+ * autoar_create_get_output_is_dest:
+ * @arcreate: an #AutoarCreate
+ *
+ * See autoar_create_set_output_is_dest().
+ *
+ * Returns: %TRUE if #AutoarCreate:output is the location of the new archive.
+ **/
 gboolean
 autoar_create_get_output_is_dest (AutoarCreate *arcreate)
 {
@@ -270,6 +379,15 @@ autoar_create_get_output_is_dest (AutoarCreate *arcreate)
   return arcreate->priv->output_is_dest;
 }
 
+/**
+ * autoar_create_get_notify_interval:
+ * @arcreate: an #AutoarCreate
+ *
+ * See autoar_create_set_notify_interval().
+ *
+ * Returns: the minimal interval in microseconds between the emission of the
+ * #AutoarCreate::progress signal.
+ **/
 gint64
 autoar_create_get_notify_interval (AutoarCreate *arcreate)
 {
@@ -277,6 +395,24 @@ autoar_create_get_notify_interval (AutoarCreate *arcreate)
   return arcreate->priv->notify_interval;
 }
 
+/**
+ * autoar_create_set_output_is_dest:
+ * @arcreate: an #AutoarCreate
+ * @output_is_dest: %TRUE if the location of the new archive has been already
+ * decided
+ *
+ * By default #AutoarCreate:output-is-dest is set to %FALSE, which means
+ * the new archive will be created as a regular file under #AutoarCreate:output
+ * directory. The name of the new archive will be automatically generated and
+ * you will be notified via #AutoarCreate::decide-dest when the name is decided.
+ * If you have already decided the location of the new archive, and you do not
+ * want #AutoarCreate to decide it for you, you can set
+ * #AutoarCreate:output-is-dest to %TRUE. #AutoarCreate will use
+ * #AutoarCreate:output as the location of the new archive, and it will
+ * neither check whether the file exists nor create the necessary
+ * directories for you. This function should only be called before calling
+ * autoar_create_start() or autoar_create_start_async().
+ **/
 void
 autoar_create_set_output_is_dest (AutoarCreate *arcreate,
                                   gboolean output_is_dest)
@@ -285,6 +421,16 @@ autoar_create_set_output_is_dest (AutoarCreate *arcreate,
   arcreate->priv->output_is_dest = output_is_dest;
 }
 
+/**
+ * autoar_create_set_notify_interval:
+ * @arcreate: an #AutoarCreate
+ * @notify_interval: the minimal interval in microseconds
+ *
+ * Sets the minimal interval between emission of #AutoarCreate::progress
+ * signal. This prevent too frequent signal emission, which may cause
+ * performance impact. If you do not want this feature, you can set the interval
+ * to 0, so you will receive every progress update.
+ **/
 void
 autoar_create_set_notify_interval (AutoarCreate *arcreate,
                                    gint64 notify_interval)
@@ -875,7 +1021,7 @@ autoar_create_class_init (AutoarCreateClass *klass)
   g_object_class_install_property (object_class, PROP_SOURCE,
                                    g_param_spec_boxed ("source",
                                                        "Source archive",
-                                                       "The source files and directories to be compressed",
+                                                       "The source files and directories to be archived",
                                                        G_TYPE_STRV,
                                                        G_PARAM_READWRITE |
                                                        G_PARAM_CONSTRUCT_ONLY |
@@ -884,7 +1030,7 @@ autoar_create_class_init (AutoarCreateClass *klass)
   g_object_class_install_property (object_class, PROP_SOURCE_FILE,
                                    g_param_spec_boxed ("source-file",
                                                        "Source archive GFile",
-                                                       "The source GFiles to be compressed",
+                                                       "The source GFiles to be archived",
                                                        G_TYPE_PTR_ARRAY,
                                                        G_PARAM_READWRITE |
                                                        G_PARAM_CONSTRUCT_ONLY |
@@ -902,7 +1048,7 @@ autoar_create_class_init (AutoarCreateClass *klass)
   g_object_class_install_property (object_class, PROP_OUTPUT_FILE,
                                    g_param_spec_object ("output-file",
                                                         "Output directory GFile",
-                                                        "Output directory GFile of created archive",
+                                                        "Output directory (GFile) of created archive",
                                                         G_TYPE_FILE,
                                                         G_PARAM_READWRITE |
                                                         G_PARAM_CONSTRUCT_ONLY |
@@ -919,7 +1065,7 @@ autoar_create_class_init (AutoarCreateClass *klass)
   g_object_class_install_property (object_class, PROP_COMPLETED_SIZE,
                                    g_param_spec_uint64 ("completed-size",
                                                         "Read file size",
-                                                        "Bytes read from disk",
+                                                        "Bytes has read from disk",
                                                         0, G_MAXUINT64, 0,
                                                         G_PARAM_READABLE |
                                                         G_PARAM_STATIC_STRINGS));
@@ -927,7 +1073,7 @@ autoar_create_class_init (AutoarCreateClass *klass)
   g_object_class_install_property (object_class, PROP_FILES,
                                    g_param_spec_uint ("files",
                                                       "Files",
-                                                      "Number of files to be compressed",
+                                                      "Number of files will be compressed",
                                                       0, G_MAXUINT32, 0,
                                                       G_PARAM_READABLE |
                                                       G_PARAM_STATIC_STRINGS));
@@ -958,6 +1104,13 @@ autoar_create_class_init (AutoarCreateClass *klass)
                                                        G_PARAM_CONSTRUCT |
                                                        G_PARAM_STATIC_STRINGS));
 
+/**
+ * AutoarCreate::decide-dest:
+ * @arcreate: the #AutoarCreate
+ * @destination: the location of the new archive
+ *
+ * This signal is emitted when the location of the new archive is determined.
+ **/
   autoar_create_signals[DECIDE_DEST] =
     g_signal_new ("decide-dest",
                   type,
@@ -969,6 +1122,17 @@ autoar_create_class_init (AutoarCreateClass *klass)
                   1,
                   G_TYPE_FILE);
 
+/**
+ * AutoarCreate::progress:
+ * @arcreate: the #AutoarCreate
+ * @completed_size: bytes has been read from source files and directories
+ * @completed_files: number of files and directories has been read
+ *
+ * This signal used to report progress of creating archives. The value of
+ * @completed_size and @completed_files are the same as the
+ * #AutoarCreate:completed_size and #AutoarCreate:completed_files properties,
+ * respectively.
+ **/
   autoar_create_signals[PROGRESS] =
     g_signal_new ("progress",
                   type,
@@ -981,6 +1145,13 @@ autoar_create_class_init (AutoarCreateClass *klass)
                   G_TYPE_UINT64,
                   G_TYPE_UINT);
 
+/**
+ * AutoarCreate::cancelled:
+ * @arcreate: the #AutoarCreate
+ *
+ * This signal is emitted when after archive creating job is cancelled by the
+ * #GCancellable.
+ **/
   autoar_create_signals[CANCELLED] =
     g_signal_new ("cancelled",
                   type,
@@ -991,6 +1162,13 @@ autoar_create_class_init (AutoarCreateClass *klass)
                   G_TYPE_NONE,
                   0);
 
+/**
+ * AutoarCreate::completed:
+ * @arcreate: the #AutoarCreate
+ *
+ * This signal is emitted after the archive creating job is successfully
+ * completed.
+ **/
   autoar_create_signals[COMPLETED] =
     g_signal_new ("completed",
                   type,
@@ -1001,6 +1179,16 @@ autoar_create_class_init (AutoarCreateClass *klass)
                   G_TYPE_NONE,
                   0);
 
+/**
+ * AutoarCreate::error:
+ * @arcreate: the #AutoarCreate
+ * @error: the #GError
+ *
+ * This signal is emitted when error occurs and all jobs should be terminated.
+ * Possible error domains are %AUTOAR_CREATE_ERROR, %G_IO_ERROR, and
+ * %AUTOAR_LIBARCHIVE_ERROR, which represent error occurs in #AutoarCreate,
+ * GIO, and libarchive, respectively.
+ **/
   autoar_create_signals[ERROR] =
     g_signal_new ("error",
                   type,
@@ -1108,6 +1296,17 @@ autoar_create_new_full (const char **source,
   return arcreate;
 }
 
+/**
+ * autoar_create_new:
+ * @arpref: an #AutoarPref object used to decide the output archive format
+ * @output: output directory of the new archive, or the file name of the new
+ * archive if you set #AutoarCreate:output-is-dest on the returned object
+ * @...: a %NULL-terminated list of paths of source files to be archived
+ *
+ * Create a new #AutoarCreate object.
+ *
+ * Returns: (transfer full): a new #AutoarCreate object
+ **/
 AutoarCreate*
 autoar_create_new (AutoarPref *arpref,
                    const char *output,
@@ -1133,6 +1332,17 @@ autoar_create_new (AutoarPref *arpref,
   return arcreate;
 }
 
+/**
+ * autoar_create_new_file:
+ * @arpref: an #AutoarPref object used to decide the output archive format
+ * @output_file: output directory of the new archive, or the file name of the
+ * new archive if you set #AutoarCreate:output-is-dest on the returned object
+ * @...: a %NULL-terminated list of #GFile of source files to be archived
+ *
+ * Create a new #AutoarCreate object.
+ *
+ * Returns: (transfer full): a new #AutoarCreate object
+ **/
 AutoarCreate*
 autoar_create_new_file (AutoarPref *arpref,
                         GFile      *output_file,
@@ -1158,6 +1368,17 @@ autoar_create_new_file (AutoarPref *arpref,
   return arcreate;
 }
 
+/**
+ * autoar_create_newv:
+ * @arpref: an #AutoarPref object used to decide the output archive format
+ * @output: output directory of the new archive, or the file name of the new
+ * archive if you set #AutoarCreate:output-is-dest on the returned object
+ * @source: a %NULL-terminated array of paths of source files to be archived
+ *
+ * Create a new #AutoarCreate object.
+ *
+ * Returns: (transfer full): a new #AutoarCreate object
+ **/
 AutoarCreate*
 autoar_create_newv (AutoarPref  *arpref,
                     const char  *output,
@@ -1171,6 +1392,18 @@ autoar_create_newv (AutoarPref  *arpref,
 
 }
 
+/**
+ * autoar_create_new_filev:
+ * @arpref: an #AutoarPref object used to decide the output archive format
+ * @output_file: output directory of the new archive, or the file name of the
+ * new archive if you set #AutoarCreate:output-is-dest on the returned object
+ * @source_file: a %NULL-terminated array of #GFile of source files to be
+ * archived
+ *
+ * Create a new #AutoarCreate object.
+ *
+ * Returns: (transfer full): a new #AutoarCreate object
+ **/
 AutoarCreate*
 autoar_create_new_filev (AutoarPref  *arpref,
                          GFile       *output_file,
@@ -1464,6 +1697,14 @@ autoar_create_run (AutoarCreate *arcreate)
   autoar_create_signal_completed (arcreate);
 }
 
+/**
+ * autoar_create_start:
+ * @arcreate: an #AutoarCreate object
+ * @cancellable: optional #GCancellable object, or %NULL to ignore
+ *
+ * Runs the archive creating work. All callbacks will be called in the same
+ * thread as the caller of this functions.
+ **/
 void
 autoar_create_start (AutoarCreate *arcreate,
                      GCancellable *cancellable)
@@ -1488,6 +1729,17 @@ autoar_create_start_async_thread (GTask *task,
   g_object_unref (task);
 }
 
+/**
+ * autoar_create_start_async:
+ * @arcreate: an #AutoarCreate object
+ * @cancellable: optional #GCancellable object, or %NULL to ignore
+ *
+ * Asynchronously runs the archive creating work. You should connect to
+ * #AutoarCreate::cancelled, #AutoarCreate::error, and #AutoarCreate::completed
+ * signal to get notification when the work is terminated. All callbacks will
+ * be called in the main thread, so you can safely manipulate GTK+ widgets in
+ * the callbacks.
+ **/
 void
 autoar_create_start_async (AutoarCreate *arcreate,
                            GCancellable *cancellable)

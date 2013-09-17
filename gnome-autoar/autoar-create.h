@@ -66,6 +66,13 @@ struct _AutoarCreateClass
                        GError *error);
 };
 
+/**
+ * AUTOAR_CREATE_ERROR:
+ *
+ * Error domain for #AutoarCreate. Not all error occurs in #AutoarCreate uses
+ * this domain. It is only used for error occurs in #AutoarCreate itself.
+ * See #AutoarCreate::error signal for more information.
+ **/
 #define AUTOAR_CREATE_ERROR autoar_create_quark()
 
 GQuark          autoar_create_quark               (void);

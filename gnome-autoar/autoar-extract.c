@@ -52,8 +52,43 @@
 # include <grp.h>
 #endif
 
+/**
+ * SECTION:autoar-extract
+ * @Short_description: Automatically extract an archive
+ * @Title: AutoarExtract
+ * @Include: gnome-autoar/autoar.h
+ *
+ * The #AutoarExtract object is used to automatically extract files and
+ * directories from an archive. It will create a file in the output directory
+ * if the archive only contains one file, or it will create a directory in the
+ * output directory if the archive contains more than one file. #AutoarExtract
+ * create only one file or directory in the output directory, so the output
+ * directory will not be messed. All absolute paths in archives will be
+ * converted to relative paths and all extracted files will be placed under the
+ * directory notified by #AutoarExtract::decide-dest. The created file
+ * or directory name will be generated based on the name of the source archive,
+ * so users can easily figure out the relation between the archive and the
+ * extracted files. #AutoarExtract can also ignore specific file name pattern
+ * when extrating, or delete the source archive after extracting, depending on
+ * the settings provided by the #AutoarPref object.
+ *
+ * When #AutoarExtract stop all work, it will emit one of the three signals:
+ * #AutoarExtract::cancelled, #AutoarExtract::error, and
+ * #AutoarExtract::completed. After one of these signals is received,
+ * the #AutoarExtract object should be destroyed because it cannot be used to
+ * start another archive operation. An #AutoarExtract object can only be used
+ * once and extract one archive.
+ **/
 
 G_DEFINE_TYPE (AutoarExtract, autoar_extract, G_TYPE_OBJECT)
+
+/**
+ * autoar_extract_quark:
+ *
+ * Gets the #AutoarExtract Error Quark.
+ *
+ * Returns: a #GQuark.
+ **/
 G_DEFINE_QUARK (autoar-extract, autoar_extract)
 
 #define AUTOAR_EXTRACT_GET_PRIVATE(o) \
@@ -248,6 +283,16 @@ autoar_extract_set_property (GObject      *object,
   }
 }
 
+/**
+ * autoar_extract_get_source:
+ * @arextract: an #AutoarExtract
+ *
+ * If #AutoarExtract:source_is_mem is %TRUE, gets the descriptive string for
+ * the source memory buffer. Otherwise, gets the source file will be extracted
+ * for this object. It may be a filename or URI.
+ *
+ * Returns: (transfer none): a string
+ **/
 char*
 autoar_extract_get_source (AutoarExtract *arextract)
 {
@@ -255,6 +300,17 @@ autoar_extract_get_source (AutoarExtract *arextract)
   return arextract->priv->source;
 }
 
+/**
+ * autoar_extract_get_source_file:
+ * @arextract: an #AutoarExtract
+ *
+ * If #AutoarExtract:source_is_mem is %TRUE, gets the #GFile object generated
+ * using the value of #AutoarExtract:source. The returned #GFile is not usable
+ * at all. Otherwise, gets the #GFile object which represents the source
+ * archive will be extracted for this object.
+ *
+ * Returns: (transfer none): a #GFile
+ **/
 GFile*
 autoar_extract_get_source_file (AutoarExtract *arextract)
 {
@@ -262,6 +318,16 @@ autoar_extract_get_source_file (AutoarExtract *arextract)
   return arextract->priv->source_file;
 }
 
+/**
+ * autoar_extract_get_output:
+ * @arextract: an #AutoarExtract
+ *
+ * If #AutoarExtract:output_is_dest is %FALSE, gets the directory which contains
+ * the extracted file or directory. Otherwise, get the filename of the extracted
+ * file or directory itself. See autoar_extract_set_output_is_dest().
+ *
+ * Returns: (transfer none): a filename
+ **/
 char*
 autoar_extract_get_output (AutoarExtract *arextract)
 {
@@ -269,6 +335,15 @@ autoar_extract_get_output (AutoarExtract *arextract)
   return arextract->priv->output;
 }
 
+/**
+ * autoar_extract_get_output_file:
+ * @arextract: an #AutoarExtract
+ *
+ * This function is similar to autoar_extract_get_output(), except for the
+ * return value is a #GFile.
+ *
+ * Returns: (transfer none): a #GFile
+ **/
 GFile*
 autoar_extract_get_output_file (AutoarExtract *arextract)
 {
@@ -276,6 +351,14 @@ autoar_extract_get_output_file (AutoarExtract *arextract)
   return arextract->priv->output_file;
 }
 
+/**
+ * autoar_extract_get_size:
+ * @arextract: an #AutoarExtract
+ *
+ * Gets the size in bytes will be written when the operation is completed.
+ *
+ * Returns: total size of extracted files in bytes
+ **/
 guint64
 autoar_extract_get_size (AutoarExtract *arextract)
 {
@@ -283,6 +366,14 @@ autoar_extract_get_size (AutoarExtract *arextract)
   return arextract->priv->size;
 }
 
+/**
+ * autoar_extract_get_completed_size:
+ * @arextract: an #AutoarExtract
+ *
+ * Gets the size in bytes has been written to disk.
+ *
+ * Returns: size in bytes has been written
+ **/
 guint64
 autoar_extract_get_completed_size (AutoarExtract *arextract)
 {
@@ -290,6 +381,15 @@ autoar_extract_get_completed_size (AutoarExtract *arextract)
   return arextract->priv->completed_size;
 }
 
+/**
+ * autoar_extract_get_files:
+ * @arextract: an #AutoarExtract
+ *
+ * Gets the total number of files will be written when the operation is
+ * completed.
+ *
+ * Returns: total number of extracted files
+ **/
 guint
 autoar_extract_get_files (AutoarExtract *arextract)
 {
@@ -297,6 +397,14 @@ autoar_extract_get_files (AutoarExtract *arextract)
   return arextract->priv->files;
 }
 
+/**
+ * autoar_extract_get_completed_files:
+ * @arextract: an #AutoarExtract
+ *
+ * Gets the number of files has been written to disk.
+ *
+ * Returns: number of files has been written to disk
+ **/
 guint
 autoar_extract_get_completed_files (AutoarExtract *arextract)
 {
@@ -304,6 +412,14 @@ autoar_extract_get_completed_files (AutoarExtract *arextract)
   return arextract->priv->completed_files;
 }
 
+/**
+ * autoar_extract_get_source_is_mem:
+ * @arextract: an #AutoarExtract
+ *
+ * Gets whether the source archive is a memory buffer.
+ *
+ * Returns: %TRUE if the source archive is a memory buffer.
+ **/
 gboolean
 autoar_extract_get_source_is_mem (AutoarExtract *arextract)
 {
@@ -311,6 +427,15 @@ autoar_extract_get_source_is_mem (AutoarExtract *arextract)
   return arextract->priv->source_is_mem;
 }
 
+/**
+ * autoar_extract_get_output_is_dest:
+ * @arextract: an #AutoarExtract
+ *
+ * See autoar_extract_set_output_is_dest().
+ *
+ * Returns: %TRUE if #AutoarExtract:output is the location of extracted file
+ * or directory
+ **/
 gboolean
 autoar_extract_get_output_is_dest (AutoarExtract *arextract)
 {
@@ -318,6 +443,15 @@ autoar_extract_get_output_is_dest (AutoarExtract *arextract)
   return arextract->priv->source_is_mem;
 }
 
+/**
+ * autoar_extract_get_notify_interval:
+ * @arextract: an #AutoarExtract
+ *
+ * See autoar_extract_set_notify_interval().
+ *
+ * Returns: the minimal interval in microseconds between the emission of the
+ * #AutoarExtract::progress signal.
+ **/
 gint64
 autoar_extract_get_notify_interval (AutoarExtract *arextract)
 {
@@ -325,6 +459,25 @@ autoar_extract_get_notify_interval (AutoarExtract *arextract)
   return arextract->priv->notify_interval;
 }
 
+/**
+ * autoar_extract_set_output_is_dest:
+ * @arextract: an #AutoarExtract
+ * @output_is_dest: %TRUE if the location of the extracted directory or file
+ * has been already decided
+ *
+ * By default #AutoarExtract:output-is-dest is set to %FALSE, which means
+ * the extracted files will be created as a single file or a single top-level
+ * directory under #AutoarExtract:output directory. The name of the extracted
+ * file or directory will be automatically generated and you will be notified
+ * via #AutoarExtract::decide-dest when the name is decided. If you have
+ * already decided the location of the extracted file or directory, and you
+ * do not want #AutoarExtract to decide it for you, you can set
+ * #AutoarExtract:output-is-dest to %TRUE. #AutoarExtract will use
+ * #AutoarExtract:output as the location of the extracted directory or file,
+ * and it will neither check whether the file exists nor create the necessary
+ * directories for you. This function should only be called before calling
+ * autoar_extract_start() or autoar_extract_start_async().
+ **/
 void
 autoar_extract_set_output_is_dest  (AutoarExtract *arextract,
                                     gboolean output_is_dest)
@@ -333,6 +486,16 @@ autoar_extract_set_output_is_dest  (AutoarExtract *arextract,
   arextract->priv->output_is_dest = output_is_dest;
 }
 
+/**
+ * autoar_extract_set_notify_interval:
+ * @arextract: an #AutoarExtract
+ * @notify_interval: the minimal interval in microseconds
+ *
+ * Sets the minimal interval between emission of #AutoarExtract::progress
+ * signal. This prevent too frequent signal emission, which may cause
+ * performance impact. If you do not want this feature, you can set the interval
+ * to 0, so you will receive every progress update.
+ **/
 void
 autoar_extract_set_notify_interval (AutoarExtract *arextract,
                                     gint64 notify_interval)
@@ -1192,6 +1355,14 @@ autoar_extract_class_init (AutoarExtractClass *klass)
                                                        G_PARAM_CONSTRUCT |
                                                        G_PARAM_STATIC_STRINGS));
 
+/**
+ * AutoarExtract::scanned:
+ * @arextract: the #AutoarExtract
+ * @files: the number of files will be extracted from the source archive
+ *
+ * This signal is emitted when #AutoarExtract finish scanning filename entries
+ * in the source archive.
+ **/
   autoar_extract_signals[SCANNED] =
     g_signal_new ("scanned",
                   type,
@@ -1203,6 +1374,14 @@ autoar_extract_class_init (AutoarExtractClass *klass)
                   1,
                   G_TYPE_UINT);
 
+/**
+ * AutoarExtract::decide-dest:
+ * @arextract: the #AutoarExtract
+ * @destination: the location of the extracted directory or file
+ *
+ * This signal is emitted when the location of the extracted directory or
+ * file is determined.
+ **/
   autoar_extract_signals[DECIDE_DEST] =
     g_signal_new ("decide-dest",
                   type,
@@ -1214,6 +1393,14 @@ autoar_extract_class_init (AutoarExtractClass *klass)
                   1,
                   G_TYPE_FILE);
 
+/**
+ * AutoarExtract::progress:
+ * @arextract: the #AutoarExtract
+ * @fraction_size: fraction of size has been written to disk
+ * @fraction_files: fraction of number of files have been written to disk
+ *
+ * This signal is used to report progress of creating archives.
+ **/
   autoar_extract_signals[PROGRESS] =
     g_signal_new ("progress",
                   type,
@@ -1226,6 +1413,13 @@ autoar_extract_class_init (AutoarExtractClass *klass)
                   G_TYPE_DOUBLE,
                   G_TYPE_DOUBLE);
 
+/**
+ * AutoarExtract::cancelled:
+ * @arextract: the #AutoarExtract
+ *
+ * This signal is emitted after archive extracting job is cancelled by the
+ * #GCancellable.
+ **/
   autoar_extract_signals[CANCELLED] =
     g_signal_new ("cancelled",
                   type,
@@ -1236,6 +1430,13 @@ autoar_extract_class_init (AutoarExtractClass *klass)
                   G_TYPE_NONE,
                   0);
 
+/**
+ * AutoarExtract::completed:
+ * @arextract: the #AutoarExtract
+ *
+ * This signal is emitted after the archive extracting job is successfully
+ * completed.
+ **/
   autoar_extract_signals[COMPLETED] =
     g_signal_new ("completed",
                   type,
@@ -1246,6 +1447,17 @@ autoar_extract_class_init (AutoarExtractClass *klass)
                   G_TYPE_NONE,
                   0);
 
+/**
+ * AutoarExtract::error:
+ * @arextract: the #AutoarExtract
+ * @error: the #GError
+ *
+ * This signal is emitted when error occurs and all jobs should be terminated.
+ * Possible error domains are %AUTOAR_EXTRACT_ERROR, %G_IO_ERROR, and
+ * %AUTOAR_LIBARCHIVE_ERROR, which represent error occurs in #AutoarExtract,
+ * GIO, and libarchive, respectively. The #GError is owned by #AutoarExtract
+ * and should not be freed.
+ **/
   autoar_extract_signals[ERROR] =
     g_signal_new ("error",
                   type,
@@ -1374,6 +1586,18 @@ autoar_extract_new_full (const char *source,
 }
 
 
+/**
+ * autoar_extract_new:
+ * @source: source archive
+ * @output: output directory of extracted file or directory, or the file name
+ * of the extracted file or directory itself if you set
+ * #AutoarExtract:output-is-dest on the returned object
+ * @arpref: an #AutoarPref object
+ *
+ * Extract a new #AutoarExtract object.
+ *
+ * Returns: (transfer full): a new #AutoarExtract object
+ **/
 AutoarExtract*
 autoar_extract_new (const char *source,
                     const char *output,
@@ -1387,6 +1611,18 @@ autoar_extract_new (const char *source,
                                   NULL, 0, NULL);
 }
 
+/**
+ * autoar_extract_new_file:
+ * @source_file: source archive
+ * @output_file: output directory of extracted file or directory, or the
+ * file name of the extracted file or directory itself if you set
+ * #AutoarExtract:output-is-dest on the returned object
+ * @arpref: an #AutoarPref object
+ *
+ * Create a new #AutoarExtract object.
+ *
+ * Returns: (transfer full): a new #AutoarExtract object
+ **/
 AutoarExtract*
 autoar_extract_new_file (GFile *source_file,
                          GFile *output_file,
@@ -1400,6 +1636,23 @@ autoar_extract_new_file (GFile *source_file,
                                   NULL, 0, NULL);
 }
 
+/**
+ * autoar_extract_new_memory:
+ * @buffer: memory buffer holding the source archive
+ * @buffer_size: the size of the source archive memory buffer
+ * @source_name: the name of the source archive
+ * @output: output directory of extracted file or directory, or the file name
+ * of the extracted file or directory itself if you set
+ * #AutoarExtract:output-is-dest on the returned object
+ * @arpref: an #AutoarPref object
+ *
+ * Create a new #AutoarExtract object. @source_name does not need to be a full
+ * path. The file which it represents does not need to exist, either. This
+ * argument is only used to decide the name of the extracted file or directory,
+ * and it is useless if you set #AutoarExtract:output-is-dest to %TRUE.
+ *
+ * Returns: (transfer full): a new #AutoarExtract object
+ **/
 AutoarExtract*
 autoar_extract_new_memory (const void *buffer,
                            gsize buffer_size,
@@ -1416,6 +1669,22 @@ autoar_extract_new_memory (const void *buffer,
                                   buffer, buffer_size, source_name);
 }
 
+/**
+ * autoar_extract_new_memory_file:
+ * @buffer: memory buffer holding the source archive
+ * @buffer_size: the size of the source archive memory buffer
+ * @source_name: the name of the source archive
+ * @output_file: output directory of extracted file or directory, or the file
+ * name of the extracted file or directory itself if you set
+ * #AutoarExtract:output-is-dest on the returned object
+ * @arpref: an #AutoarPref object
+ *
+ * Create a new #AutoarExtract object. This function is similar to
+ * autoar_extract_new_memory() except for the argument for the output
+ * directory is #GFile.
+ *
+ * Returns: (transfer full): a new #AutoarExtract object
+ **/
 AutoarExtract*
 autoar_extract_new_memory_file (const void *buffer,
                                 gsize buffer_size,
@@ -1810,6 +2079,14 @@ autoar_extract_run (AutoarExtract *arextract)
   autoar_extract_signal_completed (arextract);
 }
 
+/**
+ * autoar_extract_start:
+ * @arextract: an #AutoarExtract object
+ * @cancellable: optional #GCancellable object, or %NULL to ignore
+ *
+ * Runs the archive extracting work. All callbacks will be called in the same
+ * thread as the caller of this functions.
+ **/
 void
 autoar_extract_start (AutoarExtract *arextract,
                       GCancellable *cancellable)
@@ -1835,6 +2112,17 @@ autoar_extract_start_async_thread (GTask *task,
 }
 
 
+/**
+ * autoar_extract_start_async:
+ * @arextract: an #AutoarExtract object
+ * @cancellable: optional #GCancellable object, or %NULL to ignore
+ *
+ * Asynchronously runs the archive extracting work. You should connect to
+ * #AutoarExtract::cancelled, #AutoarExtract::error, and
+ * #AutoarExtract::completed signal to get notification when the work is
+ * terminated. All callbacks will be called in the main thread, so you can
+ * safely manipulate GTK+ widgets in the callbacks.
+ **/
 void
 autoar_extract_start_async (AutoarExtract *arextract,
                             GCancellable *cancellable)
@@ -1852,6 +2140,17 @@ autoar_extract_start_async (AutoarExtract *arextract,
   g_task_run_in_thread (task, autoar_extract_start_async_thread);
 }
 
+/**
+ * autoar_extract_free_source_buffer:
+ * @arextract: an #AutoarExtract object
+ * @free_func: a function to free the memory buffer
+ *
+ * Free the source memory archive provided in autoar_extract_new_memory() or
+ * autoar_extract_new_memory_file(). This functions should only be called
+ * after the extracting job is completed. That is, you should only call this
+ * function after you receives one of #AutoarExtract::cancelled,
+ * #AutoarExtract::error, or #AutoarExtract::completed signal.
+ **/
 void
 autoar_extract_free_source_buffer (AutoarExtract *arextract,
                                    GDestroyNotify free_func)

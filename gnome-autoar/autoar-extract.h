@@ -68,6 +68,13 @@ struct _AutoarExtractClass
                        GError *error);
 };
 
+/**
+ * AUTOAR_EXTRACT_ERROR:
+ *
+ * Error domain for #AutoarExtract. Not all error occurs in #AutoarExtract uses
+ * this domain. It is only used for error occurs in #AutoarExtract itself.
+ * See #AutoarExtract::error signal for more information.
+ **/
 #define AUTOAR_EXTRACT_ERROR autoar_extract_quark()
 
 GQuark          autoar_extract_quark               (void);

@@ -33,6 +33,13 @@
 
 G_BEGIN_DECLS
 
+/**
+ * AUTOAR_PREF_DEFAULT_GSCHEMA_ID:
+ *
+ * Default #GSettings schema ID for storing and retrieving user preferences
+ * in the #AutoarPref object. If you want to share preferences related to
+ * archives with other applications, you should use this schema ID.
+ **/
 #define AUTOAR_PREF_DEFAULT_GSCHEMA_ID  "org.gnome.desktop.archives"
 
 #define AUTOAR_TYPE_PREF                autoar_pref_get_type ()

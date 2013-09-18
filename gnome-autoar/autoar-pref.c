@@ -32,6 +32,30 @@
 #include <glib.h>
 #include <string.h>
 
+/**
+ * SECTION:autoar-pref
+ * @Short_description: Prefrences related to archives
+ * @Title: AutoarPref
+ * @Include: gnome-autoar/autoar.h
+ *
+ * The #AutoarPref is used to store the user preferences related to archives.
+ * It is a required argument to create an #AutoarCreate or #AutoarExtract
+ * object. It also provides some convenient methods to read and write settings
+ * with #GSettings, or check whether a file should be regarded as an archive.
+ * An #AutoarPref can be used multiple times, so you can use the same
+ * #AutoarPref object to create many #AutoarCreate or #AutoarExtract objects.
+ *
+ * In order to allow applications to override user preferences, no binding is
+ * created between the #AutoarPref object and the #GSettings object in order
+ * to prevent unnecesssary writes. #AutoarPref holds no reference to the
+ * #GSettings object, too. Additionally, there are modification
+ * flags for each property inside the #AutoarPref object, so
+ * autoar_pref_write_gsettings() only writes settings which are changed
+ * since the last call to autoar_pref_read_gsettings().
+ * If you do not like this behavior, there are also methods
+ * provided to override it.
+ **/
+
 G_DEFINE_TYPE (AutoarPref, autoar_pref, G_TYPE_OBJECT)
 
 #define AUTOAR_PREF_GET_PRIVATE(o) \
@@ -154,6 +178,14 @@ autoar_pref_set_property (GObject      *object,
   }
 }
 
+/**
+ * autoar_pref_get_default_format:
+ * @arpref: an #AutoarPref
+ *
+ * Gets the default format for new archives.
+ *
+ * Returns: an #AutoarFormat
+ **/
 AutoarFormat
 autoar_pref_get_default_format (AutoarPref *arpref)
 {
@@ -161,6 +193,14 @@ autoar_pref_get_default_format (AutoarPref *arpref)
   return arpref->priv->default_format;
 }
 
+/**
+ * autoar_pref_get_default_filter:
+ * @arpref: an #AutoarPref
+ *
+ * Gets the default filter for new archives.
+ *
+ * Returns: an #AutoarFilter
+ **/
 AutoarFilter
 autoar_pref_get_default_filter (AutoarPref *arpref)
 {
@@ -168,6 +208,14 @@ autoar_pref_get_default_filter (AutoarPref *arpref)
   return arpref->priv->default_filter;
 }
 
+/**
+ * autoar_pref_get_file_name_suffix:
+ * @arpref: an #AutoarPref
+ *
+ * Gets the list of file name extensions which should be regarded as archives.
+ *
+ * Returns: (transfer none): a %NULL-terminated array of strings
+ **/
 const char**
 autoar_pref_get_file_name_suffix (AutoarPref *arpref)
 {
@@ -175,6 +223,14 @@ autoar_pref_get_file_name_suffix (AutoarPref *arpref)
   return (const char**)(arpref->priv->file_name_suffix);
 }
 
+/**
+ * autoar_pref_get_file_mime_type:
+ * @arpref: an #AutoarPref
+ *
+ * Gets the list of MIME types which should be regarded as archives.
+ *
+ * Returns: (transfer none): a %NULL-terminated array of strings
+ **/
 const char**
 autoar_pref_get_file_mime_type (AutoarPref *arpref)
 {
@@ -182,6 +238,16 @@ autoar_pref_get_file_mime_type (AutoarPref *arpref)
   return (const char**)(arpref->priv->file_mime_type);
 }
 
+/**
+ * autoar_pref_get_pattern_to_ignore:
+ * @arpref: an #AutoarPref
+ *
+ * Gets the list of filename patterns which will be ignored when extracting
+ * archives. That is, a file will not be extracted from the archive if its
+ * name matches any patterns in the list.
+ *
+ * Returns: (transfer none): a %NULL-terminated array of strings
+ **/
 const char**
 autoar_pref_get_pattern_to_ignore (AutoarPref *arpref)
 {
@@ -189,6 +255,15 @@ autoar_pref_get_pattern_to_ignore (AutoarPref *arpref)
   return (const char**)(arpref->priv->pattern_to_ignore);
 }
 
+/**
+ * autoar_pref_get_delete_if_succeed:
+ * @arpref: an #AutoarPref
+ *
+ * Gets whether the source archive will be deleted after it is successfully
+ * extracted.
+ *
+ * Returns: %TRUE if the source archive should be deleted
+ **/
 gboolean
 autoar_pref_get_delete_if_succeed (AutoarPref *arpref)
 {
@@ -196,6 +271,13 @@ autoar_pref_get_delete_if_succeed (AutoarPref *arpref)
   return arpref->priv->delete_if_succeed;
 }
 
+/**
+ * autoar_pref_set_default_format:
+ * @arpref: an #AutoarPref
+ * @format: a valid #AutoarFormat
+ *
+ * See autoar_pref_get_default_format().
+ **/
 void
 autoar_pref_set_default_format (AutoarPref *arpref,
                                 AutoarFormat format)
@@ -207,6 +289,13 @@ autoar_pref_set_default_format (AutoarPref *arpref,
   arpref->priv->default_format = format;
 }
 
+/**
+ * autoar_pref_set_default_filter:
+ * @arpref: an #AutoarPref
+ * @filter: a valid #AutoarFilter
+ *
+ * See autoar_pref_get_default_filter().
+ **/
 void
 autoar_pref_set_default_filter (AutoarPref *arpref,
                                 AutoarFilter filter)
@@ -218,6 +307,13 @@ autoar_pref_set_default_filter (AutoarPref *arpref,
   arpref->priv->default_filter = filter;
 }
 
+/**
+ * autoar_pref_set_file_name_suffix:
+ * @arpref: an #AutoarPref
+ * @strv: a %NULL-terminated array of strings
+ *
+ * See autoar_pref_get_file_name_suffix().
+ **/
 void
 autoar_pref_set_file_name_suffix (AutoarPref *arpref,
                                   const char **strv)
@@ -230,6 +326,13 @@ autoar_pref_set_file_name_suffix (AutoarPref *arpref,
   arpref->priv->file_name_suffix = g_strdupv ((char**)strv);
 }
 
+/**
+ * autoar_pref_set_file_mime_type:
+ * @arpref: an #AutoarPref
+ * @strv: a %NULL-terminated array of strings
+ *
+ * See autoar_pref_get_file_mime_type().
+ **/
 void
 autoar_pref_set_file_mime_type (AutoarPref *arpref,
                                 const char **strv)
@@ -242,6 +345,13 @@ autoar_pref_set_file_mime_type (AutoarPref *arpref,
   arpref->priv->file_mime_type = g_strdupv ((char**)strv);
 }
 
+/**
+ * autoar_pref_set_pattern_to_ignore:
+ * @arpref: an #AutoarPref
+ * @strv: a %NULL-terminated array of strings
+ *
+ * See autoar_pref_get_pattern_to_ignore().
+ **/
 void
 autoar_pref_set_pattern_to_ignore (AutoarPref *arpref,
                                    const char **strv)
@@ -254,6 +364,13 @@ autoar_pref_set_pattern_to_ignore (AutoarPref *arpref,
   arpref->priv->pattern_to_ignore = g_strdupv ((char**)strv);
 }
 
+/**
+ * autoar_pref_set_delete_if_succeed:
+ * @arpref: an #AutoarPref
+ * @delete_yes: %TRUE if the source archive should be deleted
+ *
+ * See autoar_pref_get_delete_if_succeed().
+ **/
 void
 autoar_pref_set_delete_if_succeed (AutoarPref *arpref,
                                    gboolean delete_yes)
@@ -378,12 +495,29 @@ autoar_pref_init (AutoarPref *arpref)
   priv->delete_if_succeed = TRUE;
 }
 
+/**
+ * autoar_pref_new:
+ *
+ * Create a new #AutoarPref object. All strings will be initialized as %NULL.
+ *
+ * Returns: (transfer full): a new #AutoarPref object
+ **/
 AutoarPref*
 autoar_pref_new (void)
 {
   return g_object_new (AUTOAR_TYPE_PREF, NULL);
 }
 
+/**
+ * autoar_pref_new_with_gsettings:
+ * @settings: a #GSettings object to read settings from
+ *
+ * Create a new #AutoarPref object and read settings from @settings. Calling
+ * this function is equivalent to calling autoar_pref_read_gsettings() on
+ * the object returned by autoar_pref_new().
+ *
+ * Returns: (transfer full): a new #AutoarPref object
+ **/
 AutoarPref*
 autoar_pref_new_with_gsettings (GSettings *settings)
 {
@@ -393,6 +527,13 @@ autoar_pref_new_with_gsettings (GSettings *settings)
   return arpref;
 }
 
+/**
+ * autoar_pref_read_gsettings:
+ * @arpref: an #AutoarPref object
+ * @settings: a #GSettings object to read settings from
+ *
+ * Read settings from @settings.
+ **/
 void
 autoar_pref_read_gsettings (AutoarPref *arpref,
                             GSettings *settings)
@@ -416,6 +557,22 @@ autoar_pref_read_gsettings (AutoarPref *arpref,
   arpref->priv->modification_flags = MODIFIED_NONE;
 }
 
+/**
+ * autoar_pref_write_gsettings:
+ * @arpref: an #AutoarPref object
+ * @settings: a #GSettings object to write settings to
+ *
+ * Write settings to @settings. If you do not read from #GSettings before
+ * calling this functions, it will be the same as calling
+ * autoar_pref_write_gsettings_force(). If autoar_pref_read_gsettings()
+ * has called on @arpref, or @arpref is created using
+ * autoar_pref_new_with_gsettings(), only settings changed since the last
+ * time reading from #GSettings will be written.
+ *
+ * It is allowed to write to a #GSettings object which is different from the
+ * object you read from. However, #AutoarPref cannot detect this situation,
+ * and you may want to call autoar_pref_write_gsettings_force() instead.
+ **/
 void
 autoar_pref_write_gsettings (AutoarPref *arpref,
                              GSettings *settings)
@@ -453,6 +610,15 @@ autoar_pref_write_gsettings (AutoarPref *arpref,
   }
 }
 
+/**
+ * autoar_pref_write_gsettings_force:
+ * @arpref: an #AutoarPref object
+ * @settings: a #GSettings object to write settings to
+ *
+ * Write settings to @settings, ignoring the internal modification flags of
+ * #AutoarPref. All properties will be written even if it is not changed, and
+ * modification flags are not cleared after calling this function.
+ **/
 void
 autoar_pref_write_gsettings_force (AutoarPref *arpref,
                                    GSettings *settings)
@@ -468,6 +634,15 @@ autoar_pref_write_gsettings_force (AutoarPref *arpref,
   g_settings_set_boolean (settings, KEY_DELETE_IF_SUCCEED, arpref->priv->delete_if_succeed);
 }
 
+/**
+ * autoar_pref_has_changes:
+ * @arpref: an #AutoarPref object
+ *
+ * Gets whether there are changes to properties which are not written.
+ *
+ * Returns: %TRUE if there are changes since the last reading from #GSettings.
+ * %FALSE if there is no change or you have not read from #GSettings.
+ **/
 gboolean
 autoar_pref_has_changes (AutoarPref *arpref)
 {
@@ -475,6 +650,14 @@ autoar_pref_has_changes (AutoarPref *arpref)
   return (arpref->priv->modification_enabled && arpref->priv->modification_flags);
 }
 
+/**
+ * autoar_pref_forget_changes:
+ * @arpref: an #AutoarPref object
+ *
+ * Clear the modification flags, so the next call to
+ * autoar_pref_write_gsettings() will write nothing if you have read from
+ * #GSettings before calling it.
+ **/
 void
 autoar_pref_forget_changes (AutoarPref *arpref)
 {
@@ -482,6 +665,17 @@ autoar_pref_forget_changes (AutoarPref *arpref)
   arpref->priv->modification_flags = MODIFIED_NONE;
 }
 
+/**
+ * autoar_pref_check_file_name:
+ * @arpref: an #AutoarPref object
+ * @filepath: the filename or the path of the file
+ *
+ * Checks whether the file @filepath has the suffix listed in
+ * #AutoarPref:file-name-suffix. This function does not do any
+ * I/O operation.
+ *
+ * Returns: %TRUE if it is matched
+ **/
 gboolean
 autoar_pref_check_file_name (AutoarPref *arpref,
                              const char *filepath)
@@ -498,6 +692,17 @@ autoar_pref_check_file_name (AutoarPref *arpref,
   return autoar_pref_check_file_name_d (arpref, dot_location + 1);
 }
 
+/**
+ * autoar_pref_check_file_name_file:
+ * @arpref: an #AutoarPref object
+ * @file: a #GFile object
+ *
+ * Checks whether the file @file has the suffix listed in
+ * #AutoarPref:file-name-suffix. This function does not do any
+ * I/O operation.
+ *
+ * Returns: %TRUE if it is matched
+ **/
 gboolean
 autoar_pref_check_file_name_file (AutoarPref *arpref,
                                   GFile *file)
@@ -515,6 +720,17 @@ autoar_pref_check_file_name_file (AutoarPref *arpref,
   return result;
 }
 
+/**
+ * autoar_pref_check_file_name_d:
+ * @arpref: an #AutoarPref object
+ * @extension: a file name extension
+ *
+ * Checks whether @extension is listed in #AutoarPref:file-name-suffix.
+ * This function is the same as comparing @extension with strings using
+ * strcmp().
+ *
+ * Returns: %TRUE if it is matched
+ **/
 gboolean
 autoar_pref_check_file_name_d (AutoarPref *arpref,
                                const char *extension)
@@ -532,6 +748,16 @@ autoar_pref_check_file_name_d (AutoarPref *arpref,
   return FALSE;
 }
 
+/**
+ * autoar_pref_check_mime_type:
+ * @arpref: an #AutoarPref object
+ * @filepath: the filename or the path of the file
+ *
+ * Checks whether the MIME type of @filepath is listed in
+ * #AutoarPref:file-mime-type.
+ *
+ * Returns: %TRUE if it is matched
+ **/
 gboolean
 autoar_pref_check_mime_type (AutoarPref *arpref,
                              const char *filepath)
@@ -549,6 +775,16 @@ autoar_pref_check_mime_type (AutoarPref *arpref,
   return result;
 }
 
+/**
+ * autoar_pref_check_mime_type_file:
+ * @arpref: an #AutoarPref object
+ * @file: a #GFile object
+ *
+ * Checks whether the MIME type of @file is listed in
+ * #AutoarPref:file-mime-type.
+ *
+ * Returns: %TRUE if it is matched
+ **/
 gboolean
 autoar_pref_check_mime_type_file  (AutoarPref *arpref,
                                    GFile *file)
@@ -583,6 +819,17 @@ autoar_pref_check_mime_type_file  (AutoarPref *arpref,
   return result;
 }
 
+/**
+ * autoar_pref_check_mime_type_d:
+ * @arpref: an #AutoarPref object
+ * @mime_type: a MIME type
+ *
+ * Checks whether @mime_type is listed in #AutoarPref:file-mime-type.
+ * This function is the same as comparing @mime_type with strings using
+ * strcmp().
+ *
+ * Returns: %TRUE if it is matched
+ **/
 gboolean
 autoar_pref_check_mime_type_d (AutoarPref *arpref,
                                const char *mime_type)

@@ -31,6 +31,16 @@
 #include <gio/gio.h>
 #include <glib.h>
 
+/**
+ * SECTION:autoar-format-filter
+ * @Short_description: Utilities for handling archive formats and filters
+ * @Title: autoar-format-filter
+ * @Include: gnome-autoar/autoar.h
+ *
+ * autoar-format-filter is a collection of functions providing information
+ * of archive formats and filters.
+ **/
+
 typedef struct _AutoarFormatDescription AutoarFormatDescription;
 typedef struct _AutoarFilterDescription AutoarFilterDescription;
 
@@ -172,18 +182,41 @@ static AutoarFilterDescription autoar_filter_description[] = {
     archive_write_add_filter_lrzip }
 };
 
+/**
+ * autoar_format_last:
+ *
+ * Gets the maximal allowed values of #AutoarFormat
+ *
+ * Returns: maximal allowed values of #AutoarFormat
+ **/
 AutoarFormat
 autoar_format_last (void)
 {
   return AUTOAR_FORMAT_LAST;
 }
 
+/**
+ * autoar_format_is_valid:
+ * @format: an #AutoarFormat
+ *
+ * Checks whether an #AutoarFormat is valid.
+ *
+ * Returns: %TRUE if the value of @format is valid
+ **/
 gboolean
 autoar_format_is_valid (AutoarFormat format)
 {
   return (format > 0 && format < AUTOAR_FORMAT_LAST);
 }
 
+/**
+ * autoar_format_get_mime_type:
+ * @format: an #AutoarFormat
+ *
+ * Gets the MIME type of the format from the internal static data.
+ *
+ * Returns: (transfer none): an MIME type
+ **/
 const char*
 autoar_format_get_mime_type (AutoarFormat format)
 {
@@ -191,6 +224,14 @@ autoar_format_get_mime_type (AutoarFormat format)
   return autoar_format_description[format - 1].mime_type;
 }
 
+/**
+ * autoar_format_get_extension:
+ * @format: an #AutoarFormat
+ *
+ * Gets the file name extension of the format from the internal static data.
+ *
+ * Returns: (transfer none): a file name extension
+ **/
 const char*
 autoar_format_get_extension (AutoarFormat format)
 {
@@ -198,6 +239,14 @@ autoar_format_get_extension (AutoarFormat format)
   return autoar_format_description[format - 1].extension;
 }
 
+/**
+ * autoar_format_get_description:
+ * @format: an #AutoarFormat
+ *
+ * Gets description of the format from the internal static data.
+ *
+ * Returns: (transfer none): description about the format
+ **/
 const char*
 autoar_format_get_description (AutoarFormat format)
 {
@@ -205,6 +254,20 @@ autoar_format_get_description (AutoarFormat format)
   return autoar_format_description[format - 1].description;
 }
 
+/**
+ * autoar_format_get_format_libarchive:
+ * @format: an #AutoarFormat
+ *
+ * Gets the format code used by libarchive. You can use the return value
+ * as the argument for archive_read_support_format_by_code() and
+ * archive_write_set_format(). However, some format cannot be set using
+ * these two functions because of problems inside libarchive. Use
+ * autoar_format_get_libarchive_read() and
+ * autoar_format_get_libarchive_write() to get the function pointer
+ * is the more reliable way to set format on the archive object.
+ *
+ * Returns: an integer
+ **/
 int
 autoar_format_get_format_libarchive (AutoarFormat format)
 {
@@ -212,6 +275,16 @@ autoar_format_get_format_libarchive (AutoarFormat format)
   return autoar_format_description[format - 1].libarchive_format;
 }
 
+/**
+ * autoar_format_get_description_libarchive:
+ * @format: an #AutoarFormat
+ *
+ * Gets description of the format from libarchive. This function creates
+ * and destroys an archive object in order to get the description string.
+ *
+ * Returns: (transfer full): description about the format. Free the returned
+ * string with g_free().
+ **/
 gchar*
 autoar_format_get_description_libarchive (AutoarFormat format)
 {
@@ -228,6 +301,15 @@ autoar_format_get_description_libarchive (AutoarFormat format)
   return str;
 }
 
+/**
+ * autoar_format_get_libarchive_read:
+ * @format: an #AutoarFormat
+ *
+ * Gets the function used to set format on the object returned by
+ * archive_read_new().
+ *
+ * Returns: function pointer to the setter function provided by libarchive
+ **/
 AutoarFormatFunc
 autoar_format_get_libarchive_read (AutoarFormat format)
 {
@@ -235,6 +317,15 @@ autoar_format_get_libarchive_read (AutoarFormat format)
   return autoar_format_description[format - 1].libarchive_read;
 }
 
+/**
+ * autoar_format_get_libarchive_write:
+ * @format: an #AutoarFormat
+ *
+ * Gets the function used to set format on the object returned by
+ * archive_write_new().
+ *
+ * Returns: function pointer to the setter function provided by libarchive
+ **/
 AutoarFormatFunc
 autoar_format_get_libarchive_write (AutoarFormat format)
 {
@@ -242,18 +333,41 @@ autoar_format_get_libarchive_write (AutoarFormat format)
   return autoar_format_description[format - 1].libarchive_write;
 }
 
+/**
+ * autoar_filter_last:
+ *
+ * Gets the maximal allowed values of #AutoarFilter
+ *
+ * Returns: maximal allowed values of #AutoarFilter
+ **/
 AutoarFilter
 autoar_filter_last (void)
 {
   return AUTOAR_FILTER_LAST;
 }
 
+/**
+ * autoar_filter_is_valid:
+ * @filter: an #AutoarFilter
+ *
+ * Checks whether an #AutoarFilter is valid.
+ *
+ * Returns: %TRUE if the value of @filter is valid
+ **/
 gboolean
 autoar_filter_is_valid (AutoarFilter filter)
 {
   return (filter > 0 && filter < AUTOAR_FILTER_LAST);
 }
 
+/**
+ * autoar_filter_get_mime_type:
+ * @filter: an #AutoarFilter
+ *
+ * Gets the MIME type of the filter from the internal static data.
+ *
+ * Returns: (transfer none): an MIME type
+ **/
 const char*
 autoar_filter_get_mime_type (AutoarFilter filter)
 {
@@ -261,6 +375,14 @@ autoar_filter_get_mime_type (AutoarFilter filter)
   return autoar_filter_description[filter - 1].mime_type;
 }
 
+/**
+ * autoar_filter_get_extension:
+ * @filter: an #AutoarFilter
+ *
+ * Gets the file name extension of the filter from the internal static data.
+ *
+ * Returns: (transfer none): a file name extension
+ **/
 const char*
 autoar_filter_get_extension (AutoarFilter filter)
 {
@@ -268,6 +390,14 @@ autoar_filter_get_extension (AutoarFilter filter)
   return autoar_filter_description[filter - 1].extension;
 }
 
+/**
+ * autoar_filter_get_description:
+ * @filter: an #AutoarFilter
+ *
+ * Gets description of the filter from the internal static data.
+ *
+ * Returns: (transfer none): description about the filter
+ **/
 const char*
 autoar_filter_get_description (AutoarFilter filter)
 {
@@ -275,6 +405,15 @@ autoar_filter_get_description (AutoarFilter filter)
   return autoar_filter_description[filter - 1].description;
 }
 
+/**
+ * autoar_filter_get_filter_libarchive:
+ * @filter: an #AutoarFilter
+ *
+ * Gets the filter code used by libarchive. You can use the return value
+ * as the argument for archive_write_add_filter().
+ *
+ * Returns: an integer
+ **/
 int
 autoar_filter_get_filter_libarchive (AutoarFilter filter)
 {
@@ -282,6 +421,16 @@ autoar_filter_get_filter_libarchive (AutoarFilter filter)
   return autoar_filter_description[filter - 1].libarchive_filter;
 }
 
+/**
+ * autoar_filter_get_description_libarchive:
+ * @filter: an #AutoarFilter
+ *
+ * Gets description of the filter from libarchive. This function creates
+ * and destroys an archive object in order to get the description string.
+ *
+ * Returns: (transfer full): description about the filter. Free the returned
+ * string with g_free().
+ **/
 gchar*
 autoar_filter_get_description_libarchive (AutoarFilter filter)
 {
@@ -298,6 +447,15 @@ autoar_filter_get_description_libarchive (AutoarFilter filter)
   return str;
 }
 
+/**
+ * autoar_filter_get_libarchive_read:
+ * @filter: an #AutoarFilter
+ *
+ * Gets the function used to add filter on the object returned by
+ * archive_read_new().
+ *
+ * Returns: function pointer to the setter function provided by libarchive
+ **/
 AutoarFilterFunc
 autoar_filter_get_libarchive_read (AutoarFilter filter)
 {
@@ -305,6 +463,15 @@ autoar_filter_get_libarchive_read (AutoarFilter filter)
   return autoar_filter_description[filter - 1].libarchive_read;
 }
 
+/**
+ * autoar_filter_get_libarchive_write:
+ * @filter: an #AutoarFilter
+ *
+ * Gets the function used to add filter on the object returned by
+ * archive_write_new().
+ *
+ * Returns: function pointer to the setter function provided by libarchive
+ **/
 AutoarFilterFunc
 autoar_filter_get_libarchive_write (AutoarFilter filter)
 {
@@ -312,6 +479,21 @@ autoar_filter_get_libarchive_write (AutoarFilter filter)
   return autoar_filter_description[filter - 1].libarchive_write;
 }
 
+/**
+ * autoar_format_filter_get_mime_type:
+ * @format: an #AutoarFormat
+ * @filter: an #AutoarFilter
+ *
+ * Gets the MIME type for an archive @format compressed by
+ * @filter. This function always succeed, but it is not guaranteed
+ * that the returned MIME type exists and can be recognized by applications.
+ * Some combination of format and filter seldom exists in application,
+ * so this function can only generate the string based on some
+ * non-standard rules.
+ *
+ * Returns: (transfer full): an MIME type. Free the returned
+ * string with g_free().
+ **/
 gchar*
 autoar_format_filter_get_mime_type (AutoarFormat format,
                                     AutoarFilter filter)
@@ -339,6 +521,17 @@ autoar_format_filter_get_mime_type (AutoarFormat format,
   }
 }
 
+/**
+ * autoar_format_filter_get_extension:
+ * @format: an #AutoarFormat
+ * @filter: an #AutoarFilter
+ *
+ * Gets the file name extension for an archive @format compressed by
+ * @filter. The first character of the returned string is always '.'
+ *
+ * Returns: (transfer full): a file name extension. Free the returned string
+ * with g_free().
+ **/
 gchar*
 autoar_format_filter_get_extension (AutoarFormat format,
                                     AutoarFilter filter)
@@ -353,6 +546,17 @@ autoar_format_filter_get_extension (AutoarFormat format,
                       NULL);
 }
 
+/**
+ * autoar_format_filter_get_description:
+ * @format: an #AutoarFormat
+ * @filter: an #AutoarFilter
+ *
+ * Gets the description for an archive @format compressed by
+ * @filter using #GContentType and autoar_format_filter_get_mime_type().
+ *
+ * Returns: (transfer full): description about the archive. Free the returned
+ * string with g_free().
+ **/
 gchar*
 autoar_format_filter_get_description (AutoarFormat format,
                                       AutoarFilter filter)

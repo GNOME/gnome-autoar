@@ -32,6 +32,16 @@
 #include <gtk/gtk.h>
 
 
+/**
+ * SECTION:autoar-gtk
+ * @Short_description: GTK+ widgets for integrating archives into applications
+ * @Title: autoar-gtk
+ * @Include: gnome-autoar/autoar.h
+ *
+ * autoar-gtk is a collection of widgets providing user interfaces related
+ * to archive integration in applications.
+ **/
+
 /* autoar_gtk_format_filter_simple */
 
 enum
@@ -220,6 +230,23 @@ simple_changed_cb (GtkComboBox *simple,
   }
 }
 
+/**
+ * autoar_gtk_format_filter_simple_new:
+ * @default_format: an #AutoarFormat
+ * @default_filter: an #AutoarFilter
+ *
+ * Create a #GtkComboBox with a list of common archive format. There is also
+ * an option called "Other format…", which will use
+ * autoar_gtk_format_filter_advanced_new() and
+ * autoar_gtk_format_filter_advanced_get() to select less common archive
+ * format. Arguments @default_format and @default_filter are the default archive
+ * format selected on the returned widget. You may want to get the preferred
+ * format of users using autoar_pref_get_default_format() and
+ * autoar_pref_get_default_filter(), or just set them to 1 to select
+ * the default archive format.
+ *
+ * Returns: a new #GtkComboBox widget
+ **/
 GtkWidget*
 autoar_gtk_format_filter_simple_new (AutoarFormat default_format,
                                      AutoarFilter default_filter)
@@ -300,6 +327,18 @@ autoar_gtk_format_filter_simple_new (AutoarFormat default_format,
   return simple_widget;
 }
 
+/**
+ * autoar_gtk_format_filter_simple_get:
+ * @simple: a #GtkComboBox returned by autoar_gtk_format_filter_simple_new()
+ * @format: the place to store the #AutoarFormat selected by the user
+ * @filter: the place to store the #AutoarFilter selected by the user
+ *
+ * Gets the selected archive format of the widget created by
+ * autoar_gtk_format_filter_simple_new().
+ *
+ * Returns: %TRUE if @format and @filter are set. %FALSE if there is no
+ * selected item on @simple, so @format and @filter are not modified.
+ **/
 gboolean
 autoar_gtk_format_filter_simple_get (GtkWidget *simple,
                                      int *format,
@@ -398,6 +437,16 @@ advanced_filter_store (void)
   return GTK_TREE_MODEL (store);
 }
 
+/**
+ * autoar_gtk_format_filter_advanced_new:
+ * @default_format: an #AutoarFormat
+ * @default_filter: an #AutoarFilter
+ *
+ * Create a #GtkGrid with two lists. One list shows all available formats,
+ * and the other list shows all available filters.
+ *
+ * Returns: a new #GtkGrid widget
+ **/
 GtkWidget*
 autoar_gtk_format_filter_advanced_new (AutoarFormat default_format,
                                        AutoarFilter default_filter)
@@ -514,6 +563,18 @@ autoar_gtk_format_filter_advanced_new (AutoarFormat default_format,
   return advanced_widget;
 }
 
+/**
+ * autoar_gtk_format_filter_advanced_get:
+ * @advanced: a #GtkGrid returned by autoar_gtk_format_filter_advanced_new()
+ * @format: the place to store the #AutoarFormat selected by the user
+ * @filter: the place to store the #AutoarFilter selected by the user
+ *
+ * Gets the selected archive format of the widget created by
+ * autoar_gtk_format_filter_advanced_new().
+ *
+ * Returns: %TRUE if @format and @filter are set. %FALSE if there is no
+ * selected item on @advanced, so @format and @filter are not modified.
+ **/
 gboolean
 autoar_gtk_format_filter_advanced_get (GtkWidget *advanced,
                                        int *format,

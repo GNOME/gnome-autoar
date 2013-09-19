@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef AUTOAR_UI_H
-#define AUTOAR_UI_H
+#ifndef AUTOAR_GTK_H
+#define AUTOAR_GTK_H
 
 #include <gtk/gtk.h>
 
@@ -46,4 +46,4 @@ gboolean   autoar_gtk_format_filter_advanced_get  (GtkWidget *advanced,
 
 G_END_DECLS
 
-#endif /* AUTOAR_UI_H */
+#endif /* AUTOAR_GTK_H */

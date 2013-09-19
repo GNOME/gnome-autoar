@@ -32,6 +32,15 @@
 #include <gobject/gvaluecollector.h>
 #include <string.h>
 
+/**
+ * SECTION:autoar-common
+ * @Short_description: Miscellaneous functions used by gnome-autoar
+ * @Title: autoar-common
+ * @Include: gnome-autoar/autoar.h
+ *
+ * Public utility functions used internally by other gnome-autoar functions.
+ **/
+
 typedef struct _AutoarCommonSignalData AutoarCommonSignalData;
 
 struct _AutoarCommonSignalData
@@ -42,8 +51,23 @@ struct _AutoarCommonSignalData
   GQuark detail;
 };
 
+/**
+ * autoar_common_libarchive_quark:
+ *
+ * Gets the libarchive Error Quark.
+ *
+ * Returns: a #GQuark.
+ **/
 G_DEFINE_QUARK (libarchive-quark, autoar_common_libarchive)
 
+/**
+ * autoar_common_get_filename_extension:
+ * @filename: a filename
+ *
+ * Gets the extension of a filename.
+ *
+ * Returns: (transfer none): a pointer to the extension of the filename
+ **/
 char*
 autoar_common_get_filename_extension (const char *filename)
 {
@@ -62,6 +86,15 @@ autoar_common_get_filename_extension (const char *filename)
   return dot_location;
 }
 
+/**
+ * autoar_common_get_basename_remove_extension:
+ * @filename: a filename
+ *
+ * Gets the basename of a path without its file name extension.
+ *
+ * Returns: (transfer full): a new filename without extension. Free the
+ * returned string with g_free().
+ **/
 char*
 autoar_common_get_basename_remove_extension (const char *filename)
 {
@@ -108,6 +141,21 @@ autoar_common_g_signal_emit_main_context (void *data)
   return FALSE;
 }
 
+/**
+ * autoar_common_g_signal_emit:
+ * @instance: the instance the signal is being emitted on.
+ * @in_thread: %TRUE if you are not call this function inside the main thread.
+ * @signal_id: the signal id
+ * @detail: the detail
+ * @...: parameters to be passed to the signal.
+ *
+ * This is a wrapper for g_signal_emit(). If @in_thread is %FALSE, this
+ * function is the same as g_signal_emit(). If @in_thread is %TRUE, the
+ * signal will be emitted from the main thread. This function will send
+ * the signal emission job via g_main_context_invoke(), but it does not
+ * wait for the signal emission job to be completed. Hence, the signal
+ * may emitted after autoar_common_g_signal_emit() is returned.
+ **/
 void
 autoar_common_g_signal_emit (gpointer instance,
                              gboolean in_thread,
@@ -165,6 +213,13 @@ autoar_common_g_signal_emit (gpointer instance,
   va_end (ap);
 }
 
+/**
+ * autoar_common_g_object_unref:
+ * @object: a #GObject
+ *
+ * This is a wrapper for g_object_unref(). If @object is %NULL, this function
+ * does nothing. Otherwise, it will call g_object_unref() on the @object.
+ **/
 void
 autoar_common_g_object_unref (gpointer object)
 {
@@ -172,6 +227,15 @@ autoar_common_g_object_unref (gpointer object)
     g_object_unref (object);
 }
 
+/**
+ * autoar_common_g_error_new_a:
+ * @a: a archive object
+ * @pathname: the file which causes error, or %NULL
+ *
+ * Creates a new #GError with error messages got from libarchive.
+ *
+ * Returns: (transfer full): a #GError. Free with g_error_free().
+ **/
 GError*
 autoar_common_g_error_new_a (struct archive *a,
                              const char *pathname)
@@ -187,6 +251,15 @@ autoar_common_g_error_new_a (struct archive *a,
   return newerror;
 }
 
+/**
+ * autoar_common_g_error_new_a_entry:
+ * @a: a archive object
+ * @entry: a archive_entry object
+ *
+ * Gets pathname from @entry and call autoar_common_g_error_new_a().
+ *
+ * Returns: (transfer full): a #GError. Free with g_error_free().
+ **/
 GError*
 autoar_common_g_error_new_a_entry (struct archive *a,
                                    struct archive_entry *entry)
@@ -194,6 +267,16 @@ autoar_common_g_error_new_a_entry (struct archive *a,
   return autoar_common_g_error_new_a (a, archive_entry_pathname (entry));
 }
 
+/**
+ * autoar_common_g_file_get_name:
+ * @file: a #GFile
+ *
+ * Gets a string represents the @file. It will be the path of @file if
+ * available. Otherwise, it will be the URI of @file.
+ *
+ * Returns: (transfer full): a string represents the file. Free the string
+ * with g_free().
+ **/
 char*
 autoar_common_g_file_get_name (GFile *file)
 {

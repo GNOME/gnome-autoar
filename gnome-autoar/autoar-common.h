@@ -38,6 +38,13 @@
 
 G_BEGIN_DECLS
 
+/**
+ * AUTOAR_LIBARCHIVE_ERROR:
+ *
+ * Error domain for libarchive. Error returned by functions in libarchive uses
+ * this domain. Error code and messages are got using archive_errno() and
+ * archive_error_string().
+ **/
 #define AUTOAR_LIBARCHIVE_ERROR autoar_common_libarchive_quark()
 
 GQuark    autoar_common_libarchive_quark               (void);

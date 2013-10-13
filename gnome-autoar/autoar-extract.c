@@ -1814,6 +1814,11 @@ autoar_extract_step_scan_toplevel (AutoarExtract *arextract)
     return;
   }
 
+  /* If we are unable to determine the total size, set it to a positive
+   * number to prevent strange percentage. */
+  if (priv->size <= 0)
+    priv->size = G_MAXUINT64;
+
   g_free (pathname_prefix);
   archive_read_free (a);
 

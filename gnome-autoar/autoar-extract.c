@@ -1718,7 +1718,8 @@ autoar_extract_step_initialize_pattern (AutoarExtract *arextract) {
 }
 
 static void
-autoar_extract_step_scan_toplevel (AutoarExtract *arextract) {
+autoar_extract_step_scan_toplevel (AutoarExtract *arextract)
+{
   /* Step 1: Scan all file names in the archive
    * We have to check whether the archive contains a top-level directory
    * before performing the extraction. We emit the "scanned" signal when
@@ -1740,19 +1741,19 @@ autoar_extract_step_scan_toplevel (AutoarExtract *arextract) {
   if (r != ARCHIVE_OK) {
     archive_read_free (a);
     r = libarchive_create_read_object (TRUE, arextract, &a);
-    if (priv->error == NULL) {
-      if (r != ARCHIVE_OK) {
+    if (r != ARCHIVE_OK) {
+      if (priv->error == NULL)
         priv->error = autoar_common_g_error_new_a (a, priv->source);
-      } else if (archive_filter_count (a) <= 1){
-        /* If we only use raw format and filter count is one, libarchive will
-         * not do anything except for just copying the source file. We do not
-         * want this thing to happen because it does unnecesssary copying. */
+      return;
+    } else if (archive_filter_count (a) <= 1){
+      /* If we only use raw format and filter count is one, libarchive will
+       * not do anything except for just copying the source file. We do not
+       * want this thing to happen because it does unnecesssary copying. */
+      if (priv->error == NULL)
         priv->error = g_error_new (AUTOAR_EXTRACT_ERROR, NOT_AN_ARCHIVE_ERRNO,
                                    "\'%s\': %s", priv->source, "not an archive");
-      }
+      return;
     }
-    archive_read_free (a);
-    return;
     priv->use_raw_format = TRUE;
   }
 

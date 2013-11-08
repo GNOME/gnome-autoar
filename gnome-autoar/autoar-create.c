@@ -125,7 +125,7 @@ enum
   PROGRESS,
   CANCELLED,
   COMPLETED,
-  ERROR,
+  AR_ERROR,
   LAST_SIGNAL
 };
 
@@ -610,7 +610,7 @@ libarchive_write_write_cb (struct archive *ar_write,
   if (arcreate->priv->error != NULL)
     return -1;
 
-  g_debug ("libarchive_write_write_cb: %lu", write_size);
+  g_debug ("libarchive_write_write_cb: %" G_GSSIZE_FORMAT, write_size);
   return write_size;
 }
 
@@ -663,7 +663,7 @@ autoar_create_signal_error (AutoarCreate *arcreate)
       autoar_create_signal_cancelled (arcreate);
     } else {
       autoar_common_g_signal_emit (arcreate, arcreate->priv->in_thread,
-                                   autoar_create_signals[ERROR], 0,
+                                   autoar_create_signals[AR_ERROR], 0,
                                    arcreate->priv->error);
     }
   }
@@ -881,7 +881,9 @@ autoar_create_do_add_to_archive (AutoarCreate *arcreate,
       break;
 
     case G_FILE_TYPE_SPECIAL:
-#ifdef HAVE_STAT
+#if (defined HAVE_STAT) && \
+    (defined S_ISBLK) && (defined S_ISSOCK) && \
+    (defined S_ISCHR) && (defined S_ISFIFO)
       {
         struct stat filestat;
         char *local_pathname;
@@ -1190,7 +1192,7 @@ autoar_create_class_init (AutoarCreateClass *klass)
  * GIO, and libarchive, respectively. The #GError is owned by #AutoarCreate
  * and should not be freed.
  **/
-  autoar_create_signals[ERROR] =
+  autoar_create_signals[AR_ERROR] =
     g_signal_new ("error",
                   type,
                   G_SIGNAL_RUN_LAST,

@@ -165,7 +165,7 @@ enum
   PROGRESS,
   CANCELLED,
   COMPLETED,
-  ERROR,
+  AR_ERROR,
   LAST_SIGNAL
 };
 
@@ -678,14 +678,14 @@ libarchive_read_read_cb (struct archive *ar_read,
   if (priv->error != NULL)
     return -1;
 
-  g_debug ("libarchive_read_read_cb: %lu", read_size);
+  g_debug ("libarchive_read_read_cb: %" G_GSSIZE_FORMAT, read_size);
   return read_size;
 }
 
-static off_t
+static gint64
 libarchive_read_seek_cb (struct archive *ar_read,
                          void *client_data,
-                         off_t request,
+                         gint64 request,
                          int whence)
 {
   AutoarExtract *arextract;
@@ -729,10 +729,10 @@ libarchive_read_seek_cb (struct archive *ar_read,
   return new_offset;
 }
 
-static off_t
+static gint64
 libarchive_read_skip_cb (struct archive *ar_read,
                          void *client_data,
-                         off_t request)
+                         gint64 request)
 {
   AutoarExtract *arextract;
   AutoarExtractPrivate *priv;
@@ -851,7 +851,7 @@ autoar_extract_signal_error (AutoarExtract *arextract)
       autoar_extract_signal_cancelled (arextract);
     } else {
       autoar_common_g_signal_emit (arextract, arextract->priv->in_thread,
-                                   autoar_extract_signals[ERROR], 0,
+                                   autoar_extract_signals[AR_ERROR], 0,
                                    arextract->priv->error);
     }
   }
@@ -1083,7 +1083,7 @@ autoar_extract_do_write_entry (AutoarExtract *arextract,
         GOutputStream *ostream;
         const void *buffer;
         size_t size, written;
-        off_t offset;
+        gint64 offset;
 
         g_debug ("autoar_extract_do_write_entry: case REG");
         ostream = (GOutputStream*)g_file_replace (dest,
@@ -1458,7 +1458,7 @@ autoar_extract_class_init (AutoarExtractClass *klass)
  * GIO, and libarchive, respectively. The #GError is owned by #AutoarExtract
  * and should not be freed.
  **/
-  autoar_extract_signals[ERROR] =
+  autoar_extract_signals[AR_ERROR] =
     g_signal_new ("error",
                   type,
                   G_SIGNAL_RUN_LAST,

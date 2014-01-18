@@ -7,6 +7,9 @@
 .deps
 .libs
 .*.sw[op]
+*.enums.xml
+*.gschema.valid
+.dirstamp
 stamp-*
 
 cscope.out
@@ -37,9 +40,6 @@ gnome-autoar-*.tar.*
 
 gnome-autoar/*-enum-types.[ch]
 gnome-autoar/gnome-autoar.pc
-
-data/*.enums.xml
-data/*.gschema.valid
 
 tests/test-extract
 tests/test-extract-memory

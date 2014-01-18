@@ -9,7 +9,7 @@ AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_SRCDIR([gnome-autoar/autoar.h])
 AC_CONFIG_HEADERS([config.h])
 
-AM_INIT_AUTOMAKE([1.11 foreign dist-xz no-dist-gzip tar-ustar])
+AM_INIT_AUTOMAKE([1.11 foreign dist-xz no-dist-gzip tar-ustar subdir-objects])
 AM_MAINTAINER_MODE([enable])
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 
@@ -59,12 +59,9 @@ AC_C_INLINE
 AC_CHECK_FUNCS([getgrnam getpwnam link mkfifo mknod stat])
 
 AC_CONFIG_FILES([Makefile
-                 gnome-autoar/Makefile
-                 gnome-autoar/gnome-autoar.pc
-                 data/Makefile
-                 tests/Makefile
                  docs/Makefile
-                 docs/reference/Makefile])
+                 docs/reference/Makefile
+                 gnome-autoar/gnome-autoar.pc])
 AC_OUTPUT
 
 echo "

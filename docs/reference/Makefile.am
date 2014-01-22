@@ -20,12 +20,10 @@ IGNORE_HFILES = \
 
 GTKDOC_CFLAGS = \
 	-I$(top_srcdir) \
-	-I$(DEPENDENCIES_CFLAGS) \
 	$(NULL)
 
 GTKDOC_LIBS = \
 	$(top_builddir)/gnome-autoar/libgnome-autoar.la \
-	$(DEPENDENCIES_LIBS) \
 	$(NULL)
 
 # This includes the standard gtk-doc make rules, copied by gtkdocize.

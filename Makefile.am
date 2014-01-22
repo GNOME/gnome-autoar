@@ -66,12 +66,17 @@ gnome_autoar_libgnome_autoar_la_CPPFLAGS = \
 	$(AM_CPPFLAGS)				\
 	$(NULL)
 gnome_autoar_libgnome_autoar_la_CFLAGS = \
-	$(DEPENDENCIES_CFLAGS)			\
+	$(GTK_CFLAGS)				\
+	$(GIO_CFLAGS)				\
+	$(LIBARCHIVE_CFLAGS)			\
 	-I$(top_srcdir)				\
 	-I$(top_builddir)/gnome-autoar		\
 	$(AM_CFLAGS)				\
 	$(NULL)
 gnome_autoar_libgnome_autoar_la_LIBADD = \
+	$(GTK_LIBS)				\
+	$(GIO_LIBS)				\
+	$(LIBARCHIVE_LIBS)			\
 	$(DEPENDENCIES_LIBS)			\
 	$(NULL)
 
@@ -131,14 +136,15 @@ noinst_PROGRAMS = \
 	$(NULL)
 
 test_cflags = \
-	$(DEPENDENCIES_CFLAGS)	\
+	$(GTK_CFLAGS)		\
+	$(GIO_CFLAGS)		\
+	$(LIBARCHIVE_CFLAGS)	\
 	-I$(top_srcdir)		\
 	$(AM_CFLAGS)		\
 	$(NULL)
 
 test_libs = \
 	$(top_builddir)/gnome-autoar/libgnome-autoar.la	\
-	$(DEPENDENCIES_LIBS)	\
 	$(NULL)
 
 tests_test_extract_SOURCES = tests/test-extract.c

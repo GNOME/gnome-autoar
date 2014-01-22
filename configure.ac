@@ -37,13 +37,18 @@ GOBJECT_INTROSPECTION_CHECK([1.30.0])
 GLIB_REQUIRED=2.35.6
 GTK_REQUIRED=3.2
 LIBARCHIVE_REQUIRED=3.1.0
-PKG_CHECK_MODULES([DEPENDENCIES], [
+
+PKG_CHECK_MODULES([LIBARCHIVE], [libarchive >= $LIBARCHIVE_REQUIRED], [],
+                  [AC_SEARCH_LIBS([archive_read_new], [archive], [],
+                  [AC_MSG_ERROR([libarchive not found])])])
+
+PKG_CHECK_MODULES([GIO], [
         glib-2.0    >= $GLIB_REQUIRED
         gobject-2.0 >= $GLIB_REQUIRED
         gio-2.0     >= $GLIB_REQUIRED
-        gtk+-3.0    >= $GTK_REQUIRED
-        libarchive  >= $LIBARCHIVE_REQUIRED
         ])
+
+PKG_CHECK_MODULES([GTK], [gtk+-3.0 >= $GTK_REQUIRED])
 
 AM_CPPFLAGS="$AM_CPPFLAGS $DEPRECATION_FLAGS"
 AM_CFLAGS="$AM_CFLAGS $WARN_CFLAGS $MORE_WARN_FLAGS"

@@ -189,7 +189,7 @@ static AutoarFilterDescription autoar_filter_description[] = {
  *
  * Returns: maximal allowed values of #AutoarFormat
  **/
-AutoarFormat
+int
 autoar_format_last (void)
 {
   return AUTOAR_FORMAT_LAST;
@@ -302,7 +302,7 @@ autoar_format_get_description_libarchive (AutoarFormat format)
 }
 
 /**
- * autoar_format_get_libarchive_read:
+ * autoar_format_get_libarchive_read: (skip)
  * @format: an #AutoarFormat
  *
  * Gets the function used to set format on the object returned by
@@ -318,7 +318,7 @@ autoar_format_get_libarchive_read (AutoarFormat format)
 }
 
 /**
- * autoar_format_get_libarchive_write:
+ * autoar_format_get_libarchive_write: (skip)
  * @format: an #AutoarFormat
  *
  * Gets the function used to set format on the object returned by
@@ -340,7 +340,7 @@ autoar_format_get_libarchive_write (AutoarFormat format)
  *
  * Returns: maximal allowed values of #AutoarFilter
  **/
-AutoarFilter
+int
 autoar_filter_last (void)
 {
   return AUTOAR_FILTER_LAST;
@@ -448,7 +448,7 @@ autoar_filter_get_description_libarchive (AutoarFilter filter)
 }
 
 /**
- * autoar_filter_get_libarchive_read:
+ * autoar_filter_get_libarchive_read: (skip)
  * @filter: an #AutoarFilter
  *
  * Gets the function used to add filter on the object returned by
@@ -464,7 +464,7 @@ autoar_filter_get_libarchive_read (AutoarFilter filter)
 }
 
 /**
- * autoar_filter_get_libarchive_write:
+ * autoar_filter_get_libarchive_write: (skip)
  * @filter: an #AutoarFilter
  *
  * Gets the function used to add filter on the object returned by

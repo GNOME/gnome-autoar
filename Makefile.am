@@ -7,7 +7,7 @@ ACLOCAL_AMFLAGS = -I m4
 
 EXTRA_DIST =
 BUILT_SOURCES =
-DISTCHECK_CONFIGURE_FLAGS = --enable-gtk-doc
+DISTCHECK_CONFIGURE_FLAGS = --enable-gtk-doc --enable-introspection
 
 
 # Top-level directory
@@ -71,11 +71,45 @@ gnome_autoar_libgnome_autoar_la_CFLAGS = \
 	-I$(top_builddir)/gnome-autoar		\
 	$(AM_CFLAGS)				\
 	$(NULL)
+gnome_autoar_libgnome_autoar_la_LIBADD = \
+	$(DEPENDENCIES_LIBS)			\
+	$(NULL)
 
 gnome-autoar/autoar-enum-types.h: gnome-autoar/autoar-enum-types.h.template $(libgnome_autoar_la_headers)
 	$(AM_V_GEN) (cd $(srcdir) && $(GLIB_MKENUMS) --template gnome-autoar/autoar-enum-types.h.template $(libgnome_autoar_la_headers) ) > $@
 gnome-autoar/autoar-enum-types.c: gnome-autoar/autoar-enum-types.c.template $(libgnome_autoar_la_headers)
 	$(AM_V_GEN) (cd $(srcdir) && $(GLIB_MKENUMS) --template gnome-autoar/autoar-enum-types.c.template $(libgnome_autoar_la_headers) ) > $@
+
+CLEANFILES = $(BUILT_SOURCES)
+DISTCLEANFILES = $(BUILT_SOURCES)
+MAINTAINERCLEANFILES = $(BUILT_SOURCES)
+
+-include $(INTROSPECTION_MAKEFILE)
+INTROSPECTION_GIRS = gnome-autoar/GnomeAutoar-0.1.gir
+INTROSPECTION_SCANNER_ARGS = --add-include-path=$(srcdir) --warn-all
+INTROSPECTION_COMPILER_ARGS = --includedir=$(srcdir)
+
+if HAVE_INTROSPECTION
+
+girdir = $(datadir)/gir-1.0
+gir_DATA = $(INTROSPECTION_GIRS)
+
+typelibdir = $(libdir)/girepository-1.0
+typelib_DATA = $(INTROSPECTION_GIRS:.gir=.typelib)
+
+gnome-autoar/GnomeAutoar-0.1.gir: gnome-autoar/libgnome-autoar.la
+gnome_autoar_GnomeAutoar_0_1_gir_SCANNERFLAGS = --identifier-prefix=Autoar
+gnome_autoar_GnomeAutoar_0_1_gir_CFLAGS = -I$(top_srcdir) $(AM_CFLAGS)
+gnome_autoar_GnomeAutoar_0_1_gir_INCLUDES = GLib-2.0 GObject-2.0 Gio-2.0 Gtk-3.0
+gnome_autoar_GnomeAutoar_0_1_gir_LIBS = gnome-autoar/libgnome-autoar.la
+gnome_autoar_GnomeAutoar_0_1_gir_FILES = \
+	$(libgnome_autoar_la_headers)		\
+	$(libgnome_autoar_la_sources)		\
+	$(NULL)
+
+CLEANFILES += $(gir_DATA) $(typelib_DATA)
+
+endif
 
 
 # Directory: data
@@ -122,9 +156,5 @@ tests_test_create_LDADD = $(test_libs)
 tests_test_ui_SOURCES = tests/test-ui.c
 tests_test_ui_CFLAGS = $(test_cflags)
 tests_test_ui_LDADD = $(test_libs)
-
-CLEANFILES = $(BUILT_SOURCES)
-DISTCLEANFILES = $(BUILT_SOURCES)
-MAINTAINERCLEANFILES = $(BUILT_SOURCES)
 
 SUBDIRS = . docs

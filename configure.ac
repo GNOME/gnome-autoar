@@ -30,6 +30,9 @@ AC_PATH_PROG(GLIB_COMPILE_RESOURCES, glib-compile-resources)
 # check for gtk-doc
 GTK_DOC_CHECK([1.14],[--flavour no-tmpl])
 
+# check for gobject-introspection
+GOBJECT_INTROSPECTION_CHECK([1.30.0])
+
 # Checks for libraries.
 GLIB_REQUIRED=2.35.6
 GTK_REQUIRED=3.2
@@ -62,6 +65,7 @@ AC_CONFIG_FILES([Makefile
                  docs/Makefile
                  docs/reference/Makefile
                  gnome-autoar/gnome-autoar.pc])
+AS_MKDIR_P([data])
 AC_OUTPUT
 
 echo "

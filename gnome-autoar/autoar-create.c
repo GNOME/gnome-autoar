@@ -82,7 +82,7 @@ G_DEFINE_QUARK (autoar-create, autoar_create)
 
 struct _AutoarCreatePrivate
 {
-  char **source;
+  GStrv  source;
   char  *output;
 
   GPtrArray *source_file; /* An array of GFile, not terminated by NULL */
@@ -246,7 +246,7 @@ autoar_create_set_property (GObject      *object,
  *
  * Returns: (transfer none): a %NULL-terminated array of strings
  **/
-char**
+GStrv
 autoar_create_get_source (AutoarCreate *arcreate)
 {
   g_return_val_if_fail (AUTOAR_IS_CREATE (arcreate), NULL);
@@ -260,7 +260,8 @@ autoar_create_get_source (AutoarCreate *arcreate)
  * This function is similar to autoar_create_get_source(), except for the return
  * value is an array of #GFile.
  *
- * Returns: (transfer none): a #GPtrArray, which is an array of #GFile
+ * Returns: (element-type GLib.PtrArray) (transfer none): a #GPtrArray,
+ * which is an array of #GFile
  **/
 GPtrArray*
 autoar_create_get_source_file (AutoarCreate *arcreate)
@@ -1238,14 +1239,14 @@ autoar_create_init (AutoarCreate *arcreate)
 }
 
 static AutoarCreate*
-autoar_create_new_full (const char **source,
+autoar_create_new_full (const GStrv  source,
                         GFile **source_file,
                         const char *output,
                         GFile *output_file,
                         AutoarPref *arpref)
 {
   AutoarCreate *arcreate;
-  const char **gen_source;
+  GStrv gen_source;
   char *gen_output;
   GPtrArray *gen_source_file;
   GFile *gen_output_file;
@@ -1262,7 +1263,7 @@ autoar_create_new_full (const char **source,
     for (i = 0; source_file[i] != NULL; i++)
       g_ptr_array_add (strv, autoar_common_g_file_get_name (source_file[i]));
     g_ptr_array_add (strv, NULL);
-    gen_source = (const char**) g_ptr_array_free (strv, FALSE);
+    gen_source = (const GStrv) g_ptr_array_free (strv, FALSE);
   }
 
   gen_source_file = g_ptr_array_new_with_free_func (g_object_unref);
@@ -1288,7 +1289,7 @@ autoar_create_new_full (const char **source,
                   NULL);
   arcreate->priv->arpref = g_object_ref (arpref);
 
-  g_strfreev ((char**)gen_source);
+  g_strfreev (gen_source);
   g_free (gen_output);
 
   if (gen_source_file != NULL)
@@ -1329,7 +1330,7 @@ autoar_create_new (AutoarPref *arpref,
   g_ptr_array_add (strv, NULL);
   va_end (ap);
 
-  arcreate = autoar_create_new_full ((const char**) strv->pdata, NULL,
+  arcreate = autoar_create_new_full ((const GStrv) strv->pdata, NULL,
                                      output, NULL, arpref);
   g_ptr_array_unref (strv);
   return arcreate;
@@ -1385,7 +1386,7 @@ autoar_create_new_file (AutoarPref *arpref,
 AutoarCreate*
 autoar_create_newv (AutoarPref  *arpref,
                     const char  *output,
-                    const char **source)
+                    const GStrv  source)
 {
   g_return_val_if_fail (source != NULL, NULL);
   g_return_val_if_fail (*source != NULL, NULL);

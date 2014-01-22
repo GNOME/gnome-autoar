@@ -118,7 +118,7 @@ typedef enum {
 typedef int (*AutoarFormatFunc) (struct archive *a);
 typedef int (*AutoarFilterFunc) (struct archive *a);
 
-AutoarFormat  autoar_format_last                        (void);
+int           autoar_format_last                        (void);
 gboolean      autoar_format_is_valid                    (AutoarFormat format);
 const char   *autoar_format_get_mime_type               (AutoarFormat format);
 const char   *autoar_format_get_extension               (AutoarFormat format);
@@ -128,7 +128,7 @@ int           autoar_format_get_format_libarchive       (AutoarFormat format);
 AutoarFormatFunc autoar_format_get_libarchive_read      (AutoarFormat format);
 AutoarFormatFunc autoar_format_get_libarchive_write     (AutoarFormat format);
 
-AutoarFilter  autoar_filter_last                        (void);
+int           autoar_filter_last                        (void);
 gboolean      autoar_filter_is_valid                    (AutoarFilter filter);
 const char   *autoar_filter_get_mime_type               (AutoarFilter filter);
 const char   *autoar_filter_get_extension               (AutoarFilter filter);

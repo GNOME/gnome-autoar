@@ -87,7 +87,7 @@ AutoarCreate*   autoar_create_new_file            (AutoarPref *arpref,
                                                    ...);
 AutoarCreate*   autoar_create_newv                (AutoarPref  *arpref,
                                                    const char  *output,
-                                                   const char **source);
+                                                   const GStrv  source);
 AutoarCreate*   autoar_create_new_filev           (AutoarPref  *arpref,
                                                    GFile       *output_file,
                                                    GFile      **source_file);
@@ -97,7 +97,7 @@ void            autoar_create_start               (AutoarCreate *arcreate,
 void            autoar_create_start_async         (AutoarCreate *arcreate,
                                                    GCancellable *cancellable);
 
-char          **autoar_create_get_source          (AutoarCreate *arcreate);
+GStrv           autoar_create_get_source          (AutoarCreate *arcreate);
 GPtrArray      *autoar_create_get_source_file     (AutoarCreate *arcreate);
 char           *autoar_create_get_output          (AutoarCreate *arcreate);
 GFile          *autoar_create_get_output_file     (AutoarCreate *arcreate);

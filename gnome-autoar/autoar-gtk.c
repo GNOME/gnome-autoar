@@ -245,7 +245,7 @@ simple_changed_cb (GtkComboBox *simple,
  * autoar_pref_get_default_filter(), or just set them to 1 to select
  * the default archive format.
  *
- * Returns: a new #GtkComboBox widget
+ * Returns: (transfer full): a new #GtkComboBox widget
  **/
 GtkWidget*
 autoar_gtk_format_filter_simple_new (AutoarFormat default_format,
@@ -445,7 +445,7 @@ advanced_filter_store (void)
  * Create a #GtkGrid with two lists. One list shows all available formats,
  * and the other list shows all available filters.
  *
- * Returns: a new #GtkGrid widget
+ * Returns: (transfer full): a new #GtkGrid widget
  **/
 GtkWidget*
 autoar_gtk_format_filter_advanced_new (AutoarFormat default_format,

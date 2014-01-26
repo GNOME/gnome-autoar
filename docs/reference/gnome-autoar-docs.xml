@@ -23,8 +23,11 @@
   <chapter>
     <title>gnome-autoar Utilities</title>
     <xi:include href="xml/autoar-format-filter.xml"/>
-    <xi:include href="xml/autoar-gtk.xml"/>
     <xi:include href="xml/autoar-common.xml"/>
+  </chapter>
+  <chapter>
+    <title>gnome-autoar GTK+ Widgets</title>
+    <xi:include href="xml/autoar-gtk-chooser.xml"/>
   </chapter>
 
   <chapter id="object-tree">

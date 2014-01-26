@@ -1,10 +1,7 @@
 /* vim: set sw=2 ts=2 sts=2 et: */
 /* -*- Mode: C; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /*
- * autoar-extract.h
- * Automatically extract archives in some GNOME programs
- *
- * Copyright (C) 2013  Ting-Wei Lan
+ * Copyright (C) 2013, 2014  Ting-Wei Lan
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -30,7 +27,6 @@
 #include <gnome-autoar/autoar-create.h>
 #include <gnome-autoar/autoar-format-filter.h>
 #include <gnome-autoar/autoar-extract.h>
-#include <gnome-autoar/autoar-gtk.h>
 #include <gnome-autoar/autoar-pref.h>
 
 #endif /* AUTOARCHIVE_H */

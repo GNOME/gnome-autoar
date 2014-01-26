@@ -1,6 +1,7 @@
 /* vim: set sw=2 ts=2 sts=2 et: */
 
 #include <gnome-autoar/autoar.h>
+#include <gnome-autoar/autoar-gtk.h>
 #include <gtk/gtk.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -14,7 +15,7 @@ before_deleted (GtkWindow *window,
   int filter;
   char *str;
 
-  autoar_gtk_format_filter_simple_get (simple, &format, &filter);
+  autoar_gtk_chooser_simple_get (simple, &format, &filter);
   if (!format || !filter) {
     GtkWidget *warning;
     warning = gtk_message_dialog_new (window,
@@ -53,7 +54,7 @@ main (int argc,
   format = (argc >= 2) ? atoi (argv[1]) : 0;
   filter = (argc >= 3) ? atoi (argv[2]) : 0;
 
-  simple = autoar_gtk_format_filter_simple_new (format, filter);
+  simple = autoar_gtk_chooser_simple_new (format, filter);
   gtk_container_add (GTK_CONTAINER (window), simple);
   g_signal_connect (window, "delete-event", G_CALLBACK (before_deleted), simple);
 

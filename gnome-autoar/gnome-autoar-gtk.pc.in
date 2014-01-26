@@ -4,8 +4,8 @@ libdir=@libdir@
 includedir=@includedir@
 
 Name: gnome-autoar
-Description: Archives integration support for GNOME
+Description: GTK+ widgets for gnome-autoar library
 Version: @VERSION@
-Requires: gio-2.0 gobject-2.0 glib-2.0 libarchive
-Libs: -L${libdir} -lgnome-autoar
+Requires: gtk+-3.0
+Libs: -L${libdir} -lgnome-autoar-gtk
 Cflags: -I${includedir}

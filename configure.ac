@@ -48,7 +48,33 @@ PKG_CHECK_MODULES([GIO], [
         gio-2.0     >= $GLIB_REQUIRED
         ])
 
-PKG_CHECK_MODULES([GTK], [gtk+-3.0 >= $GTK_REQUIRED])
+AC_ARG_ENABLE([gtk],
+        [AS_HELP_STRING([--enable-gtk], [Build some common GTK+ widgets])],
+        [enable_gtk="$enableval"], [enable_gtk=yes])
+if test x"$enable_gtk" = xyes; then
+        PKG_CHECK_MODULES(
+                [GTK], [gtk+-3.0 >= $GTK_REQUIRED], [],
+                [AC_MSG_ERROR([
+
+        gtk+-3.0 not found (or version < $GTK_REQUIRED)
+
+        If you want to disable support for common GTK+ widgets,
+        please append --disable-gtk to configure.
+
+        ])])
+fi
+AC_SUBST(GTK_CFLAGS)
+AC_SUBST(GTK_LIBS)
+AM_CONDITIONAL(ENABLE_GTK, [test x"$enable_gtk" = xyes])
+
+if test x"$enable_gtk_doc" = xyes && test x"$enable_gtk" '!=' xyes; then
+        AC_MSG_ERROR([
+
+        GTK+ widgets support must be enabled to build API documentation.
+        Please append --enable-gtk to configure.
+
+        ])
+fi
 
 AM_CPPFLAGS="$AM_CPPFLAGS $DEPRECATION_FLAGS"
 AM_CFLAGS="$AM_CFLAGS $WARN_CFLAGS $MORE_WARN_FLAGS"
@@ -69,7 +95,8 @@ AC_CHECK_FUNCS([getgrnam getpwnam link mkfifo mknod stat])
 AC_CONFIG_FILES([Makefile
                  docs/Makefile
                  docs/reference/Makefile
-                 gnome-autoar/gnome-autoar.pc])
+                 gnome-autoar/gnome-autoar.pc
+                 gnome-autoar/gnome-autoar-gtk.pc])
 AS_MKDIR_P([data])
 AC_OUTPUT
 
@@ -80,4 +107,9 @@ Configuration:
         Prefix                  : ${prefix}
         Compiler                : ${CC}
         CFLAGS                  : ${CFLAGS}
+
+Optional features:
+
+        Build API documentation : ${enable_gtk_doc}
+        GTK+ widgets            : ${enable_gtk}
 "

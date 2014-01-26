@@ -1,10 +1,10 @@
 /* vim: set sw=2 ts=2 sts=2 et: */
 /* -*- Mode: C; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /*
- * autoar-gtk.h
- * GTK+ user interfaces related to archives
+ * autoar-extract.h
+ * Automatically extract archives in some GNOME programs
  *
- * Copyright (C) 2013  Ting-Wei Lan
+ * Copyright (C) 2013, 2014  Ting-Wei Lan
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -23,27 +23,9 @@
  *
  */
 
-#ifndef AUTOAR_GTK_H
-#define AUTOAR_GTK_H
+#ifndef AUTOARCHIVE_GTK_H
+#define AUTOARHICVE_GTK_H
 
-#include <gtk/gtk.h>
+#include <gnome-autoar/autoar-gtk-chooser.h>
 
-#include "autoar-format-filter.h"
-
-G_BEGIN_DECLS
-
-GtkWidget *autoar_gtk_format_filter_simple_new    (AutoarFormat default_format,
-                                                   AutoarFilter default_filter);
-gboolean   autoar_gtk_format_filter_simple_get    (GtkWidget *simple,
-                                                   int *format,
-                                                   int *filter);
-
-GtkWidget *autoar_gtk_format_filter_advanced_new  (AutoarFormat default_format,
-                                                   AutoarFilter default_filter);
-gboolean   autoar_gtk_format_filter_advanced_get  (GtkWidget *advanced,
-                                                   int *format,
-                                                   int *filter);
-
-G_END_DECLS
-
-#endif /* AUTOAR_GTK_H */
+#endif /* AUTOARCHIVE_GTK_H */

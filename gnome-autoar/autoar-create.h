@@ -54,16 +54,6 @@ struct _AutoarCreate
 struct _AutoarCreateClass
 {
   GObjectClass parent_class;
-
-  void (* decide_dest)(AutoarCreate *arcreate,
-                       GFile *destination);
-  void (* progress)   (AutoarCreate *arcreate,
-                       guint64 completed_size,
-                       guint completed_files);
-  void (* cancelled)  (AutoarCreate *arcreate);
-  void (* completed)  (AutoarCreate *arcreate);
-  void (* error)      (AutoarCreate *arcreate,
-                       GError *error);
 };
 
 /**

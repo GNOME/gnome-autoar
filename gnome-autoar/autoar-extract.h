@@ -54,18 +54,6 @@ struct _AutoarExtract
 struct _AutoarExtractClass
 {
   GObjectClass parent_class;
-
-  void (* scanned)    (AutoarExtract *arextract,
-                       guint files);
-  void (* decide_dest)(AutoarExtract *arextract,
-                       GFile *destination);
-  void (* progress)   (AutoarExtract *arextract,
-                       gdouble fraction_size,
-                       gdouble fraction_files);
-  void (* cancelled)  (AutoarExtract *arextract);
-  void (* completed)  (AutoarExtract *arextract);
-  void (* error)      (AutoarExtract *arextract,
-                       GError *error);
 };
 
 /**

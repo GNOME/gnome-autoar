@@ -79,7 +79,6 @@ gnome_autoar_libgnome_autoar_la_CFLAGS = \
 gnome_autoar_libgnome_autoar_la_LIBADD = \
 	$(GIO_LIBS)				\
 	$(LIBARCHIVE_LIBS)			\
-	$(DEPENDENCIES_LIBS)			\
 	$(NULL)
 
 if ENABLE_GTK

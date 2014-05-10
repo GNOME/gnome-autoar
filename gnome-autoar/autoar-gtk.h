@@ -24,7 +24,7 @@
  */
 
 #ifndef AUTOARCHIVE_GTK_H
-#define AUTOARHICVE_GTK_H
+#define AUTOARCHIVE_GTK_H
 
 #include <gnome-autoar/autoar-gtk-chooser.h>
 

@@ -17,6 +17,12 @@ IGNORE_HFILES = \
 	autoar.h \
 	autoar-gtk.h \
 	autoar-enum-types.h \
+	autoar-private.h \
+	$(NULL)
+
+IGNORE_CFILES = \
+	autoar-enum-types.c \
+	autoar-private.c \
 	$(NULL)
 
 GTKDOC_CFLAGS = \

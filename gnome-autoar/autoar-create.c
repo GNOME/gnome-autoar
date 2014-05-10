@@ -24,9 +24,10 @@
  */
 
 #include "config.h"
-
 #include "autoar-create.h"
-#include "autoar-common.h"
+
+#include "autoar-misc.h"
+#include "autoar-private.h"
 #include "autoar-pref.h"
 
 #include <archive.h>

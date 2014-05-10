@@ -1,11 +1,12 @@
 /* vim: set sw=2 ts=2 sts=2 et: */
 /* -*- Mode: C; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /*
- * autoar-common.c
- * Some common functions used in several classes of autoarchive
- * This file does NOT declare any new classes!
+ * autoar-private.c
+ * Some common functions used in several classes of gnome-autoar
+ * This file does NOT declare any new classes and it should NOT
+ * be used outside the library itself!
  *
- * Copyright (C) 2013  Ting-Wei Lan
+ * Copyright (C) 2013, 2014  Ting-Wei Lan
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -25,8 +26,9 @@
  */
 
 #include "config.h"
+#include "autoar-private.h"
 
-#include "autoar-common.h"
+#include "autoar-misc.h"
 
 #include <glib.h>
 #include <gobject/gvaluecollector.h>
@@ -52,15 +54,6 @@ struct _AutoarCommonSignalData
 };
 
 /**
- * autoar_common_libarchive_quark:
- *
- * Gets the libarchive Error Quark.
- *
- * Returns: a #GQuark.
- **/
-G_DEFINE_QUARK (libarchive-quark, autoar_common_libarchive)
-
-/**
  * autoar_common_get_filename_extension:
  * @filename: a filename
  *
@@ -68,7 +61,7 @@ G_DEFINE_QUARK (libarchive-quark, autoar_common_libarchive)
  *
  * Returns: (transfer none): a pointer to the extension of the filename
  **/
-char*
+G_GNUC_INTERNAL char*
 autoar_common_get_filename_extension (const char *filename)
 {
   char *dot_location;
@@ -95,7 +88,7 @@ autoar_common_get_filename_extension (const char *filename)
  * Returns: (transfer full): a new filename without extension. Free the
  * returned string with g_free().
  **/
-char*
+G_GNUC_INTERNAL char*
 autoar_common_get_basename_remove_extension (const char *filename)
 {
   char *dot_location;
@@ -156,7 +149,7 @@ autoar_common_g_signal_emit_main_context (void *data)
  * wait for the signal emission job to be completed. Hence, the signal
  * may emitted after autoar_common_g_signal_emit() is returned.
  **/
-void
+G_GNUC_INTERNAL void
 autoar_common_g_signal_emit (gpointer instance,
                              gboolean in_thread,
                              guint signal_id,
@@ -220,7 +213,7 @@ autoar_common_g_signal_emit (gpointer instance,
  * This is a wrapper for g_object_unref(). If @object is %NULL, this function
  * does nothing. Otherwise, it will call g_object_unref() on the @object.
  **/
-void
+G_GNUC_INTERNAL void
 autoar_common_g_object_unref (gpointer object)
 {
   if (object != NULL)
@@ -236,7 +229,7 @@ autoar_common_g_object_unref (gpointer object)
  *
  * Returns: (transfer full): a #GError. Free with g_error_free().
  **/
-GError*
+G_GNUC_INTERNAL GError*
 autoar_common_g_error_new_a (struct archive *a,
                              const char *pathname)
 {
@@ -260,7 +253,7 @@ autoar_common_g_error_new_a (struct archive *a,
  *
  * Returns: (transfer full): a #GError. Free with g_error_free().
  **/
-GError*
+G_GNUC_INTERNAL GError*
 autoar_common_g_error_new_a_entry (struct archive *a,
                                    struct archive_entry *entry)
 {
@@ -277,7 +270,7 @@ autoar_common_g_error_new_a_entry (struct archive *a,
  * Returns: (transfer full): a string represents the file. Free the string
  * with g_free().
  **/
-char*
+G_GNUC_INTERNAL char*
 autoar_common_g_file_get_name (GFile *file)
 {
   char *name;

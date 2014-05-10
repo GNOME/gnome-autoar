@@ -1,7 +1,10 @@
 /* vim: set sw=2 ts=2 sts=2 et: */
 /* -*- Mode: C; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /*
- * Copyright (C) 2013, 2014  Ting-Wei Lan
+ * autoar-misc.h
+ * Miscellaneous functions and shared data types used by gnome-autoar
+ *
+ * Copyright (C) 2014  Ting-Wei Lan
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -20,13 +23,25 @@
  *
  */
 
-#ifndef AUTOARCHIVE_H
-#define AUTOARHICVE_H
+#ifndef AUTOAR_MISC_H
+#define AUTOAR_MISC_H
 
-#include <gnome-autoar/autoar-create.h>
-#include <gnome-autoar/autoar-format-filter.h>
-#include <gnome-autoar/autoar-extract.h>
-#include <gnome-autoar/autoar-misc.h>
-#include <gnome-autoar/autoar-pref.h>
+#include <glib.h>
 
-#endif /* AUTOARCHIVE_H */
+G_BEGIN_DECLS
+
+/**
+ * AUTOAR_LIBARCHIVE_ERROR:
+ *
+ * Error domain for libarchive. Error returned by functions in libarchive uses
+ * this domain. Error code and messages are got using archive_errno() and
+ * archive_error_string() functions provided by libarchive.
+ **/
+
+#define AUTOAR_LIBARCHIVE_ERROR autoar_libarchive_quark()
+
+GQuark    autoar_libarchive_quark                      (void);
+
+G_END_DECLS
+
+#endif /* AUTOAR_COMMON_H */

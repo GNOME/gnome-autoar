@@ -1,11 +1,12 @@
 /* vim: set sw=2 ts=2 sts=2 et: */
 /* -*- Mode: C; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /*
- * autoar-common.h
- * Some common functions used in several classes of autoarchive
- * This file does NOT declare any new classes!
+ * autoar-private.h
+ * Some common functions used in several classes of gnome-autoar
+ * This file does NOT declare any new classes and it should NOT
+ * be used outside the library itself!
  *
- * Copyright (C) 2013  Ting-Wei Lan
+ * Copyright (C) 2013, 2014  Ting-Wei Lan
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -24,8 +25,8 @@
  *
  */
 
-#ifndef AUTOAR_COMMON_H
-#define AUTOAR_COMMON_H
+#ifndef AUTOAR_PRIVATE_H
+#define AUTOAR_PRIVATE_H
 
 /* archive.h use time_t */
 #include <time.h>
@@ -37,17 +38,6 @@
 #include <glib-object.h>
 
 G_BEGIN_DECLS
-
-/**
- * AUTOAR_LIBARCHIVE_ERROR:
- *
- * Error domain for libarchive. Error returned by functions in libarchive uses
- * this domain. Error code and messages are got using archive_errno() and
- * archive_error_string().
- **/
-#define AUTOAR_LIBARCHIVE_ERROR autoar_common_libarchive_quark()
-
-GQuark    autoar_common_libarchive_quark               (void);
 
 char*     autoar_common_get_basename_remove_extension  (const char *filename);
 char*     autoar_common_get_filename_extension         (const char *filename);

@@ -22,18 +22,22 @@ EXTRA_DIST += \
 	$(NULL)
 
 libgnome_autoar_la_headers = \
-	gnome-autoar/autoar-common.h		\
 	gnome-autoar/autoar-create.h		\
 	gnome-autoar/autoar-extract.h		\
 	gnome-autoar/autoar-format-filter.h	\
+	gnome-autoar/autoar-misc.h		\
 	gnome-autoar/autoar-pref.h		\
 	$(NULL)
 libgnome_autoar_la_sources = \
-	gnome-autoar/autoar-common.c		\
 	gnome-autoar/autoar-create.c		\
 	gnome-autoar/autoar-extract.c		\
 	gnome-autoar/autoar-format-filter.c	\
+	gnome-autoar/autoar-misc.c		\
 	gnome-autoar/autoar-pref.c		\
+	$(NULL)
+libgnome_autoar_la_private_files = \
+	gnome-autoar/autoar-private.h		\
+	gnome-autoar/autoar-private.c		\
 	$(NULL)
 libgnome_autoar_la_generated_files = \
 	gnome-autoar/autoar-enum-types.h	\
@@ -63,6 +67,7 @@ autoarinclude_HEADERS = \
 
 gnome_autoar_libgnome_autoar_la_SOURCES = \
 	$(libgnome_autoar_la_generated_files)	\
+	$(libgnome_autoar_la_private_files)	\
 	$(libgnome_autoar_la_headers)		\
 	$(libgnome_autoar_la_sources)		\
 	$(NULL)

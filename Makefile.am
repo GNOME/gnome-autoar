@@ -157,7 +157,7 @@ if ENABLE_GTK
 
 INTROSPECTION_GIRS += gnome-autoar/GnomeAutoarGtk-0.1.gir
 
-gnome-autoar/GnomeAutoarGtk-0.1.gir: gnome-autoar/libgnome-autoar-gtk.la
+gnome-autoar/GnomeAutoarGtk-0.1.gir: gnome-autoar/libgnome-autoar-gtk.la gnome-autoar/GnomeAutoar-0.1.gir
 gnome_autoar_GnomeAutoarGtk_0_1_gir_SCANNERFLAGS = --identifier-prefix=AutoarGtk
 gnome_autoar_GnomeAutoarGtk_0_1_gir_CFLAGS = -I$(top_srcdir) $(AM_CFLAGS)
 gnome_autoar_GnomeAutoarGtk_0_1_gir_INCLUDES = GnomeAutoar-0.1 Gtk-3.0

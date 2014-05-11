@@ -816,10 +816,8 @@ autoar_extract_signal_progress (AutoarExtract *arextract)
   if (mtime - arextract->priv->notify_last >= arextract->priv->notify_interval) {
     autoar_common_g_signal_emit (arextract, arextract->priv->in_thread,
                                  autoar_extract_signals[PROGRESS], 0,
-                                 ((double)(arextract->priv->completed_size)) /
-                                 ((double)(arextract->priv->size)),
-                                 ((double)(arextract->priv->completed_files)) /
-                                 ((double)(arextract->priv->files)));
+                                 arextract->priv->completed_size,
+                                 arextract->priv->completed_files);
     arextract->priv->notify_last = mtime;
   }
 }
@@ -1394,8 +1392,8 @@ autoar_extract_class_init (AutoarExtractClass *klass)
 /**
  * AutoarExtract::progress:
  * @arextract: the #AutoarExtract
- * @fraction_size: fraction of size has been written to disk
- * @fraction_files: fraction of number of files have been written to disk
+ * @completed_size: bytes has been written to disk
+ * @completed_files: number of files have been written to disk
  *
  * This signal is used to report progress of creating archives.
  **/
@@ -1407,8 +1405,8 @@ autoar_extract_class_init (AutoarExtractClass *klass)
                   g_cclosure_marshal_generic,
                   G_TYPE_NONE,
                   2,
-                  G_TYPE_DOUBLE,
-                  G_TYPE_DOUBLE);
+                  G_TYPE_UINT64,
+                  G_TYPE_UINT);
 
 /**
  * AutoarExtract::cancelled:

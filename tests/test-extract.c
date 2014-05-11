@@ -28,13 +28,13 @@ my_handler_decide_dest (AutoarExtract *arextract,
 
 static void
 my_handler_progress (AutoarExtract *arextract,
-                     gdouble fraction_size,
-                     gdouble fraction_files,
+                     guint64 completed_size,
+                     guint completed_files,
                      gpointer data)
 {
   g_print ("\rProgress: Archive Size %.2lf %%, Files %.2lf %%",
-           fraction_size * 100,
-           fraction_files * 100);
+           ((double)(completed_size)) * 100 / autoar_extract_get_size (arextract),
+           ((double)(completed_files)) * 100 / autoar_extract_get_files (arextract));
 }
 
 static void

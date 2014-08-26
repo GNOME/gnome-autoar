@@ -39,8 +39,12 @@ GLIB_REQUIRED=2.35.6
 GTK_REQUIRED=3.2
 LIBARCHIVE_REQUIRED=3.1.0
 
-PKG_CHECK_MODULES([LIBARCHIVE], [libarchive >= $LIBARCHIVE_REQUIRED], [],
-                  [AC_SEARCH_LIBS([archive_read_new], [archive], [],
+PKG_CHECK_MODULES([LIBARCHIVE], [libarchive >= $LIBARCHIVE_REQUIRED],
+                  [GNOME_AUTOAR_LIBARCHIVE_REQUIRES="libarchive"
+                   AC_SUBST([GNOME_AUTOAR_LIBARCHIVE_REQUIRES])],
+                  [AC_SEARCH_LIBS([archive_read_new], [archive],
+                  [GNOME_AUTOAR_LIBARCHIVE_LIBS="-larchive"
+                   AC_SUBST([GNOME_AUTOAR_LIBARCHIVE_LIBS])],
                   [AC_MSG_ERROR([libarchive not found])])])
 
 PKG_CHECK_MODULES([GIO], [

@@ -96,6 +96,7 @@ G_DEFINE_QUARK (autoar-extract, autoar_extract)
 
 #define BUFFER_SIZE (64 * 1024)
 #define NOT_AN_ARCHIVE_ERRNO 2013
+#define EMPTY_ARCHIVE_ERRNO 2014
 
 typedef struct _GFileAndInfo GFileAndInfo;
 
@@ -1795,6 +1796,15 @@ autoar_extract_step_scan_toplevel (AutoarExtract *arextract)
     priv->files++;
     priv->size += archive_entry_size (entry);
     archive_read_data_skip (a);
+  }
+
+  if (pathname_prefix == NULL) {
+    if (priv->error == NULL) {
+      priv->error = g_error_new (AUTOAR_EXTRACT_ERROR, EMPTY_ARCHIVE_ERRNO,
+                                 "\'%s\': %s", priv->source, "empty archive");
+    }
+    archive_read_free (a);
+    return;
   }
 
   if (r != ARCHIVE_EOF) {

@@ -13,17 +13,33 @@ my_handler_scanned (AutoarExtract *arextract,
   g_print ("Scanning OK, %d files to be extracted.\n", files);
 }
 
-static void
+static GFile*
 my_handler_decide_dest (AutoarExtract *arextract,
-                        GFile *dest)
+                        GFile *dest,
+                        GList *files,
+                        gpointer data)
 {
   char *path, *uri;
+  GList *l;
+
   path = g_file_get_path (dest);
   uri = g_file_get_uri (dest);
   g_print ("Destination Path: %s\n", path);
   g_print ("Destination URI: %s\n", uri);
   g_free (path);
   g_free (uri);
+
+
+  for (l = files; l != NULL; l = l->next) {
+    char *pathname;
+
+    pathname = g_file_get_path (l->data);
+    g_print ("File: %s\n", pathname);
+
+    g_free (pathname);
+  }
+
+  return g_object_ref (dest);
 }
 
 static void

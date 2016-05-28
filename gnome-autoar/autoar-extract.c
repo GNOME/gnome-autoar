@@ -59,20 +59,30 @@
  * @Include: gnome-autoar/autoar.h
  *
  * The #AutoarExtract object is used to automatically extract files and
- * directories from an archive. It will create a file in the output directory
- * if the archive only contains one file, or it will create a directory in the
- * output directory if the archive contains more than one file. #AutoarExtract
- * create only one file or directory in the output directory, so the output
- * directory will not be messed. All absolute paths in archives will be
- * converted to relative paths and all extracted files will be placed under the
- * directory notified by #AutoarExtract::decide-dest. The created file
- * or directory name will be generated based on the name of the source archive,
- * so users can easily figure out the relation between the archive and the
- * extracted files. #AutoarExtract can also ignore specific file name pattern
- * when extrating, or delete the source archive after extracting, depending on
- * the settings provided by the #AutoarPref object.
+ * directories from an archive. By default, it will only create one file or
+ * directory in the output directory. This is done to avoid clutter on the
+ * user's output directory. If the archive contains only one file, the file
+ * will be extracted to the output directory. If the archive has more than one
+ * file, the files will be extracted in a directory having the same name as the
+ * archive, except the extension. It is also possible to just extract all files
+ * to the output directory (note that this will not perform any checks) by
+ * using autoar_extract_set_output_is_dest().
+
+ * #AutoarExtract will not attempt to solve any name conflicts. If the
+ * destination directory already exists, it will proceed normally. If the
+ * destionation directory cannot be created, it will fail with an error.
+ * It is possible however to change the destination, when
+ * #AutoarExtract::decide-destination is emitted. The signal provides the decided
+ * destination and the list of files to be extracted. The signal also allows a
+ * new output destination to be used instead of the one provided by
+ * #AutoarExtract. This is convenient for solving name conflicts and
+ * implementing specific logic based on the contents of the archive.
+
+ * #AutoarExtract can also ignore specific file name pattern when extrating,
+ * or delete the source archive after extracting, depending on the settings
+ * provided by the #AutoarPref object.
  *
- * When #AutoarExtract stop all work, it will emit one of the three signals:
+ * When #AutoarExtract stops all work, it will emit one of the three signals:
  * #AutoarExtract::cancelled, #AutoarExtract::error, and
  * #AutoarExtract::completed. After one of these signals is received,
  * the #AutoarExtract object should be destroyed because it cannot be used to
@@ -125,8 +135,6 @@ struct _AutoarExtractPrivate
   guint64 size;
   guint64 completed_size;
 
-  GList *files_list;
-
   guint files;
   guint completed_files;
 
@@ -138,14 +146,17 @@ struct _AutoarExtractPrivate
   gssize        buffer_size;
   GError       *error;
 
+  GList *files_list;
+
   GHashTable *userhash;
   GHashTable *grouphash;
   GHashTable *bad_filename;
   GPtrArray  *pattern_compiled;
   GArray     *extracted_dir_list;
-  GFile      *top_level_dir;
+  GFile      *destination_dir;
 
   GFile *prefix;
+  GFile *new_prefix;
 
   char *suggested_destname;
 
@@ -162,7 +173,7 @@ struct _GFileAndInfo
 enum
 {
   SCANNED,
-  DECIDE_DEST,
+  DECIDE_DESTINATION,
   PROGRESS,
   CANCELLED,
   COMPLETED,
@@ -467,17 +478,18 @@ autoar_extract_get_notify_interval (AutoarExtract *arextract)
  * has been already decided
  *
  * By default #AutoarExtract:output-is-dest is set to %FALSE, which means
- * the extracted files will be created as a single file or a single top-level
- * directory under #AutoarExtract:output directory. The name of the extracted
- * file or directory will be automatically generated and you will be notified
- * via #AutoarExtract::decide-dest when the name is decided. If you have
- * already decided the location of the extracted file or directory, and you
- * do not want #AutoarExtract to decide it for you, you can set
- * #AutoarExtract:output-is-dest to %TRUE. #AutoarExtract will use
- * #AutoarExtract:output as the location of the extracted directory or file,
- * and it will neither check whether the file exists nor create the necessary
- * directories for you. This function should only be called before calling
- * autoar_extract_start() or autoar_extract_start_async().
+ * only one file or directory will be generated. The destination is internally
+ * determined by analyzing the contents of the archive. If this is not wanted,
+ * #AutoarExtract:output-is-dest can be set to %TRUE, which will make
+ * #AutoarExtract:output the destination for extracted files. In any case, the
+ * destination directory will be notified via #AutoarExtract::decide-destination,
+ * when it is possible to set a new destination.
+ *
+ * #AutoarExtract will attempt to create the destination directory regardless
+ * to whether its path was internally decided or not.
+
+ * This function should only be called before calling autoar_extract_start() or
+ * autoar_extract_start_async().
  **/
 void
 autoar_extract_set_output_is_dest  (AutoarExtract *arextract,
@@ -528,9 +540,10 @@ autoar_extract_dispose (GObject *object)
   g_clear_object (&(priv->source_file));
   g_clear_object (&(priv->output_file));
   g_clear_object (&(priv->arpref));
-  g_clear_object (&(priv->top_level_dir));
+  g_clear_object (&(priv->destination_dir));
   g_clear_object (&(priv->cancellable));
   g_clear_object (&(priv->prefix));
+  g_clear_object (&(priv->new_prefix));
 
   g_list_free_full (priv->files_list, g_object_unref);
   priv->files_list = NULL;
@@ -803,11 +816,16 @@ autoar_extract_signal_scanned (AutoarExtract *arextract)
 }
 
 static inline void
-autoar_extract_signal_decide_dest (AutoarExtract *arextract)
+autoar_extract_signal_decide_destination (AutoarExtract *arextract,
+                                          GFile *destination,
+                                          GList *files,
+                                          GFile **new_destination)
 {
   autoar_common_g_signal_emit (arextract, arextract->priv->in_thread,
-                               autoar_extract_signals[DECIDE_DEST], 0,
-                               arextract->priv->top_level_dir);
+                               autoar_extract_signals[DECIDE_DESTINATION], 0,
+                               destination,
+                               files,
+                               new_destination);
 }
 
 static inline void
@@ -891,22 +909,48 @@ autoar_extract_get_common_prefix (GList *files,
 }
 
 static GFile*
-autoar_extract_do_sanitize_pathname (const char *pathname,
-                                     GFile *top_level_dir) {
+autoar_extract_do_sanitize_pathname (AutoarExtract *arextract,
+                                     const char *pathname)
+{
+  AutoarExtractPrivate *priv = arextract->priv;
   GFile *extracted_filename;
+  gboolean valid_filename;
 
-  extracted_filename = g_file_get_child (top_level_dir, pathname);
+  extracted_filename = g_file_get_child (priv->destination_dir, pathname);
 
-  if (!g_file_has_prefix (extracted_filename, top_level_dir)) {
-    char *basename;
+  valid_filename = g_file_equal (extracted_filename, priv->destination_dir) ||
+                   g_file_has_prefix (extracted_filename, priv->destination_dir);
+
+  if (!valid_filename) {
+    g_autofree char *basename;
 
     basename = g_file_get_basename (extracted_filename);
 
     g_object_unref (extracted_filename);
 
-    extracted_filename = g_file_get_child (top_level_dir, basename);
+    extracted_filename = g_file_get_child (priv->destination_dir,
+                                           basename);
+  }
 
-    g_free (basename);
+  if (priv->prefix != NULL && priv->new_prefix != NULL) {
+    g_autofree char *relative_path;
+    /* Replace the old prefix with the new one */
+    relative_path = g_file_get_relative_path (priv->prefix,
+                                              extracted_filename);
+
+    relative_path = relative_path != NULL ? relative_path : g_strdup ("");
+
+    g_object_unref (extracted_filename);
+
+    extracted_filename = g_file_get_child (priv->new_prefix, relative_path);
+  }
+
+  {
+    g_autofree char *sanitized_pathname;
+
+    sanitized_pathname = g_file_get_path (extracted_filename);
+
+    g_debug ("autoar_extract_do_sanitize_pathname: %s", sanitized_pathname);
   }
 
   return extracted_filename;
@@ -1387,22 +1431,29 @@ autoar_extract_class_init (AutoarExtractClass *klass)
                   G_TYPE_UINT);
 
 /**
- * AutoarExtract::decide-dest:
+ * AutoarExtract::decide-destination:
  * @arextract: the #AutoarExtract
- * @destination: the location of the extracted directory or file
+ * @destination: the location where files will be extracted
+ * @files: the list of files to be extracted. All have @destination as their
+           common prefix
  *
- * This signal is emitted when the location of the extracted directory or
- * file is determined.
+ * Returns: (transfer full): a new destination that will overwrite the previous
+ *                           one, or %NULL if this is not wanted
+ *
+ * This signal is emitted when the path of the destination directory is
+ * determined. It is useful for solving name conflicts or for setting a new
+ * destination, based on the contents of the archive.
  **/
-  autoar_extract_signals[DECIDE_DEST] =
-    g_signal_new ("decide-dest",
+  autoar_extract_signals[DECIDE_DESTINATION] =
+    g_signal_new ("decide-destination",
                   type,
                   G_SIGNAL_RUN_LAST,
                   0, NULL, NULL,
                   g_cclosure_marshal_generic,
-                  G_TYPE_NONE,
-                  1,
-                  G_TYPE_FILE);
+                  G_TYPE_OBJECT,
+                  2,
+                  G_TYPE_FILE,
+                  G_TYPE_POINTER);
 
 /**
  * AutoarExtract::progress:
@@ -1511,7 +1562,8 @@ autoar_extract_init (AutoarExtract *arextract)
   priv->pattern_compiled = g_ptr_array_new_with_free_func (g_pattern_spec_free_safe);
   priv->extracted_dir_list = g_array_new (FALSE, FALSE, sizeof (GFileAndInfo));
   g_array_set_clear_func (priv->extracted_dir_list, g_file_and_info_free);
-  priv->top_level_dir = NULL;
+  priv->destination_dir = NULL;
+  priv->new_prefix = NULL;
 
   priv->suggested_destname = NULL;
 
@@ -1827,15 +1879,20 @@ autoar_extract_step_scan_toplevel (AutoarExtract *arextract)
 }
 
 static void
-autoar_extract_step_decide_dest (AutoarExtract *arextract) {
-  /* Step 2: Create necessary directories
-   * If the archive contains only one file, we don't create the directory */
+autoar_extract_step_set_dest (AutoarExtract *arextract)
+{
+  /* Step 2: Set destination based on client preferences or archive contents */
 
   AutoarExtractPrivate *priv;
 
   priv = arextract->priv;
 
-  g_debug ("autoar_extract_step_decide_dest: called");
+  g_debug ("autoar_extract_step_set_dest: called");
+
+  if (priv->output_is_dest) {
+    priv->destination_dir = g_object_ref (arextract->priv->output_file);
+    return;
+  }
 
   if (priv->prefix != NULL) {
     /* We must check if the archive and the prefix have the same name (without
@@ -1849,41 +1906,100 @@ autoar_extract_step_decide_dest (AutoarExtract *arextract) {
     prefix_name_no_ext = autoar_common_get_basename_remove_extension (prefix_name);
 
     if (g_strcmp0 (prefix_name_no_ext, priv->suggested_destname) == 0) {
-      priv->top_level_dir = g_object_ref (priv->output_file);
+      priv->destination_dir = g_object_ref (priv->output_file);
+    } else {
+      g_clear_object (&priv->prefix);
     }
   }
-  /* If none of the above situations apply, the top level directory has the
-   * name of the source archive (without the extension)
+  /* If none of the above situations apply, the top level directory gets the
+   * name suggested when creating the AutoarExtract object
    */
-  if (priv->top_level_dir == NULL) {
-    priv->top_level_dir = g_file_get_child (priv->output_file,
-                                            priv->suggested_destname);
+  if (priv->destination_dir == NULL) {
+    priv->destination_dir = g_file_get_child (priv->output_file,
+                                              priv->suggested_destname);
   }
-
-  g_file_make_directory_with_parents (priv->top_level_dir, priv->cancellable,
-                                      &(priv->error));
-
-  if (g_error_matches (priv->error, G_IO_ERROR, G_IO_ERROR_EXISTS)) {
-    g_clear_error (&priv->error);
-  }
-
-  if (priv->error != NULL) {
-    return;
-  }
-
-  autoar_extract_signal_decide_dest (arextract);
 }
 
 static void
-autoar_extract_step_decide_dest_already (AutoarExtract *arextract) {
-  /* Alternative step 2: Output is destination */
-  arextract->priv->top_level_dir = g_object_ref (arextract->priv->output_file);
-  autoar_extract_signal_decide_dest (arextract);
+autoar_extract_step_decide_dest (AutoarExtract *arextract)
+{
+  /* Step 3: Confirm destination */
+
+  AutoarExtractPrivate *priv;
+  GList *files = NULL;
+  GList *l;
+  GFile *new_destination = NULL;
+
+  priv = arextract->priv;
+
+  for (l = priv->files_list; l != NULL; l = l->next) {
+    char *relative_path;
+    GFile *file;
+
+    relative_path = g_file_get_relative_path (priv->output_file, l->data);
+    file = g_file_resolve_relative_path (priv->destination_dir,
+                                         relative_path);
+    files = g_list_prepend (files, file);
+
+    g_free (relative_path);
+  }
+
+  files = g_list_reverse (files);
+
+  /* When it exists, the common prefix is the actual output of the extraction
+   * and the client has the opportunity to change it. Also, the old prefix is
+   * needed in order to replace it with the new one
+   */
+  if (priv->prefix != NULL) {
+    autoar_extract_signal_decide_destination (arextract,
+                                              priv->prefix,
+                                              files,
+                                              &new_destination);
+
+    priv->new_prefix = new_destination;
+  } else {
+    autoar_extract_signal_decide_destination (arextract,
+                                              priv->destination_dir,
+                                              files,
+                                              &new_destination);
+
+    if (new_destination) {
+      g_object_unref (priv->destination_dir);
+      priv->destination_dir = new_destination;
+    }
+  }
+
+  {
+    g_autofree char *destination_name;
+
+    destination_name = g_file_get_path (priv->new_prefix != NULL ?
+                                        priv->new_prefix :
+                                        priv->destination_dir);
+    g_debug ("autoar_extract_step_decide_dest: destination %s", destination_name);
+  }
+
+  g_file_make_directory_with_parents (priv->destination_dir, priv->cancellable,
+                                      &(priv->error));
+
+  if (g_error_matches (priv->error, G_IO_ERROR, G_IO_ERROR_EXISTS)) {
+    GFileType file_type;
+
+    file_type = g_file_query_file_type (priv->destination_dir,
+                                        G_FILE_QUERY_INFO_NONE,
+                                        NULL);
+
+    if (file_type == G_FILE_TYPE_DIRECTORY) {
+      g_debug ("autoar_extract_step_decide_dest: destination directory exists");
+      g_clear_error (&priv->error);
+    }
+  }
+
+  g_list_free_full (files, g_object_unref);
 }
 
 static void
 autoar_extract_step_extract (AutoarExtract *arextract) {
-  /* Step 3: Extract files
+  /* Step 4: Extract files
    * We have to re-open the archive to extract files */
 
   struct archive *a;
@@ -1923,11 +2039,11 @@ autoar_extract_step_extract (AutoarExtract *arextract) {
       continue;
 
     extracted_filename =
-      autoar_extract_do_sanitize_pathname (pathname, priv->top_level_dir);
+      autoar_extract_do_sanitize_pathname (arextract, pathname);
 
     if (hardlink != NULL) {
       hardlink_filename =
-        autoar_extract_do_sanitize_pathname (hardlink, priv->top_level_dir);
+        autoar_extract_do_sanitize_pathname (arextract, pathname);
     }
 
     autoar_extract_do_write_entry (arextract, a, entry,
@@ -1959,7 +2075,7 @@ autoar_extract_step_extract (AutoarExtract *arextract) {
 
 static void
 autoar_extract_step_apply_dir_fileinfo (AutoarExtract *arextract) {
-  /* Step 4: Re-apply file info to all directories
+  /* Step 5: Re-apply file info to all directories
    * It is required because modification times may be updated during the
    * writing of files in the directory. */
 
@@ -1984,7 +2100,7 @@ autoar_extract_step_apply_dir_fileinfo (AutoarExtract *arextract) {
 
 static void
 autoar_extract_step_cleanup (AutoarExtract *arextract) {
-  /* Step 5: Force progress to be 100% and remove the source archive file
+  /* Step 6: Force progress to be 100% and remove the source archive file
    * If the extraction is completed successfully, remove the source file.
    * Errors are not fatal because we have completed our work. */
 
@@ -2010,7 +2126,7 @@ autoar_extract_run (AutoarExtract *arextract)
 {
   /* Numbers of steps.
    * The array size must be modified if more steps are added. */
-  void (*steps[7])(AutoarExtract*);
+  void (*steps[8])(AutoarExtract*);
 
   AutoarExtractPrivate *priv;
   int i;
@@ -2030,9 +2146,8 @@ autoar_extract_run (AutoarExtract *arextract)
   i = 0;
   steps[i++] = autoar_extract_step_initialize_pattern;
   steps[i++] = autoar_extract_step_scan_toplevel;
-  steps[i++] = priv->output_is_dest ?
-               autoar_extract_step_decide_dest_already :
-               autoar_extract_step_decide_dest;
+  steps[i++] = autoar_extract_step_set_dest;
+  steps[i++] = autoar_extract_step_decide_dest;
   steps[i++] = autoar_extract_step_extract;
   steps[i++] = autoar_extract_step_apply_dir_fileinfo;
   steps[i++] = autoar_extract_step_cleanup;

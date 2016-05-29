@@ -163,6 +163,7 @@ enum
   SCANNED,
   DECIDE_DESTINATION,
   PROGRESS,
+  CONFLICT,
   CANCELLED,
   COMPLETED,
   AR_ERROR,
@@ -726,6 +727,32 @@ autoar_extract_signal_progress (AutoarExtract *arextract)
   }
 }
 
+static AutoarConflictAction
+autoar_extract_signal_conflict (AutoarExtract *arextract,
+                                GFile *file,
+                                GFile **new_file)
+{
+  AutoarConflictAction action = AUTOAR_CONFLICT_OVERWRITE;
+
+  autoar_common_g_signal_emit (arextract, arextract->priv->in_thread,
+                               autoar_extract_signals[CONFLICT], 0,
+                               file,
+                               new_file,
+                               &action);
+
+  if (*new_file) {
+    g_autofree char *previous_path;
+    g_autofree char *new_path;
+
+    previous_path = g_file_get_path (file);
+    new_path = g_file_get_path (*new_file);
+
+    g_debug ("autoar_extract_signal_conflict: %s => %s", previous_path, new_path);
+  }
+
+  return action;
+}
+
 static inline void
 autoar_extract_signal_cancelled (AutoarExtract *arextract)
 {
@@ -837,6 +864,43 @@ autoar_extract_do_sanitize_pathname (AutoarExtract *arextract,
   g_debug ("autoar_extract_do_sanitize_pathname: %s", sanitized_pathname);
 
   return extracted_filename;
+}
+
+static gboolean
+autoar_extract_check_file_conflict (GFile *file,
+                                    mode_t extracted_filetype)
+{
+  GFileType file_type;
+  gboolean conflict = FALSE;
+
+  file_type = g_file_query_file_type (file,
+                                      G_FILE_QUERY_INFO_NONE,
+                                      NULL);
+  /* If there is no file with the given name, there will be no conflict */
+  if (file_type == G_FILE_TYPE_UNKNOWN) {
+    return FALSE;
+  }
+
+  switch (extracted_filetype) {
+    case AE_IFDIR:
+      break;
+    case AE_IFREG:
+    case AE_IFLNK:
+#if defined HAVE_MKFIFO || defined HAVE_MKNOD
+    case AE_IFIFO:
+#endif
+#ifdef HAVE_MKNOD
+    case AE_IFSOCK:
+    case AE_IFBLK:
+    case AE_IFCHR:
+#endif
+      conflict = TRUE;
+      break;
+    default:
+      break;
+  }
+
+  return conflict;
 }
 
 static void
@@ -980,6 +1044,7 @@ autoar_extract_do_write_entry (AutoarExtract *arextract,
 
   g_debug ("autoar_extract_do_write_entry: writing");
   r = 0;
+
   switch (filetype = archive_entry_filetype (entry)) {
     default:
     case AE_IFREG:
@@ -990,16 +1055,18 @@ autoar_extract_do_write_entry (AutoarExtract *arextract,
         gint64 offset;
 
         g_debug ("autoar_extract_do_write_entry: case REG");
+
         ostream = (GOutputStream*)g_file_replace (dest,
                                                   NULL,
                                                   FALSE,
                                                   G_FILE_CREATE_NONE,
                                                   priv->cancellable,
                                                   &(priv->error));
-        if (arextract->priv->error != NULL) {
+        if (priv->error != NULL) {
           g_object_unref (info);
           return;
         }
+
         if (ostream != NULL) {
           /* Archive entry size may be zero if we use raw format. */
           if (archive_entry_size(entry) > 0 || priv->use_raw_format) {
@@ -1041,17 +1108,28 @@ autoar_extract_do_write_entry (AutoarExtract *arextract,
         GFileAndInfo fileandinfo;
 
         g_debug ("autoar_extract_do_write_entry: case DIR");
+
         g_file_make_directory_with_parents (dest, priv->cancellable, &(priv->error));
+
         if (priv->error != NULL) {
-          /* "File exists" is not a fatal error */
-          if (priv->error->code == G_IO_ERROR_EXISTS) {
-            g_error_free (priv->error);
-            priv->error = NULL;
+          /* "File exists" is not a fatal error, as long as the existing file
+           * is a directory
+           */
+          GFileType file_type;
+
+          file_type = g_file_query_file_type (dest,
+                                              G_FILE_QUERY_INFO_NONE,
+                                              NULL);
+
+          if (g_error_matches (priv->error, G_IO_ERROR, G_IO_ERROR_EXISTS) &&
+              file_type == G_FILE_TYPE_DIRECTORY) {
+            g_clear_error (&priv->error);
           } else {
             g_object_unref (info);
             return;
           }
         }
+
         fileandinfo.file = g_object_ref (dest);
         fileandinfo.info = g_object_ref (info);
         g_array_append_val (priv->extracted_dir_list, fileandinfo);
@@ -1293,6 +1371,28 @@ autoar_extract_class_init (AutoarExtractClass *klass)
                   2,
                   G_TYPE_UINT64,
                   G_TYPE_UINT);
+
+/**
+ * AutoarExtract::conflict:
+ * @arextract: the #AutoarExtract
+ * @file: the file that caused a conflict
+ * @new_file: an address to store the new destination for a conflict file
+ *
+ * Returns: the action to be performed by #AutoarExtract
+ *
+ * This signal is used to report and offer the possibility to solve name
+ * conflicts when extracting files.
+ **/
+  autoar_extract_signals[CONFLICT] =
+    g_signal_new ("conflict",
+                  type,
+                  G_SIGNAL_RUN_LAST,
+                  0, NULL, NULL,
+                  g_cclosure_marshal_generic,
+                  G_TYPE_UINT,
+                  2,
+                  G_TYPE_FILE,
+                  G_TYPE_POINTER);
 
 /**
  * AutoarExtract::cancelled:
@@ -1662,8 +1762,10 @@ autoar_extract_step_extract (AutoarExtract *arextract) {
   while ((r = archive_read_next_header (a, &entry)) == ARCHIVE_OK) {
     const char *pathname;
     const char *hardlink;
-    GFile *extracted_filename;
-    GFile *hardlink_filename;
+    g_autoptr (GFile) extracted_filename = NULL;
+    g_autoptr (GFile) hardlink_filename = NULL;
+    AutoarConflictAction action;
+    gboolean file_conflict;
 
     if (g_cancellable_is_cancelled (priv->cancellable)) {
       archive_read_free (a);
@@ -1672,7 +1774,6 @@ autoar_extract_step_extract (AutoarExtract *arextract) {
 
     pathname = archive_entry_pathname (entry);
     hardlink = archive_entry_hardlink (entry);
-    hardlink_filename = NULL;
 
     extracted_filename =
       autoar_extract_do_sanitize_pathname (arextract, pathname);
@@ -1682,12 +1783,46 @@ autoar_extract_step_extract (AutoarExtract *arextract) {
         autoar_extract_do_sanitize_pathname (arextract, hardlink);
     }
 
+    /* Attempt to solve any name conflict before doing any operations */
+    file_conflict = autoar_extract_check_file_conflict (extracted_filename,
+                                                        archive_entry_filetype (entry));
+    while (file_conflict) {
+      GFile *new_extracted_filename = NULL;
+
+      action = autoar_extract_signal_conflict (arextract,
+                                               extracted_filename,
+                                               &new_extracted_filename);
+
+      switch (action) {
+        case AUTOAR_CONFLICT_OVERWRITE:
+          break;
+        case AUTOAR_CONFLICT_CHANGE_DESTINATION:
+          g_assert_nonnull (new_extracted_filename);
+          g_clear_object (&extracted_filename);
+          extracted_filename = new_extracted_filename;
+          break;
+        case AUTOAR_CONFLICT_SKIP:
+          archive_read_data_skip (a);
+          break;
+        default:
+          g_assert_not_reached ();
+          break;
+      }
+
+      if (action != AUTOAR_CONFLICT_CHANGE_DESTINATION) {
+        break;
+      }
+
+      file_conflict = autoar_extract_check_file_conflict (extracted_filename,
+                                                          archive_entry_filetype (entry));
+    }
+
+    if (file_conflict && action == AUTOAR_CONFLICT_SKIP) {
+      continue;
+    }
+
     autoar_extract_do_write_entry (arextract, a, entry,
                                    extracted_filename, hardlink_filename);
-
-    g_object_unref (extracted_filename);
-    if (hardlink_filename != NULL)
-      g_object_unref (hardlink_filename);
 
     if (priv->error != NULL) {
       archive_read_free (a);

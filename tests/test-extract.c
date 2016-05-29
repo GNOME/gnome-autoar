@@ -53,6 +53,22 @@ my_handler_progress (AutoarExtract *arextract,
            ((double)(completed_files)) * 100 / autoar_extract_get_files (arextract));
 }
 
+static GFile*
+my_handler_conflict (AutoarExtract *arextract,
+                     GFile *file,
+                     gpointer data)
+{
+  char *path;
+
+  path = g_file_get_path (file);
+
+  g_print ("Conflict on: %s\n", path);
+
+  g_free (path);
+
+  return NULL;
+}
+
 static void
 my_handler_error (AutoarExtract *arextract,
                   GError *error,
@@ -101,6 +117,7 @@ main (int argc,
   g_signal_connect (arextract, "scanned", G_CALLBACK (my_handler_scanned), NULL);
   g_signal_connect (arextract, "decide-destination", G_CALLBACK (my_handler_decide_destination), NULL);
   g_signal_connect (arextract, "progress", G_CALLBACK (my_handler_progress), NULL);
+  g_signal_connect (arextract, "conflict", G_CALLBACK (my_handler_conflict), NULL);
   g_signal_connect (arextract, "error", G_CALLBACK (my_handler_error), NULL);
   g_signal_connect (arextract, "completed", G_CALLBACK (my_handler_completed), NULL);
 

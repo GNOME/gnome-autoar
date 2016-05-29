@@ -94,6 +94,12 @@ void            autoar_extract_set_output_is_dest  (AutoarExtract *arextract,
 void            autoar_extract_set_notify_interval (AutoarExtract *arextract,
                                                     gint64 notify_interval);
 
+typedef enum {
+    AUTOAR_CONFLICT_OVERWRITE = 0,
+    AUTOAR_CONFLICT_CHANGE_DESTINATION,
+    AUTOAR_CONFLICT_SKIP
+} AutoarConflictAction;
+
 G_END_DECLS
 
 #endif /* AUTOAR_EXTRACT_H */

@@ -53,20 +53,19 @@ my_handler_progress (AutoarExtract *arextract,
            ((double)(completed_files)) * 100 / autoar_extract_get_files (arextract));
 }
 
-static GFile*
+static AutoarConflictAction
 my_handler_conflict (AutoarExtract *arextract,
                      GFile *file,
+                     GFile **new_file,
                      gpointer data)
 {
-  char *path;
+  g_autofree char *path;
 
   path = g_file_get_path (file);
 
   g_print ("Conflict on: %s\n", path);
 
-  g_free (path);
-
-  return NULL;
+  return AUTOAR_CONFLICT_OVERWRITE;
 }
 
 static void

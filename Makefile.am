@@ -185,6 +185,7 @@ EXTRA_DIST += $(gsettings_SCHEMAS)
 # Directory: tests
 noinst_PROGRAMS = \
 	tests/test-extract	\
+	tests/test-extract-unit
 	tests/test-pref		\
 	tests/test-create	\
 	$(NULL)
@@ -203,6 +204,10 @@ test_libs = \
 tests_test_extract_SOURCES = tests/test-extract.c
 tests_test_extract_CFLAGS = $(test_cflags)
 tests_test_extract_LDADD = $(test_libs)
+
+tests_test_extract_unit_SOURCES = tests/test-extract-unit.c
+tests_test_extract_unit_CFLAGS = $(test_cflags)
+tests_test_extract_unit_LDADD = $(test_libs)
 
 tests_test_pref_SOURCES = tests/test-pref.c
 tests_test_pref_CFLAGS = $(test_cflags)

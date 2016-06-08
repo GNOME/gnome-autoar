@@ -45,6 +45,7 @@ gnome-autoar/gnome-autoar.pc
 gnome-autoar/gnome-autoar-gtk.pc
 
 tests/test-extract
+tests/test-extract-unit
 tests/test-extract-memory
 tests/test-create
 tests/test-pref

@@ -1590,7 +1590,7 @@ autoar_create_step_create (AutoarCreate *arcreate)
 
     g_debug ("autoar_create_step_create: source[%d] (%s)", i, priv->source[i]);
     file = g_ptr_array_index (priv->source_file, i);
-    fileinfo = g_file_query_info (file,
+    fileinfo = g_file_query_info (file, 
                                   G_FILE_ATTRIBUTE_STANDARD_TYPE,
                                   G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
                                   priv->cancellable,

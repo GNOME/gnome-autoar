@@ -91,6 +91,8 @@ main (int argc,
   AutoarPref *arpref;
   GSettings *settings;
   char *content;
+  g_autoptr (GFile) source = NULL;
+  g_autoptr (GFile) output = NULL;
 
   if (argc < 3) {
     g_printerr ("Usage: %s archive_file output_dir pattern_to_ignore ...\n",
@@ -107,7 +109,10 @@ main (int argc,
   autoar_pref_set_delete_if_succeed (arpref, FALSE);
   autoar_pref_set_pattern_to_ignore (arpref, (const char**)argv + 3);
 
-  arextract = autoar_extract_new (argv[1], argv[2], arpref);
+  source = g_file_new_for_commandline_arg (argv[1]);
+  output = g_file_new_for_commandline_arg (argv[2]);
+
+  arextract = autoar_extract_new (source, output, arpref);
 
   g_signal_connect (arextract, "scanned", G_CALLBACK (my_handler_scanned), NULL);
   g_signal_connect (arextract, "decide-destination", G_CALLBACK (my_handler_decide_destination), NULL);

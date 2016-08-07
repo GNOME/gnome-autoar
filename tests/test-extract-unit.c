@@ -500,7 +500,7 @@ test_one_file_same_name (void)
 
   archive = g_file_get_child (extract_test->in, "arextract.zip");
 
-  arextract = autoar_extract_new_file (archive, extract_test->out, arpref);
+  arextract = autoar_extract_new (archive, extract_test->out, arpref);
 
   data = extract_test_data_new_for_extract (arextract);
 
@@ -546,7 +546,7 @@ test_one_file_different_name (void)
 
   archive = g_file_get_child (extract_test->in, "arextract.zip");
 
-  arextract = autoar_extract_new_file (archive, extract_test->out, arpref);
+  arextract = autoar_extract_new (archive, extract_test->out, arpref);
 
   data = extract_test_data_new_for_extract (arextract);
 
@@ -597,7 +597,7 @@ test_multiple_files_same_name (void)
 
   archive = g_file_get_child (extract_test->in, "arextract.zip");
 
-  arextract = autoar_extract_new_file (archive, extract_test->out, arpref);
+  arextract = autoar_extract_new (archive, extract_test->out, arpref);
 
   data = extract_test_data_new_for_extract (arextract);
 
@@ -651,7 +651,7 @@ test_multiple_files_different_name (void)
 
   archive = g_file_get_child (extract_test->in, "arextract.zip");
 
-  arextract = autoar_extract_new_file (archive, extract_test->out, arpref);
+  arextract = autoar_extract_new (archive, extract_test->out, arpref);
 
   data = extract_test_data_new_for_extract (arextract);
 
@@ -706,7 +706,7 @@ test_one_file_conflict_overwrite (void)
 
   archive = g_file_get_child (extract_test->in, "arextract.zip");
 
-  arextract = autoar_extract_new_file (archive, extract_test->out, arpref);
+  arextract = autoar_extract_new (archive, extract_test->out, arpref);
 
   data = extract_test_data_new_for_extract (arextract);
 
@@ -764,7 +764,7 @@ test_one_file_conflict_new_destination (void)
 
   archive = g_file_get_child (extract_test->in, "arextract.zip");
 
-  arextract = autoar_extract_new_file (archive, extract_test->out, arpref);
+  arextract = autoar_extract_new (archive, extract_test->out, arpref);
 
   data = extract_test_data_new_for_extract (arextract);
 
@@ -830,7 +830,7 @@ test_one_file_conflict_skip_file (void)
 
   archive = g_file_get_child (extract_test->in, "arextract.zip");
 
-  arextract = autoar_extract_new_file (archive, extract_test->out, arpref);
+  arextract = autoar_extract_new (archive, extract_test->out, arpref);
 
   data = extract_test_data_new_for_extract (arextract);
 
@@ -897,7 +897,7 @@ test_one_file_error_file_over_directory (void)
 
   archive = g_file_get_child (extract_test->in, "arextract.zip");
 
-  arextract = autoar_extract_new_file (archive, extract_test->out, arpref);
+  arextract = autoar_extract_new (archive, extract_test->out, arpref);
 
   data = extract_test_data_new_for_extract (arextract);
 
@@ -952,7 +952,7 @@ test_change_extract_destination (void)
 
   archive = g_file_get_child (extract_test->in, "arextract.zip");
 
-  arextract = autoar_extract_new_file (archive, extract_test->out, arpref);
+  arextract = autoar_extract_new (archive, extract_test->out, arpref);
 
   data = extract_test_data_new_for_extract (arextract);
   data->destination_to_suggest = g_file_get_child (extract_test->out,

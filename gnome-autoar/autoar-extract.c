@@ -108,12 +108,10 @@ typedef struct _GFileAndInfo GFileAndInfo;
 
 struct _AutoarExtractPrivate
 {
-  /* Variables from user input */
-  char *source;
-  char *output;
-
   GFile *source_file;
   GFile *output_file;
+
+  char *source_basename;
 
   int output_is_dest : 1;
 
@@ -175,9 +173,7 @@ enum
 enum
 {
   PROP_0,
-  PROP_SOURCE,           /* Only used to display messages */
   PROP_SOURCE_FILE,
-  PROP_OUTPUT,           /* Only used to display messages */
   PROP_OUTPUT_FILE,
   PROP_SIZE,
   PROP_COMPLETED_SIZE,
@@ -202,14 +198,8 @@ autoar_extract_get_property (GObject    *object,
   priv = arextract->priv;
 
   switch (property_id) {
-    case PROP_SOURCE:
-      g_value_set_string (value, priv->source);
-      break;
     case PROP_SOURCE_FILE:
       g_value_set_object (value, priv->source_file);
-      break;
-    case PROP_OUTPUT:
-      g_value_set_string (value, priv->output);
       break;
     case PROP_OUTPUT_FILE:
       g_value_set_object (value, priv->output_file);
@@ -251,17 +241,9 @@ autoar_extract_set_property (GObject      *object,
   priv = arextract->priv;
 
   switch (property_id) {
-    case PROP_SOURCE:
-      g_free (priv->source);
-      priv->source = g_value_dup_string (value);
-      break;
     case PROP_SOURCE_FILE:
       g_clear_object (&(priv->source_file));
       priv->source_file = g_object_ref (g_value_get_object (value));
-      break;
-    case PROP_OUTPUT:
-      g_free (priv->output);
-      priv->output = g_value_dup_string (value);
       break;
     case PROP_OUTPUT_FILE:
       g_clear_object (&(priv->output_file));
@@ -280,22 +262,6 @@ autoar_extract_set_property (GObject      *object,
 }
 
 /**
- * autoar_extract_get_source:
- * @arextract: an #AutoarExtract
- *
- * Gets the source file that will be extracted for this object. It may be a
- * filename or URI.
- *
- * Returns: (transfer none): a string
- **/
-char*
-autoar_extract_get_source (AutoarExtract *arextract)
-{
-  g_return_val_if_fail (AUTOAR_IS_EXTRACT (arextract), NULL);
-  return arextract->priv->source;
-}
-
-/**
  * autoar_extract_get_source_file:
  * @arextract: an #AutoarExtract
  *
@@ -309,23 +275,6 @@ autoar_extract_get_source_file (AutoarExtract *arextract)
 {
   g_return_val_if_fail (AUTOAR_IS_EXTRACT (arextract), NULL);
   return arextract->priv->source_file;
-}
-
-/**
- * autoar_extract_get_output:
- * @arextract: an #AutoarExtract
- *
- * If #AutoarExtract:output_is_dest is %FALSE, gets the directory which contains
- * the extracted file or directory. Otherwise, get the filename of the extracted
- * file or directory itself. See autoar_extract_set_output_is_dest().
- *
- * Returns: (transfer none): a filename
- **/
-char*
-autoar_extract_get_output (AutoarExtract *arextract)
-{
-  g_return_val_if_fail (AUTOAR_IS_EXTRACT (arextract), NULL);
-  return arextract->priv->output;
 }
 
 /**
@@ -542,12 +491,6 @@ autoar_extract_finalize (GObject *object)
   priv = arextract->priv;
 
   g_debug ("AutoarExtract: finalize");
-
-  g_free (priv->source);
-  priv->source = NULL;
-
-  g_free (priv->output);
-  priv->output = NULL;
 
   g_free (priv->buffer);
   priv->buffer = NULL;
@@ -1299,29 +1242,11 @@ autoar_extract_class_init (AutoarExtractClass *klass)
   object_class->dispose = autoar_extract_dispose;
   object_class->finalize = autoar_extract_finalize;
 
-  g_object_class_install_property (object_class, PROP_SOURCE,
-                                   g_param_spec_string ("source",
-                                                        "Source archive",
-                                                        "The archive file to be extracted",
-                                                        NULL,
-                                                        G_PARAM_READWRITE |
-                                                        G_PARAM_CONSTRUCT_ONLY |
-                                                        G_PARAM_STATIC_STRINGS));
-
   g_object_class_install_property (object_class, PROP_SOURCE_FILE,
                                    g_param_spec_object ("source-file",
                                                         "Source archive GFile",
                                                         "The archive GFile to be extracted",
                                                         G_TYPE_FILE,
-                                                        G_PARAM_READWRITE |
-                                                        G_PARAM_CONSTRUCT_ONLY |
-                                                        G_PARAM_STATIC_STRINGS));
-
-  g_object_class_install_property (object_class, PROP_OUTPUT,
-                                   g_param_spec_string ("output",
-                                                        "Output directory",
-                                                        "Output directory of extracted archive",
-                                                        NULL,
                                                         G_PARAM_READWRITE |
                                                         G_PARAM_CONSTRUCT_ONLY |
                                                         G_PARAM_STATIC_STRINGS));
@@ -1561,89 +1486,8 @@ autoar_extract_init (AutoarExtract *arextract)
   priv->use_raw_format = FALSE;
 }
 
-static AutoarExtract*
-autoar_extract_new_full (const char *source,
-                         GFile *source_file,
-                         const char *output,
-                         GFile *output_file,
-                         AutoarPref *arpref,
-                         const void *buffer,
-                         gsize buffer_size,
-                         const char *suggested_destname)
-{
-  AutoarExtract *arextract;
-  char *gen_source, *gen_output;
-  GFile *gen_source_file, *gen_output_file;
-  g_autofree char *source_basename;
-
-  gen_source      = NULL;
-  gen_source_file = NULL;
-  gen_output      = NULL;
-  gen_output_file = NULL;
-
-  if (source == NULL)
-    gen_source = autoar_common_g_file_get_name (source_file);
-  if (source_file == NULL)
-    gen_source_file = g_file_new_for_commandline_arg (source);
-
-  if (output == NULL)
-    gen_output = autoar_common_g_file_get_name (output_file);
-  if (output_file == NULL)
-    gen_output_file = g_file_new_for_commandline_arg (output);
-
-  arextract =
-    g_object_new (AUTOAR_TYPE_EXTRACT,
-                  "source",         source      != NULL ? source      : gen_source,
-                  "source-file",    source_file != NULL ? source_file : gen_source_file,
-                  "output",         output      != NULL ? output      : gen_output,
-                  "output-file",    output_file != NULL ? output_file : gen_output_file,
-                  NULL);
-
-  arextract->priv->arpref = g_object_ref (arpref);
-
-  source_basename = g_file_get_basename (arextract->priv->source_file);
-  arextract->priv->suggested_destname =
-    autoar_common_get_basename_remove_extension (source_basename);
-
-  g_free (gen_source);
-  g_free (gen_output);
-
-  if (gen_source_file != NULL)
-    g_object_unref (gen_source_file);
-  if (gen_output_file != NULL)
-    g_object_unref (gen_output_file);
-
-  return arextract;
-}
-
-
 /**
  * autoar_extract_new:
- * @source: source archive
- * @output: output directory of extracted file or directory, or the file name
- * of the extracted file or directory itself if you set
- * #AutoarExtract:output-is-dest on the returned object
- * @arpref: an #AutoarPref object
- *
- * Extract a new #AutoarExtract object.
- *
- * Returns: (transfer full): a new #AutoarExtract object
- **/
-AutoarExtract*
-autoar_extract_new (const char *source,
-                    const char *output,
-                    AutoarPref *arpref)
-{
-  g_return_val_if_fail (source != NULL, NULL);
-  g_return_val_if_fail (output != NULL, NULL);
-
-  return autoar_extract_new_full (source, NULL, output, NULL,
-                                  arpref,
-                                  NULL, 0, NULL);
-}
-
-/**
- * autoar_extract_new_file:
  * @source_file: source archive
  * @output_file: output directory of extracted file or directory, or the
  * file name of the extracted file or directory itself if you set
@@ -1655,16 +1499,28 @@ autoar_extract_new (const char *source,
  * Returns: (transfer full): a new #AutoarExtract object
  **/
 AutoarExtract*
-autoar_extract_new_file (GFile *source_file,
-                         GFile *output_file,
-                         AutoarPref *arpref)
+autoar_extract_new (GFile *source_file,
+                    GFile *output_file,
+                    AutoarPref *arpref)
 {
+  AutoarExtract *arextract;
+
   g_return_val_if_fail (source_file != NULL, NULL);
   g_return_val_if_fail (output_file != NULL, NULL);
 
-  return autoar_extract_new_full (NULL, source_file, NULL, output_file,
-                                  arpref,
-                                  NULL, 0, NULL);
+  arextract = g_object_new (AUTOAR_TYPE_EXTRACT,
+                            "source-file", source_file,
+                            "output-file", output_file,
+                            NULL);
+
+  arextract->priv->arpref = g_object_ref (arpref);
+
+  arextract->priv->source_basename =
+    g_file_get_basename (arextract->priv->source_file);
+  arextract->priv->suggested_destname =
+    autoar_common_get_basename_remove_extension (arextract->priv->source_basename);
+
+  return arextract;
 }
 
 static void
@@ -1691,7 +1547,7 @@ autoar_extract_step_scan_toplevel (AutoarExtract *arextract)
     r = libarchive_create_read_object (TRUE, arextract, &a);
     if (r != ARCHIVE_OK) {
       if (priv->error == NULL)
-        priv->error = autoar_common_g_error_new_a (a, priv->source);
+        priv->error = autoar_common_g_error_new_a (a, priv->source_basename);
       return;
     } else if (archive_filter_count (a) <= 1){
       /* If we only use raw format and filter count is one, libarchive will
@@ -1699,7 +1555,7 @@ autoar_extract_step_scan_toplevel (AutoarExtract *arextract)
        * want this thing to happen because it does unnecesssary copying. */
       if (priv->error == NULL)
         priv->error = g_error_new (AUTOAR_EXTRACT_ERROR, NOT_AN_ARCHIVE_ERRNO,
-                                   "\'%s\': %s", priv->source, "not an archive");
+                                   "\'%s\': %s", priv->source_basename, "not an archive");
       return;
     }
     priv->use_raw_format = TRUE;
@@ -1727,7 +1583,7 @@ autoar_extract_step_scan_toplevel (AutoarExtract *arextract)
   if (priv->files_list == NULL) {
     if (priv->error == NULL) {
       priv->error = g_error_new (AUTOAR_EXTRACT_ERROR, EMPTY_ARCHIVE_ERRNO,
-                                 "\'%s\': %s", priv->source, "empty archive");
+                                 "\'%s\': %s", priv->source_basename, "empty archive");
     }
     archive_read_free (a);
     return;
@@ -1735,7 +1591,7 @@ autoar_extract_step_scan_toplevel (AutoarExtract *arextract)
 
   if (r != ARCHIVE_EOF) {
     if (priv->error == NULL) {
-      priv->error = autoar_common_g_error_new_a (a, priv->source);
+      priv->error = autoar_common_g_error_new_a (a, priv->source_basename);
     }
     archive_read_free (a);
     return;
@@ -1901,7 +1757,7 @@ autoar_extract_step_extract (AutoarExtract *arextract) {
   r = libarchive_create_read_object (priv->use_raw_format, arextract, &a);
   if (r != ARCHIVE_OK) {
     if (priv->error == NULL) {
-      priv->error = autoar_common_g_error_new_a (a, priv->source);
+      priv->error = autoar_common_g_error_new_a (a, priv->source_basename);
     }
     archive_read_free (a);
     return;
@@ -1974,7 +1830,7 @@ autoar_extract_step_extract (AutoarExtract *arextract) {
 
   if (r != ARCHIVE_EOF) {
     if (priv->error == NULL) {
-      priv->error = autoar_common_g_error_new_a (a, priv->source);
+      priv->error = autoar_common_g_error_new_a (a, priv->source_basename);
     }
     archive_read_free (a);
     return;

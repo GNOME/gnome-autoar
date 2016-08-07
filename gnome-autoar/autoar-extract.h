@@ -69,10 +69,7 @@ GQuark          autoar_extract_quark               (void);
 
 GType           autoar_extract_get_type            (void) G_GNUC_CONST;
 
-AutoarExtract  *autoar_extract_new                 (const char *source,
-                                                    const char *output,
-                                                    AutoarPref *arpref);
-AutoarExtract  *autoar_extract_new_file            (GFile *source_file,
+AutoarExtract  *autoar_extract_new                 (GFile *source_file,
                                                     GFile *output_file,
                                                     AutoarPref *arpref);
 

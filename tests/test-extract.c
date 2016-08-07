@@ -49,8 +49,8 @@ my_handler_progress (AutoarExtract *arextract,
                      gpointer data)
 {
   g_print ("\rProgress: Archive Size %.2lf %%, Files %.2lf %%",
-           ((double)(completed_size)) * 100 / autoar_extract_get_size (arextract),
-           ((double)(completed_files)) * 100 / autoar_extract_get_files (arextract));
+           ((double)(completed_size)) * 100 / autoar_extract_get_total_size (arextract),
+           ((double)(completed_files)) * 100 / autoar_extract_get_total_files (arextract));
 }
 
 static AutoarConflictAction

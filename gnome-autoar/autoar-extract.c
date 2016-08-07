@@ -66,7 +66,7 @@
  * file, the files will be extracted in a directory having the same name as the
  * archive, except the extension. It is also possible to just extract all files
  * to the output directory (note that this will not perform any checks) by
- * using autoar_extract_set_output_is_dest().
+ * using autoar_extract_set_output_is_destination().
 
  * #AutoarExtract will not attempt to solve any name conflicts. If the
  * destination directory already exists, it will proceed normally. If the
@@ -113,7 +113,7 @@ struct _AutoarExtractPrivate
 
   char *source_basename;
 
-  int output_is_dest : 1;
+  gboolean output_is_destination;
 
   AutoarPref *arpref;
 
@@ -122,10 +122,10 @@ struct _AutoarExtractPrivate
   gint64 notify_interval;
 
   /* Variables used to show progess */
-  guint64 size;
+  guint64 total_size;
   guint64 completed_size;
 
-  guint files;
+  guint total_files;
   guint completed_files;
 
   gint64 notify_last;
@@ -140,7 +140,7 @@ struct _AutoarExtractPrivate
 
   GHashTable *userhash;
   GHashTable *grouphash;
-  GArray     *extracted_dir_list;
+  GArray     *extracted_directories;
   GFile      *destination_dir;
 
   GFile *prefix;
@@ -175,11 +175,11 @@ enum
   PROP_0,
   PROP_SOURCE_FILE,
   PROP_OUTPUT_FILE,
-  PROP_SIZE,
+  PROP_TOTAL_SIZE,
   PROP_COMPLETED_SIZE,
-  PROP_FILES,
+  PROP_TOTAL_FILES,
   PROP_COMPLETED_FILES,
-  PROP_OUTPUT_IS_DEST,
+  PROP_OUTPUT_IS_DESTINATION,
   PROP_NOTIFY_INTERVAL
 };
 
@@ -204,20 +204,20 @@ autoar_extract_get_property (GObject    *object,
     case PROP_OUTPUT_FILE:
       g_value_set_object (value, priv->output_file);
       break;
-    case PROP_SIZE:
-      g_value_set_uint64 (value, priv->size);
+    case PROP_TOTAL_SIZE:
+      g_value_set_uint64 (value, priv->total_size);
       break;
     case PROP_COMPLETED_SIZE:
       g_value_set_uint64 (value, priv->completed_size);
       break;
-    case PROP_FILES:
-      g_value_set_uint (value, priv->files);
+    case PROP_TOTAL_FILES:
+      g_value_set_uint (value, priv->total_files);
       break;
     case PROP_COMPLETED_FILES:
       g_value_set_uint (value, priv->completed_files);
       break;
-    case PROP_OUTPUT_IS_DEST:
-      g_value_set_boolean (value, priv->output_is_dest);
+    case PROP_OUTPUT_IS_DESTINATION:
+      g_value_set_boolean (value, priv->output_is_destination);
       break;
     case PROP_NOTIFY_INTERVAL:
       g_value_set_int64 (value, priv->notify_interval);
@@ -249,8 +249,8 @@ autoar_extract_set_property (GObject      *object,
       g_clear_object (&(priv->output_file));
       priv->output_file = g_object_ref (g_value_get_object (value));
       break;
-    case PROP_OUTPUT_IS_DEST:
-      autoar_extract_set_output_is_dest (arextract, g_value_get_boolean (value));
+    case PROP_OUTPUT_IS_DESTINATION:
+      autoar_extract_set_output_is_destination (arextract, g_value_get_boolean (value));
       break;
     case PROP_NOTIFY_INTERVAL:
       autoar_extract_set_notify_interval (arextract, g_value_get_int64 (value));
@@ -294,27 +294,28 @@ autoar_extract_get_output_file (AutoarExtract *arextract)
 }
 
 /**
- * autoar_extract_get_size:
+ * autoar_extract_get_total_size:
  * @arextract: an #AutoarExtract
  *
- * Gets the size in bytes will be written when the operation is completed.
+ * Gets the total size of the files in the archive. This is the size in bytes
+ * that will be written to disk when the operation is completed.
  *
  * Returns: total size of extracted files in bytes
  **/
 guint64
-autoar_extract_get_size (AutoarExtract *arextract)
+autoar_extract_get_total_size (AutoarExtract *arextract)
 {
   g_return_val_if_fail (AUTOAR_IS_EXTRACT (arextract), 0);
-  return arextract->priv->size;
+  return arextract->priv->total_size;
 }
 
 /**
  * autoar_extract_get_completed_size:
  * @arextract: an #AutoarExtract
  *
- * Gets the size in bytes has been written to disk.
+ * Gets the size in bytes that has been written to disk.
  *
- * Returns: size in bytes has been written
+ * Returns: size in bytes that has been written
  **/
 guint64
 autoar_extract_get_completed_size (AutoarExtract *arextract)
@@ -324,28 +325,27 @@ autoar_extract_get_completed_size (AutoarExtract *arextract)
 }
 
 /**
- * autoar_extract_get_files:
+ * autoar_extract_get_total_files:
  * @arextract: an #AutoarExtract
  *
- * Gets the total number of files will be written when the operation is
- * completed.
+ * Gets the total number of files in the archive.
  *
  * Returns: total number of extracted files
  **/
 guint
-autoar_extract_get_files (AutoarExtract *arextract)
+autoar_extract_get_total_files (AutoarExtract *arextract)
 {
   g_return_val_if_fail (AUTOAR_IS_EXTRACT (arextract), 0);
-  return arextract->priv->files;
+  return arextract->priv->total_files;
 }
 
 /**
  * autoar_extract_get_completed_files:
  * @arextract: an #AutoarExtract
  *
- * Gets the number of files has been written to disk.
+ * Gets the number of files that have been written to disk.
  *
- * Returns: number of files has been written to disk
+ * Returns: number of files that have been written to disk
  **/
 guint
 autoar_extract_get_completed_files (AutoarExtract *arextract)
@@ -355,19 +355,19 @@ autoar_extract_get_completed_files (AutoarExtract *arextract)
 }
 
 /**
- * autoar_extract_get_output_is_dest:
+ * autoar_extract_get_output_is_destination:
  * @arextract: an #AutoarExtract
  *
- * See autoar_extract_set_output_is_dest().
+ * See autoar_extract_set_output_is_destination().
  *
  * Returns: %TRUE if #AutoarExtract:output is the location of extracted file
  * or directory
  **/
 gboolean
-autoar_extract_get_output_is_dest (AutoarExtract *arextract)
+autoar_extract_get_output_is_destination (AutoarExtract *arextract)
 {
   g_return_val_if_fail (AUTOAR_IS_EXTRACT (arextract), FALSE);
-  return arextract->priv->output_is_dest;
+  return arextract->priv->output_is_destination;
 }
 
 /**
@@ -387,15 +387,15 @@ autoar_extract_get_notify_interval (AutoarExtract *arextract)
 }
 
 /**
- * autoar_extract_set_output_is_dest:
+ * autoar_extract_set_output_is_destination:
  * @arextract: an #AutoarExtract
- * @output_is_dest: %TRUE if the location of the extracted directory or file
+ * @output_is_destination: %TRUE if the location of the extracted directory or file
  * has been already decided
  *
- * By default #AutoarExtract:output-is-dest is set to %FALSE, which means
+ * By default #AutoarExtract:output-is-destination is set to %FALSE, which means
  * only one file or directory will be generated. The destination is internally
  * determined by analyzing the contents of the archive. If this is not wanted,
- * #AutoarExtract:output-is-dest can be set to %TRUE, which will make
+ * #AutoarExtract:output-is-destination can be set to %TRUE, which will make
  * #AutoarExtract:output the destination for extracted files. In any case, the
  * destination directory will be notified via #AutoarExtract::decide-destination,
  * when it is possible to set a new destination.
@@ -407,11 +407,11 @@ autoar_extract_get_notify_interval (AutoarExtract *arextract)
  * autoar_extract_start_async().
  **/
 void
-autoar_extract_set_output_is_dest  (AutoarExtract *arextract,
-                                    gboolean output_is_dest)
+autoar_extract_set_output_is_destination  (AutoarExtract *arextract,
+                                           gboolean output_is_destination)
 {
   g_return_if_fail (AUTOAR_IS_EXTRACT (arextract));
-  arextract->priv->output_is_dest = output_is_dest;
+  arextract->priv->output_is_destination = output_is_destination;
 }
 
 /**
@@ -473,9 +473,9 @@ autoar_extract_dispose (GObject *object)
     priv->grouphash = NULL;
   }
 
-  if (priv->extracted_dir_list != NULL) {
-    g_array_unref (priv->extracted_dir_list);
-    priv->extracted_dir_list = NULL;
+  if (priv->extracted_directories != NULL) {
+    g_array_unref (priv->extracted_directories);
+    priv->extracted_directories = NULL;
   }
 
   G_OBJECT_CLASS (autoar_extract_parent_class)->dispose (object);
@@ -697,7 +697,7 @@ autoar_extract_signal_scanned (AutoarExtract *arextract)
 {
   autoar_common_g_signal_emit (arextract, arextract->priv->in_thread,
                                autoar_extract_signals[SCANNED], 0,
-                               arextract->priv->files);
+                               arextract->priv->total_files);
 }
 
 static inline void
@@ -1132,7 +1132,7 @@ autoar_extract_do_write_entry (AutoarExtract *arextract,
 
         fileandinfo.file = g_object_ref (dest);
         fileandinfo.info = g_object_ref (info);
-        g_array_append_val (priv->extracted_dir_list, fileandinfo);
+        g_array_append_val (priv->extracted_directories, fileandinfo);
       }
       break;
     case AE_IFLNK:
@@ -1260,10 +1260,10 @@ autoar_extract_class_init (AutoarExtractClass *klass)
                                                         G_PARAM_CONSTRUCT_ONLY |
                                                         G_PARAM_STATIC_STRINGS));
 
-  g_object_class_install_property (object_class, PROP_SIZE,
-                                   g_param_spec_uint64 ("size",
-                                                        "File size",
-                                                        "Size of the extracted files",
+  g_object_class_install_property (object_class, PROP_TOTAL_SIZE,
+                                   g_param_spec_uint64 ("total-size",
+                                                        "Total size",
+                                                        "Total size of the files in the archive",
                                                         0, G_MAXUINT64, 0,
                                                         G_PARAM_READABLE |
                                                         G_PARAM_STATIC_STRINGS));
@@ -1276,10 +1276,10 @@ autoar_extract_class_init (AutoarExtractClass *klass)
                                                         G_PARAM_READABLE |
                                                         G_PARAM_STATIC_STRINGS));
 
-  g_object_class_install_property (object_class, PROP_FILES,
-                                   g_param_spec_uint ("files",
-                                                      "Files",
-                                                      "Number of files in the archive",
+  g_object_class_install_property (object_class, PROP_TOTAL_FILES,
+                                   g_param_spec_uint ("total-files",
+                                                      "Total files",
+                                                      "Total number of files in the archive",
                                                       0, G_MAXUINT32, 0,
                                                       G_PARAM_READABLE |
                                                       G_PARAM_STATIC_STRINGS));
@@ -1292,8 +1292,8 @@ autoar_extract_class_init (AutoarExtractClass *klass)
                                                       G_PARAM_READABLE |
                                                       G_PARAM_STATIC_STRINGS));
 
-  g_object_class_install_property (object_class, PROP_OUTPUT_IS_DEST,
-                                   g_param_spec_boolean ("output-is-dest",
+  g_object_class_install_property (object_class, PROP_OUTPUT_IS_DESTINATION,
+                                   g_param_spec_boolean ("output-is-destination",
                                                          "Output is destination",
                                                          "Whether output direcotry is used as destination",
                                                          FALSE,
@@ -1313,9 +1313,10 @@ autoar_extract_class_init (AutoarExtractClass *klass)
 /**
  * AutoarExtract::scanned:
  * @arextract: the #AutoarExtract
- * @files: the number of files will be extracted from the source archive
+ * @total_files: the total number of files that will be extracted from the
+ *               source archive
  *
- * This signal is emitted when #AutoarExtract finish scanning filename entries
+ * This signal is emitted when #AutoarExtract finishes scanning filename entries
  * in the source archive.
  **/
   autoar_extract_signals[SCANNED] =
@@ -1458,12 +1459,12 @@ autoar_extract_init (AutoarExtract *arextract)
 
   priv->cancellable = NULL;
 
-  priv->size = 0;
+  priv->total_size = 0;
   priv->completed_size = 0;
 
   priv->files_list = NULL;
 
-  priv->files = 0;
+  priv->total_files = 0;
   priv->completed_files = 0;
 
   priv->notify_last = 0;
@@ -1475,11 +1476,10 @@ autoar_extract_init (AutoarExtract *arextract)
 
   priv->userhash = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
   priv->grouphash = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
-  priv->extracted_dir_list = g_array_new (FALSE, FALSE, sizeof (GFileAndInfo));
-  g_array_set_clear_func (priv->extracted_dir_list, g_file_and_info_free);
+  priv->extracted_directories = g_array_new (FALSE, FALSE, sizeof (GFileAndInfo));
+  g_array_set_clear_func (priv->extracted_directories, g_file_and_info_free);
   priv->destination_dir = NULL;
   priv->new_prefix = NULL;
-
   priv->suggested_destname = NULL;
 
   priv->in_thread = FALSE;
@@ -1491,7 +1491,7 @@ autoar_extract_init (AutoarExtract *arextract)
  * @source_file: source archive
  * @output_file: output directory of extracted file or directory, or the
  * file name of the extracted file or directory itself if you set
- * #AutoarExtract:output-is-dest on the returned object
+ * #AutoarExtract:output-is-destination on the returned object
  * @arpref: an #AutoarPref object
  *
  * Create a new #AutoarExtract object.
@@ -1570,13 +1570,13 @@ autoar_extract_step_scan_toplevel (AutoarExtract *arextract)
     }
 
     pathname = archive_entry_pathname (entry);
-    g_debug ("autoar_extract_step_scan_toplevel: %d: pathname = %s", priv->files, pathname);
+    g_debug ("autoar_extract_step_scan_toplevel: %d: pathname = %s", priv->total_files, pathname);
 
     priv->files_list = g_list_prepend (priv->files_list,
                                        g_file_get_child (priv->output_file, pathname));
 
-    priv->files++;
-    priv->size += archive_entry_size (entry);
+    priv->total_files++;
+    priv->total_size += archive_entry_size (entry);
     archive_read_data_skip (a);
   }
 
@@ -1599,12 +1599,12 @@ autoar_extract_step_scan_toplevel (AutoarExtract *arextract)
 
   /* If we are unable to determine the total size, set it to a positive
    * number to prevent strange percentage. */
-  if (priv->size <= 0)
-    priv->size = G_MAXUINT64;
+  if (priv->total_size <= 0)
+    priv->total_size = G_MAXUINT64;
 
   archive_read_free (a);
 
-  g_debug ("autoar_extract_step_scan_toplevel: files = %d", priv->files);
+  g_debug ("autoar_extract_step_scan_toplevel: files = %d", priv->total_files);
 
   priv->files_list = g_list_reverse (priv->files_list);
 
@@ -1631,7 +1631,7 @@ autoar_extract_step_set_dest (AutoarExtract *arextract)
 
   g_debug ("autoar_extract_step_set_dest: called");
 
-  if (priv->output_is_dest) {
+  if (priv->output_is_destination) {
     priv->destination_dir = g_object_ref (arextract->priv->output_file);
     return;
   }
@@ -1852,9 +1852,9 @@ autoar_extract_step_apply_dir_fileinfo (AutoarExtract *arextract) {
 
   g_debug ("autoar_extract_step_apply_dir_fileinfo: called");
 
-  for (i = 0; i < priv->extracted_dir_list->len; i++) {
-    GFile *file = g_array_index (priv->extracted_dir_list, GFileAndInfo, i).file;
-    GFileInfo *info = g_array_index (priv->extracted_dir_list, GFileAndInfo, i).info;
+  for (i = 0; i < priv->extracted_directories->len; i++) {
+    GFile *file = g_array_index (priv->extracted_directories, GFileAndInfo, i).file;
+    GFileInfo *info = g_array_index (priv->extracted_directories, GFileAndInfo, i).info;
     g_file_set_attributes_from_info (file, info,
                                      G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
                                      priv->cancellable, NULL);
@@ -1876,8 +1876,8 @@ autoar_extract_step_cleanup (AutoarExtract *arextract) {
 
   g_debug ("autoar_extract_step_cleanup: called");
 
-  priv->completed_size = priv->size;
-  priv->completed_files = priv->files;
+  priv->completed_size = priv->total_size;
+  priv->completed_files = priv->total_files;
   priv->notify_last = 0;
   autoar_extract_signal_progress (arextract);
   g_debug ("autoar_extract_step_cleanup: Update progress");

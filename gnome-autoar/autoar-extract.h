@@ -75,23 +75,11 @@ AutoarExtract  *autoar_extract_new                 (const char *source,
 AutoarExtract  *autoar_extract_new_file            (GFile *source_file,
                                                     GFile *output_file,
                                                     AutoarPref *arpref);
-AutoarExtract  *autoar_extract_new_memory          (const void *buffer,
-                                                    gsize buffer_size,
-                                                    const char *source_name,
-                                                    const char *output,
-                                                    AutoarPref *arpref);
-AutoarExtract  *autoar_extract_new_memory_file     (const void *buffer,
-                                                    gsize buffer_size,
-                                                    const char *source_name,
-                                                    GFile *output_file,
-                                                    AutoarPref *arpref);
 
 void            autoar_extract_start               (AutoarExtract *arextract,
                                                     GCancellable *cancellable);
 void            autoar_extract_start_async         (AutoarExtract *arextract,
                                                     GCancellable *cancellable);
-void            autoar_extract_free_source_buffer  (AutoarExtract *arextract,
-                                                    GDestroyNotify free_func);
 
 char           *autoar_extract_get_source          (AutoarExtract *arextract);
 GFile          *autoar_extract_get_source_file     (AutoarExtract *arextract);
@@ -101,7 +89,6 @@ guint64         autoar_extract_get_size            (AutoarExtract *arextract);
 guint64         autoar_extract_get_completed_size  (AutoarExtract *arextract);
 guint           autoar_extract_get_files           (AutoarExtract *arextract);
 guint           autoar_extract_get_completed_files (AutoarExtract *arextract);
-gboolean        autoar_extract_get_source_is_mem   (AutoarExtract *arextract);
 gboolean        autoar_extract_get_output_is_dest  (AutoarExtract *arextract);
 gint64          autoar_extract_get_notify_interval (AutoarExtract *arextract);
 

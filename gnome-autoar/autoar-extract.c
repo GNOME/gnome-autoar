@@ -115,13 +115,9 @@ struct _AutoarExtractPrivate
   GFile *source_file;
   GFile *output_file;
 
-  int source_is_mem  : 1;
   int output_is_dest : 1;
 
   AutoarPref *arpref;
-
-  const void *source_buffer;
-  gsize source_buffer_size;
 
   GCancellable *cancellable;
 
@@ -180,14 +176,13 @@ enum
 {
   PROP_0,
   PROP_SOURCE,           /* Only used to display messages */
-  PROP_SOURCE_FILE,      /* It may be invalid if source-is-mem is TRUE */
+  PROP_SOURCE_FILE,
   PROP_OUTPUT,           /* Only used to display messages */
   PROP_OUTPUT_FILE,
   PROP_SIZE,
   PROP_COMPLETED_SIZE,
   PROP_FILES,
   PROP_COMPLETED_FILES,
-  PROP_SOURCE_IS_MEM,    /* Must be set when constructing object */
   PROP_OUTPUT_IS_DEST,
   PROP_NOTIFY_INTERVAL
 };
@@ -231,9 +226,6 @@ autoar_extract_get_property (GObject    *object,
     case PROP_COMPLETED_FILES:
       g_value_set_uint (value, priv->completed_files);
       break;
-    case PROP_SOURCE_IS_MEM:
-      g_value_set_boolean (value, priv->source_is_mem);
-      break;
     case PROP_OUTPUT_IS_DEST:
       g_value_set_boolean (value, priv->output_is_dest);
       break;
@@ -275,9 +267,6 @@ autoar_extract_set_property (GObject      *object,
       g_clear_object (&(priv->output_file));
       priv->output_file = g_object_ref (g_value_get_object (value));
       break;
-    case PROP_SOURCE_IS_MEM:
-      priv->source_is_mem = g_value_get_boolean (value);
-      break;
     case PROP_OUTPUT_IS_DEST:
       autoar_extract_set_output_is_dest (arextract, g_value_get_boolean (value));
       break;
@@ -294,9 +283,8 @@ autoar_extract_set_property (GObject      *object,
  * autoar_extract_get_source:
  * @arextract: an #AutoarExtract
  *
- * If #AutoarExtract:source_is_mem is %TRUE, gets the descriptive string for
- * the source memory buffer. Otherwise, gets the source file will be extracted
- * for this object. It may be a filename or URI.
+ * Gets the source file that will be extracted for this object. It may be a
+ * filename or URI.
  *
  * Returns: (transfer none): a string
  **/
@@ -311,10 +299,8 @@ autoar_extract_get_source (AutoarExtract *arextract)
  * autoar_extract_get_source_file:
  * @arextract: an #AutoarExtract
  *
- * If #AutoarExtract:source_is_mem is %TRUE, gets the #GFile object generated
- * using the value of #AutoarExtract:source. The returned #GFile is not usable
- * at all. Otherwise, gets the #GFile object which represents the source
- * archive will be extracted for this object.
+ * Gets the #GFile object which represents the source archive that will be
+ * extracted for this object.
  *
  * Returns: (transfer none): a #GFile
  **/
@@ -420,21 +406,6 @@ autoar_extract_get_completed_files (AutoarExtract *arextract)
 }
 
 /**
- * autoar_extract_get_source_is_mem:
- * @arextract: an #AutoarExtract
- *
- * Gets whether the source archive is a memory buffer.
- *
- * Returns: %TRUE if the source archive is a memory buffer.
- **/
-gboolean
-autoar_extract_get_source_is_mem (AutoarExtract *arextract)
-{
-  g_return_val_if_fail (AUTOAR_IS_EXTRACT (arextract), FALSE);
-  return arextract->priv->source_is_mem;
-}
-
-/**
  * autoar_extract_get_output_is_dest:
  * @arextract: an #AutoarExtract
  *
@@ -447,7 +418,7 @@ gboolean
 autoar_extract_get_output_is_dest (AutoarExtract *arextract)
 {
   g_return_val_if_fail (AUTOAR_IS_EXTRACT (arextract), FALSE);
-  return arextract->priv->source_is_mem;
+  return arextract->priv->output_is_dest;
 }
 
 /**
@@ -598,6 +569,7 @@ libarchive_read_open_cb (struct archive *ar_read,
 {
   AutoarExtract *arextract;
   AutoarExtractPrivate *priv;
+  GFileInputStream *istream;
 
   g_debug ("libarchive_read_open_cb: called");
 
@@ -607,18 +579,10 @@ libarchive_read_open_cb (struct archive *ar_read,
   if (priv->error != NULL)
     return ARCHIVE_FATAL;
 
-  if (arextract->priv->source_is_mem) {
-    priv->istream =
-      g_memory_input_stream_new_from_data (priv->source_buffer,
-                                           priv->source_buffer_size,
-                                           NULL);
-  } else {
-    GFileInputStream *istream;
-    istream = g_file_read (priv->source_file,
-                           priv->cancellable,
-                           &(arextract->priv->error));
-    priv->istream = G_INPUT_STREAM (istream);
-  }
+  istream = g_file_read (priv->source_file,
+                         priv->cancellable,
+                         &(arextract->priv->error));
+  priv->istream = G_INPUT_STREAM (istream);
 
   if (priv->error != NULL)
     return ARCHIVE_FATAL;
@@ -1403,15 +1367,6 @@ autoar_extract_class_init (AutoarExtractClass *klass)
                                                       G_PARAM_READABLE |
                                                       G_PARAM_STATIC_STRINGS));
 
-  g_object_class_install_property (object_class, PROP_SOURCE_IS_MEM,
-                                   g_param_spec_boolean ("source-is-mem",
-                                                         "Source is memory",
-                                                         "Whether source file is in memory",
-                                                         FALSE,
-                                                         G_PARAM_READWRITE |
-                                                         G_PARAM_CONSTRUCT_ONLY |
-                                                         G_PARAM_STATIC_STRINGS));
-
   g_object_class_install_property (object_class, PROP_OUTPUT_IS_DEST,
                                    g_param_spec_boolean ("output-is-dest",
                                                          "Output is destination",
@@ -1576,9 +1531,6 @@ autoar_extract_init (AutoarExtract *arextract)
   priv = AUTOAR_EXTRACT_GET_PRIVATE (arextract);
   arextract->priv = priv;
 
-  priv->source_buffer = NULL;
-  priv->source_buffer_size = 0;
-
   priv->cancellable = NULL;
 
   priv->size = 0;
@@ -1614,7 +1566,6 @@ autoar_extract_new_full (const char *source,
                          GFile *source_file,
                          const char *output,
                          GFile *output_file,
-                         gboolean source_is_mem,
                          AutoarPref *arpref,
                          const void *buffer,
                          gsize buffer_size,
@@ -1623,21 +1574,17 @@ autoar_extract_new_full (const char *source,
   AutoarExtract *arextract;
   char *gen_source, *gen_output;
   GFile *gen_source_file, *gen_output_file;
+  g_autofree char *source_basename;
 
   gen_source      = NULL;
   gen_source_file = NULL;
   gen_output      = NULL;
   gen_output_file = NULL;
 
-  if (source_is_mem) {
-    gen_source = g_strdup_printf ("(memory %p, size %" G_GSIZE_FORMAT ")", buffer, buffer_size);
-    gen_source_file = g_file_new_for_commandline_arg (gen_source);
-  } else {
-    if (source == NULL)
-      gen_source = autoar_common_g_file_get_name (source_file);
-    if (source_file == NULL)
-      gen_source_file = g_file_new_for_commandline_arg (source);
-  }
+  if (source == NULL)
+    gen_source = autoar_common_g_file_get_name (source_file);
+  if (source_file == NULL)
+    gen_source_file = g_file_new_for_commandline_arg (source);
 
   if (output == NULL)
     gen_output = autoar_common_g_file_get_name (output_file);
@@ -1650,24 +1597,13 @@ autoar_extract_new_full (const char *source,
                   "source-file",    source_file != NULL ? source_file : gen_source_file,
                   "output",         output      != NULL ? output      : gen_output,
                   "output-file",    output_file != NULL ? output_file : gen_output_file,
-                  "source-is-mem",  source_is_mem, NULL);
+                  NULL);
+
   arextract->priv->arpref = g_object_ref (arpref);
 
-  if (source_is_mem) {
-    arextract->priv->source_buffer = buffer;
-    arextract->priv->source_buffer_size = buffer_size;
-    if (suggested_destname != NULL)
-      arextract->priv->suggested_destname =
-        autoar_common_get_basename_remove_extension (suggested_destname);
-    else
-      arextract->priv->suggested_destname =
-        autoar_common_get_basename_remove_extension (gen_source);
-  } else {
-    char *source_basename = g_file_get_basename (arextract->priv->source_file);
-    arextract->priv->suggested_destname =
-      autoar_common_get_basename_remove_extension (source_basename);
-    g_free (source_basename);
-  }
+  source_basename = g_file_get_basename (arextract->priv->source_file);
+  arextract->priv->suggested_destname =
+    autoar_common_get_basename_remove_extension (source_basename);
 
   g_free (gen_source);
   g_free (gen_output);
@@ -1702,7 +1638,7 @@ autoar_extract_new (const char *source,
   g_return_val_if_fail (output != NULL, NULL);
 
   return autoar_extract_new_full (source, NULL, output, NULL,
-                                  FALSE, arpref,
+                                  arpref,
                                   NULL, 0, NULL);
 }
 
@@ -1727,72 +1663,8 @@ autoar_extract_new_file (GFile *source_file,
   g_return_val_if_fail (output_file != NULL, NULL);
 
   return autoar_extract_new_full (NULL, source_file, NULL, output_file,
-                                  FALSE, arpref,
+                                  arpref,
                                   NULL, 0, NULL);
-}
-
-/**
- * autoar_extract_new_memory:
- * @buffer: memory buffer holding the source archive
- * @buffer_size: the size of the source archive memory buffer
- * @source_name: the name of the source archive
- * @output: output directory of extracted file or directory, or the file name
- * of the extracted file or directory itself if you set
- * #AutoarExtract:output-is-dest on the returned object
- * @arpref: an #AutoarPref object
- *
- * Create a new #AutoarExtract object. @source_name does not need to be a full
- * path. The file which it represents does not need to exist, either. This
- * argument is only used to decide the name of the extracted file or directory,
- * and it is useless if you set #AutoarExtract:output-is-dest to %TRUE.
- *
- * Returns: (transfer full): a new #AutoarExtract object
- **/
-AutoarExtract*
-autoar_extract_new_memory (const void *buffer,
-                           gsize buffer_size,
-                           const char *source_name,
-                           const char *output,
-                           AutoarPref *arpref)
-{
-
-  g_return_val_if_fail (output != NULL, NULL);
-  g_return_val_if_fail (buffer != NULL, NULL);
-
-  return autoar_extract_new_full (NULL, NULL, output, NULL,
-                                  TRUE, arpref,
-                                  buffer, buffer_size, source_name);
-}
-
-/**
- * autoar_extract_new_memory_file:
- * @buffer: memory buffer holding the source archive
- * @buffer_size: the size of the source archive memory buffer
- * @source_name: the name of the source archive
- * @output_file: output directory of extracted file or directory, or the file
- * name of the extracted file or directory itself if you set
- * #AutoarExtract:output-is-dest on the returned object
- * @arpref: an #AutoarPref object
- *
- * Create a new #AutoarExtract object. This function is similar to
- * autoar_extract_new_memory() except for the argument for the output
- * directory is #GFile.
- *
- * Returns: (transfer full): a new #AutoarExtract object
- **/
-AutoarExtract*
-autoar_extract_new_memory_file (const void *buffer,
-                                gsize buffer_size,
-                                const char *source_name,
-                                GFile *output_file,
-                                AutoarPref *arpref)
-{
-  g_return_val_if_fail (output_file != NULL, NULL);
-  g_return_val_if_fail (buffer != NULL, NULL);
-
-  return autoar_extract_new_full (NULL, NULL, NULL, output_file,
-                                  TRUE, arpref,
-                                  buffer, buffer_size, source_name);
 }
 
 static void
@@ -2172,8 +2044,7 @@ autoar_extract_run (AutoarExtract *arextract)
   g_return_if_fail (AUTOAR_IS_EXTRACT (arextract));
   priv = arextract->priv;
 
-  g_return_if_fail (priv->source_file != NULL || (priv->source_is_mem &&
-                                                  priv->source_buffer != NULL));
+  g_return_if_fail (priv->source_file != NULL);
   g_return_if_fail (priv->output_file != NULL);
 
   if (g_cancellable_is_cancelled (priv->cancellable)) {
@@ -2266,26 +2137,4 @@ autoar_extract_start_async (AutoarExtract *arextract,
   task = g_task_new (arextract, NULL, NULL, NULL);
   g_task_set_task_data (task, NULL, NULL);
   g_task_run_in_thread (task, autoar_extract_start_async_thread);
-}
-
-/**
- * autoar_extract_free_source_buffer:
- * @arextract: an #AutoarExtract object
- * @free_func: a function to free the memory buffer
- *
- * Free the source memory archive provided in autoar_extract_new_memory() or
- * autoar_extract_new_memory_file(). This functions should only be called
- * after the extracting job is completed. That is, you should only call this
- * function after you receives one of #AutoarExtract::cancelled,
- * #AutoarExtract::error, or #AutoarExtract::completed signal.
- **/
-void
-autoar_extract_free_source_buffer (AutoarExtract *arextract,
-                                   GDestroyNotify free_func)
-{
-  if (arextract->priv->source_buffer != NULL)
-    (*free_func)((void*)(arextract->priv->source_buffer));
-
-  arextract->priv->source_buffer = NULL;
-  arextract->priv->source_buffer_size = 0;
 }

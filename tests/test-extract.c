@@ -76,31 +76,7 @@ main (int argc,
   autoar_pref_set_delete_if_succeed (arpref, FALSE);
   autoar_pref_set_pattern_to_ignore (arpref, (const char**)argv + 3);
 
-  autoar_pref_forget_changes (arpref);
-  autoar_pref_write_gsettings (arpref, settings);
-
-  if (g_str_has_suffix (argv[0], "test-extract-memory")) {
-    gsize length;
-    GFile *file;
-    GError *error;
-
-    g_print ("Loading whole file into memory ... ");
-
-    error = NULL;
-    file = g_file_new_for_commandline_arg (argv[1]);
-    if (!g_file_load_contents (file, NULL, &content, &length, NULL, &error)) {
-      g_printerr ("\ntest-extract-memory: Error %d: %s\n", error->code, error->message);
-      g_object_unref (file);
-      g_error_free (error);
-      return 1;
-    }
-
-    g_print ("OK\n");
-    g_object_unref (file);
-    arextract = autoar_extract_new_memory (content, length, argv[1], argv[2], arpref);
-  } else {
-    arextract = autoar_extract_new (argv[1], argv[2], arpref);
-  }
+  arextract = autoar_extract_new (argv[1], argv[2], arpref);
 
   g_signal_connect (arextract, "scanned", G_CALLBACK (my_handler_scanned), NULL);
   g_signal_connect (arextract, "decide-dest", G_CALLBACK (my_handler_decide_dest), NULL);

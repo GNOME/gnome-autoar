@@ -68,9 +68,7 @@
  * directory notified by #AutoarExtract::decide-dest. The created file
  * or directory name will be generated based on the name of the source archive,
  * so users can easily figure out the relation between the archive and the
- * extracted files. #AutoarExtract can also ignore specific file name pattern
- * when extrating, or delete the source archive after extracting, depending on
- * the settings provided by the #AutoarPref object.
+ * extracted files.
  *
  * When #AutoarExtract stop all work, it will emit one of the three signals:
  * #AutoarExtract::cancelled, #AutoarExtract::error, and
@@ -132,8 +130,6 @@ struct _AutoarExtractPrivate
 
   GHashTable *userhash;
   GHashTable *grouphash;
-  GHashTable *bad_filename;
-  GPtrArray  *pattern_compiled;
   GArray     *extracted_dir_list;
   GFile      *top_level_dir;
 
@@ -461,16 +457,6 @@ autoar_extract_dispose (GObject *object)
     priv->grouphash = NULL;
   }
 
-  if (priv->bad_filename != NULL) {
-    g_hash_table_unref (priv->bad_filename);
-    priv->bad_filename = NULL;
-  }
-
-  if (priv->pattern_compiled != NULL) {
-    g_ptr_array_unref (priv->pattern_compiled);
-    priv->pattern_compiled = NULL;
-  }
-
   if (priv->extracted_dir_list != NULL) {
     g_array_unref (priv->extracted_dir_list);
     priv->extracted_dir_list = NULL;
@@ -686,13 +672,6 @@ libarchive_create_read_object (gboolean use_raw_format,
 }
 
 static void
-g_pattern_spec_free_safe (void *pattern_compiled)
-{
-  if (pattern_compiled != NULL)
-    g_pattern_spec_free (pattern_compiled);
-}
-
-static void
 g_file_and_info_free (void *g_file_and_info)
 {
   GFileAndInfo *fi = g_file_and_info;
@@ -803,42 +782,6 @@ autoar_extract_do_sanitize_pathname (const char *pathname,
   }
 
   return extracted_filename;
-}
-
-static gboolean
-autoar_extract_do_pattern_check (const char *path,
-                                 GPtrArray *pattern)
-{
-  char **path_components;
-  GArray *path_components_len;
-
-  int i, j, len;
-
-  path_components = g_strsplit (path, "/", G_MAXINT);
-  path_components_len = g_array_new (FALSE, FALSE, sizeof(size_t));
-  for (i = 0; path_components[i] != NULL; i++) {
-    len = strlen (path_components[i]);
-    g_array_append_val (path_components_len, len);
-  }
-
-  for (i = 0; g_ptr_array_index (pattern, i) != NULL; i++) {
-    for (j = 0; path_components[j] != NULL; j++) {
-      if (g_pattern_match (g_ptr_array_index (pattern, i),
-                           g_array_index (path_components_len, size_t, j),
-                           path_components[j],
-                           NULL)) {
-        g_debug ("autoar_extract_do_pattern_check: ### %s", path_components[j]);
-        g_strfreev (path_components);
-        g_array_unref (path_components_len);
-        return FALSE;
-      }
-    }
-  }
-
-  g_strfreev (path_components);
-  g_array_unref (path_components_len);
-
-  return TRUE;
 }
 
 static void
@@ -1368,8 +1311,6 @@ autoar_extract_init (AutoarExtract *arextract)
 
   priv->userhash = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
   priv->grouphash = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
-  priv->bad_filename = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
-  priv->pattern_compiled = g_ptr_array_new_with_free_func (g_pattern_spec_free_safe);
   priv->extracted_dir_list = g_array_new (FALSE, FALSE, sizeof (GFileAndInfo));
   g_array_set_clear_func (priv->extracted_dir_list, g_file_and_info_free);
   priv->top_level_dir = NULL;
@@ -1420,26 +1361,9 @@ autoar_extract_new (GFile *source_file,
 }
 
 static void
-autoar_extract_step_initialize_pattern (AutoarExtract *arextract) {
-  /* Step 0: Compile the file name pattern. */
-
-  AutoarExtractPrivate *priv = arextract->priv;
-  const char **pattern = autoar_pref_get_pattern_to_ignore (priv->arpref);
-  int i;
-
-  g_debug ("autoar_extract_step_initialize_pattern: called");
-
-  if (pattern != NULL) {
-    for (i = 0; pattern[i] != NULL; i++)
-      g_ptr_array_add (priv->pattern_compiled, g_pattern_spec_new (pattern[i]));
-  }
-  g_ptr_array_add (priv->pattern_compiled, NULL);
-}
-
-static void
 autoar_extract_step_scan_toplevel (AutoarExtract *arextract)
 {
-  /* Step 1: Scan all file names in the archive
+  /* Step 0: Scan all file names in the archive
    * We have to check whether the archive contains a top-level directory
    * before performing the extraction. We emit the "scanned" signal when
    * the checking is completed. */
@@ -1489,13 +1413,6 @@ autoar_extract_step_scan_toplevel (AutoarExtract *arextract)
 
     pathname = archive_entry_pathname (entry);
     g_debug ("autoar_extract_step_scan_toplevel: %d: pathname = %s", priv->files, pathname);
-
-    if (!priv->use_raw_format && !autoar_extract_do_pattern_check (pathname, priv->pattern_compiled)) {
-      g_hash_table_insert (priv->bad_filename, g_strdup (pathname), GUINT_TO_POINTER (TRUE));
-      continue;
-    }
-
-    g_debug ("autoar_extract_step_scan_toplevel: %d: pattern check passed", priv->files);
 
     if (pathname_prefix == NULL) {
       char *dir_sep_location;
@@ -1559,7 +1476,7 @@ autoar_extract_step_scan_toplevel (AutoarExtract *arextract)
 
 static void
 autoar_extract_step_decide_dest (AutoarExtract *arextract) {
-  /* Step 2: Create necessary directories
+  /* Step 1: Create necessary directories
    * If the archive contains only one file, we don't create the directory */
 
   const char *pathname_extension;
@@ -1622,14 +1539,14 @@ autoar_extract_step_decide_dest (AutoarExtract *arextract) {
 
 static void
 autoar_extract_step_decide_dest_already (AutoarExtract *arextract) {
-  /* Alternative step 2: Output is destination */
+  /* Alternative step 1: Output is destination */
   arextract->priv->top_level_dir = g_object_ref (arextract->priv->output_file);
   autoar_extract_signal_decide_dest (arextract);
 }
 
 static void
 autoar_extract_step_extract (AutoarExtract *arextract) {
-  /* Step 3: Extract files
+  /* Step 2: Extract files
    * We have to re-open the archive to extract files */
 
   struct archive *a;
@@ -1665,8 +1582,6 @@ autoar_extract_step_extract (AutoarExtract *arextract) {
     pathname = archive_entry_pathname (entry);
     hardlink = archive_entry_hardlink (entry);
     hardlink_filename = NULL;
-    if (GPOINTER_TO_UINT (g_hash_table_lookup (priv->bad_filename, pathname)))
-      continue;
 
     if (!(priv->has_only_one_file)) {
       if (priv->has_top_level_dir) {
@@ -1717,7 +1632,7 @@ autoar_extract_step_extract (AutoarExtract *arextract) {
 
 static void
 autoar_extract_step_apply_dir_fileinfo (AutoarExtract *arextract) {
-  /* Step 4: Re-apply file info to all directories
+  /* Step 3: Re-apply file info to all directories
    * It is required because modification times may be updated during the
    * writing of files in the directory. */
 
@@ -1742,7 +1657,7 @@ autoar_extract_step_apply_dir_fileinfo (AutoarExtract *arextract) {
 
 static void
 autoar_extract_step_cleanup (AutoarExtract *arextract) {
-  /* Step 5: Force progress to be 100% and remove the source archive file
+  /* Step 4: Force progress to be 100% and remove the source archive file
    * If the extraction is completed successfully, remove the source file.
    * Errors are not fatal because we have completed our work. */
 
@@ -1768,7 +1683,7 @@ autoar_extract_run (AutoarExtract *arextract)
 {
   /* Numbers of steps.
    * The array size must be modified if more steps are added. */
-  void (*steps[7])(AutoarExtract*);
+  void (*steps[6])(AutoarExtract*);
 
   AutoarExtractPrivate *priv;
   int i;
@@ -1785,7 +1700,6 @@ autoar_extract_run (AutoarExtract *arextract)
   }
 
   i = 0;
-  steps[i++] = autoar_extract_step_initialize_pattern;
   steps[i++] = autoar_extract_step_scan_toplevel;
   steps[i++] = priv->output_is_dest ?
                autoar_extract_step_decide_dest_already :

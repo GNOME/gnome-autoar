@@ -64,7 +64,7 @@ main (int argc,
   g_autoptr (GFile) output = NULL;
 
   if (argc < 3) {
-    g_printerr ("Usage: %s archive_file output_dir pattern_to_ignore ...\n",
+    g_printerr ("Usage: %s archive_file output_dir\n",
                 argv[0]);
     return 255;
   }
@@ -76,7 +76,6 @@ main (int argc,
 
   arpref = autoar_pref_new_with_gsettings (settings);
   autoar_pref_set_delete_if_succeed (arpref, FALSE);
-  autoar_pref_set_pattern_to_ignore (arpref, (const char**)argv + 3);
 
   source = g_file_new_for_commandline_arg (argv[1]);
   output = g_file_new_for_commandline_arg (argv[2]);

@@ -89,8 +89,6 @@ main (int argc,
       char *argv[])
 {
   AutoarExtract *arextract;
-  AutoarPref *arpref;
-  GSettings *settings;
   char *content;
   g_autoptr (GFile) source = NULL;
   g_autoptr (GFile) output = NULL;
@@ -104,15 +102,10 @@ main (int argc,
   setlocale (LC_ALL, "");
 
   content = NULL;
-  settings = g_settings_new (AUTOAR_PREF_DEFAULT_GSCHEMA_ID);
-
-  arpref = autoar_pref_new_with_gsettings (settings);
-  autoar_pref_set_delete_if_succeed (arpref, FALSE);
 
   source = g_file_new_for_commandline_arg (argv[1]);
   output = g_file_new_for_commandline_arg (argv[2]);
-
-  arextract = autoar_extract_new (source, output, arpref);
+  arextract = autoar_extract_new (source, output);
 
   g_signal_connect (arextract, "scanned", G_CALLBACK (my_handler_scanned), NULL);
   g_signal_connect (arextract, "decide-destination", G_CALLBACK (my_handler_decide_destination), NULL);
@@ -124,8 +117,6 @@ main (int argc,
   autoar_extract_start (arextract, NULL);
 
   g_object_unref (arextract);
-  g_object_unref (arpref);
-  g_object_unref (settings);
   g_free (content);
 
   return 0;

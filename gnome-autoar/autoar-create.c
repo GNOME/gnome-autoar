@@ -943,6 +943,15 @@ autoar_create_do_add_to_archive (AutoarCreate *arcreate,
       pathname_in_entry = archive_entry_pathname (entry);
       file_to_read = g_hash_table_lookup (priv->pathname_to_g_file, pathname_in_entry);
       autoar_create_do_write_data (arcreate, entry, file_to_read);
+      /* Entries for non-regular files might have their size attribute
+       * different to their actual size on the disk
+       */
+      if (archive_entry_filetype (entry) != AE_IFREG &&
+          archive_entry_size (entry) != g_file_info_get_size (info)) {
+        priv->completed_size += g_file_info_get_size (info);
+        autoar_create_signal_progress (arcreate);
+      }
+
       g_hash_table_remove (priv->pathname_to_g_file, pathname_in_entry);
       /* We have registered g_object_unref function to free the GFile object,
        * so we do not have to unref it here. */

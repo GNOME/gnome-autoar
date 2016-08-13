@@ -28,7 +28,6 @@
 
 #include "autoar-misc.h"
 #include "autoar-private.h"
-#include "autoar-pref.h"
 
 #include <archive.h>
 #include <archive_entry.h>
@@ -114,8 +113,7 @@ struct _AutoarExtractPrivate
   char *source_basename;
 
   int output_is_dest : 1;
-
-  AutoarPref *arpref;
+  gboolean delete_after_extraction;
 
   GCancellable *cancellable;
 
@@ -180,6 +178,7 @@ enum
   PROP_FILES,
   PROP_COMPLETED_FILES,
   PROP_OUTPUT_IS_DEST,
+  PROP_DELETE_AFTER_EXTRACTION,
   PROP_NOTIFY_INTERVAL
 };
 
@@ -219,6 +218,9 @@ autoar_extract_get_property (GObject    *object,
     case PROP_OUTPUT_IS_DEST:
       g_value_set_boolean (value, priv->output_is_dest);
       break;
+    case PROP_DELETE_AFTER_EXTRACTION:
+      g_value_set_boolean (value, priv->delete_after_extraction);
+      break;
     case PROP_NOTIFY_INTERVAL:
       g_value_set_int64 (value, priv->notify_interval);
       break;
@@ -251,6 +253,10 @@ autoar_extract_set_property (GObject      *object,
       break;
     case PROP_OUTPUT_IS_DEST:
       autoar_extract_set_output_is_dest (arextract, g_value_get_boolean (value));
+      break;
+    case PROP_DELETE_AFTER_EXTRACTION:
+      autoar_extract_set_delete_after_extraction (arextract,
+                                                  g_value_get_boolean (value));
       break;
     case PROP_NOTIFY_INTERVAL:
       autoar_extract_set_notify_interval (arextract, g_value_get_int64 (value));
@@ -371,6 +377,22 @@ autoar_extract_get_output_is_dest (AutoarExtract *arextract)
 }
 
 /**
+ * autoar_extract_get_delete_after_extraction:
+ * @arextract: an #AutoarExtract
+ *
+ * Whether the source archive will be deleted after a successful extraction.
+ *
+ * Returns: %TRUE if the source archive will be deleted after a succesful
+ * extraction
+ **/
+gboolean
+autoar_extract_get_delete_after_extraction (AutoarExtract *arextract)
+{
+  g_return_val_if_fail (AUTOAR_IS_EXTRACT (arextract), FALSE);
+  return arextract->priv->delete_after_extraction;
+}
+
+/**
  * autoar_extract_get_notify_interval:
  * @arextract: an #AutoarExtract
  *
@@ -415,6 +437,23 @@ autoar_extract_set_output_is_dest  (AutoarExtract *arextract,
 }
 
 /**
+ * autoar_extract_set_delete_after_extraction:
+ * @arextract: an #AutoarExtract
+ * @delete_after_extraction: %TRUE if the source archive should be deleted after
+ * a successful extraction
+ *
+ * By default #AutoarExtract:delete-after-extraction is set to %FALSE so the
+ * source archive will not be automatically deleted if extraction succeeds.
+ **/
+void
+autoar_extract_set_delete_after_extraction (AutoarExtract *arextract,
+                                            gboolean       delete_after_extraction)
+{
+  g_return_if_fail (AUTOAR_IS_EXTRACT (arextract));
+  arextract->priv->delete_after_extraction = delete_after_extraction;
+}
+
+/**
  * autoar_extract_set_notify_interval:
  * @arextract: an #AutoarExtract
  * @notify_interval: the minimal interval in microseconds
@@ -454,7 +493,6 @@ autoar_extract_dispose (GObject *object)
 
   g_clear_object (&(priv->source_file));
   g_clear_object (&(priv->output_file));
-  g_clear_object (&(priv->arpref));
   g_clear_object (&(priv->destination_dir));
   g_clear_object (&(priv->cancellable));
   g_clear_object (&(priv->prefix));
@@ -1301,6 +1339,16 @@ autoar_extract_class_init (AutoarExtractClass *klass)
                                                          G_PARAM_CONSTRUCT |
                                                          G_PARAM_STATIC_STRINGS));
 
+  g_object_class_install_property (object_class, PROP_DELETE_AFTER_EXTRACTION,
+                                   g_param_spec_boolean ("delete-after-extraction",
+                                                         "Delete after extraction",
+                                                         "Whether the source archive is deleted after "
+                                                         "a successful extraction",
+                                                         FALSE,
+                                                         G_PARAM_READWRITE |
+                                                         G_PARAM_CONSTRUCT |
+                                                         G_PARAM_STATIC_STRINGS));
+
   g_object_class_install_property (object_class, PROP_NOTIFY_INTERVAL,
                                    g_param_spec_int64 ("notify-interval",
                                                        "Notify interval",
@@ -1492,7 +1540,6 @@ autoar_extract_init (AutoarExtract *arextract)
  * @output_file: output directory of extracted file or directory, or the
  * file name of the extracted file or directory itself if you set
  * #AutoarExtract:output-is-dest on the returned object
- * @arpref: an #AutoarPref object
  *
  * Create a new #AutoarExtract object.
  *
@@ -1500,8 +1547,7 @@ autoar_extract_init (AutoarExtract *arextract)
  **/
 AutoarExtract*
 autoar_extract_new (GFile *source_file,
-                    GFile *output_file,
-                    AutoarPref *arpref)
+                    GFile *output_file)
 {
   AutoarExtract *arextract;
 
@@ -1512,8 +1558,6 @@ autoar_extract_new (GFile *source_file,
                             "source-file", source_file,
                             "output-file", output_file,
                             NULL);
-
-  arextract->priv->arpref = g_object_ref (arpref);
 
   arextract->priv->source_basename = g_file_get_basename (arextract->priv->source_file);
   arextract->priv->suggested_destname = autoar_common_get_basename_remove_extension (arextract->priv->source_basename);
@@ -1888,7 +1932,8 @@ autoar_extract_step_cleanup (AutoarExtract *arextract) {
   priv->notify_last = 0;
   autoar_extract_signal_progress (arextract);
   g_debug ("autoar_extract_step_cleanup: Update progress");
-  if (autoar_pref_get_delete_if_succeed (priv->arpref) && priv->source_file != NULL) {
+
+  if (priv->delete_after_extraction) {
     g_debug ("autoar_extract_step_cleanup: Delete");
     g_file_delete (priv->source_file, priv->cancellable, NULL);
   }

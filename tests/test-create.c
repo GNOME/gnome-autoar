@@ -72,7 +72,8 @@ main (int argc,
   arcreate = autoar_create_new (source_files,
                                 output_file,
                                 atoi (argv[1]),
-                                atoi (argv[2]));
+                                atoi (argv[2]),
+                                TRUE);
   g_signal_connect (arcreate, "decide-dest", G_CALLBACK (my_handler_decide_dest), NULL);
   g_signal_connect (arcreate, "progress", G_CALLBACK (my_handler_progress), NULL);
   g_signal_connect (arcreate, "error", G_CALLBACK (my_handler_error), NULL);

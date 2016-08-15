@@ -65,35 +65,37 @@ struct _AutoarCreateClass
  **/
 #define AUTOAR_CREATE_ERROR autoar_create_quark()
 
-GQuark          autoar_create_quark               (void);
+GQuark         autoar_create_quark                          (void);
 
-GType           autoar_create_get_type            (void) G_GNUC_CONST;
+GType          autoar_create_get_type                       (void) G_GNUC_CONST;
 
-AutoarCreate*   autoar_create_new                 (GList *source_files,
-                                                   GFile *output_file,
-                                                   AutoarFormat format,
-                                                   AutoarFilter filter);
+AutoarCreate * autoar_create_new                            (GList *source_files,
+                                                             GFile *output_file,
+                                                             AutoarFormat format,
+                                                             AutoarFilter filter,
+                                                             gboolean create_top_level_directory);
 
-void            autoar_create_start               (AutoarCreate *arcreate,
-                                                   GCancellable *cancellable);
-void            autoar_create_start_async         (AutoarCreate *arcreate,
-                                                   GCancellable *cancellable);
+void           autoar_create_start                          (AutoarCreate *arcreate,
+                                                             GCancellable *cancellable);
+void           autoar_create_start_async                    (AutoarCreate *arcreate,
+                                                             GCancellable *cancellable);
 
-GList          *autoar_create_get_source_files    (AutoarCreate *arcreate);
-GFile          *autoar_create_get_output_file     (AutoarCreate *arcreate);
-AutoarFormat    autoar_create_get_format          (AutoarCreate *arcreate);
-AutoarFilter    autoar_create_get_filter          (AutoarCreate *arcreate);
-guint64         autoar_create_get_size            (AutoarCreate *arcreate);
-guint64         autoar_create_get_completed_size  (AutoarCreate *arcreate);
-guint           autoar_create_get_files           (AutoarCreate *arcreate);
-guint           autoar_create_get_completed_files (AutoarCreate *arcreate);
-gboolean        autoar_create_get_output_is_dest  (AutoarCreate *arcreate);
-gint64          autoar_create_get_notify_interval (AutoarCreate *arcreate);
+GList *        autoar_create_get_source_files               (AutoarCreate *arcreate);
+GFile *        autoar_create_get_output_file                (AutoarCreate *arcreate);
+AutoarFormat   autoar_create_get_format                     (AutoarCreate *arcreate);
+AutoarFilter   autoar_create_get_filter                     (AutoarCreate *arcreate);
+gboolean       autoar_create_get_create_top_level_directory (AutoarCreate *arcreate);
+guint64        autoar_create_get_size                       (AutoarCreate *arcreate);
+guint64        autoar_create_get_completed_size             (AutoarCreate *arcreate);
+guint          autoar_create_get_files                      (AutoarCreate *arcreate);
+guint          autoar_create_get_completed_files            (AutoarCreate *arcreate);
+gboolean       autoar_create_get_output_is_dest             (AutoarCreate *arcreate);
+gint64         autoar_create_get_notify_interval            (AutoarCreate *arcreate);
 
-void            autoar_create_set_output_is_dest  (AutoarCreate *arcreate,
-                                                   gboolean output_is_dest);
-void            autoar_create_set_notify_interval (AutoarCreate *arcreate,
-                                                   gint64 notify_interval);
+void           autoar_create_set_output_is_dest             (AutoarCreate *arcreate,
+                                                             gboolean      output_is_dest);
+void           autoar_create_set_notify_interval            (AutoarCreate *arcreate,
+                                                             gint64        notify_interval);
 G_END_DECLS
 
 #endif /* AUTOAR_CREATE_H */

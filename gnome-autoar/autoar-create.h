@@ -29,7 +29,7 @@
 #include <glib-object.h>
 #include <gio/gio.h>
 
-#include "autoar-pref.h"
+#include "autoar-format-filter.h"
 
 G_BEGIN_DECLS
 
@@ -71,7 +71,8 @@ GType           autoar_create_get_type            (void) G_GNUC_CONST;
 
 AutoarCreate*   autoar_create_new                 (GList *source_files,
                                                    GFile *output_file,
-                                                   AutoarPref *arpref);
+                                                   AutoarFormat format,
+                                                   AutoarFilter filter);
 
 void            autoar_create_start               (AutoarCreate *arcreate,
                                                    GCancellable *cancellable);
@@ -80,6 +81,8 @@ void            autoar_create_start_async         (AutoarCreate *arcreate,
 
 GList          *autoar_create_get_source_files    (AutoarCreate *arcreate);
 GFile          *autoar_create_get_output_file     (AutoarCreate *arcreate);
+AutoarFormat    autoar_create_get_format          (AutoarCreate *arcreate);
+AutoarFilter    autoar_create_get_filter          (AutoarCreate *arcreate);
 guint64         autoar_create_get_size            (AutoarCreate *arcreate);
 guint64         autoar_create_get_completed_size  (AutoarCreate *arcreate);
 guint           autoar_create_get_files           (AutoarCreate *arcreate);

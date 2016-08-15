@@ -49,7 +49,6 @@ main (int argc,
       char* argv[])
 {
   AutoarCreate *arcreate;
-  AutoarPref *arpref;
   GList *source_files = NULL;
   g_autoptr (GFile) output_file = NULL;
   int i;
@@ -61,10 +60,6 @@ main (int argc,
 
   setlocale (LC_ALL, "");
 
-  arpref = autoar_pref_new ();
-  autoar_pref_set_default_format (arpref, atoi (argv[1]));
-  autoar_pref_set_default_filter (arpref, atoi (argv[2]));
-
   output_file = g_file_new_for_commandline_arg (argv[3]);
 
   for (i = 4; i < argc; ++i) {
@@ -74,7 +69,10 @@ main (int argc,
 
   source_files = g_list_reverse (source_files);
 
-  arcreate = autoar_create_new (source_files, output_file, arpref); 
+  arcreate = autoar_create_new (source_files,
+                                output_file,
+                                atoi (argv[1]),
+                                atoi (argv[2]));
   g_signal_connect (arcreate, "decide-dest", G_CALLBACK (my_handler_decide_dest), NULL);
   g_signal_connect (arcreate, "progress", G_CALLBACK (my_handler_progress), NULL);
   g_signal_connect (arcreate, "error", G_CALLBACK (my_handler_error), NULL);
@@ -83,7 +81,6 @@ main (int argc,
   autoar_create_start (arcreate, NULL);
 
   g_list_free_full (source_files, g_object_unref);
-  g_object_unref (arpref);
   g_object_unref (arcreate);
 
   return 0;

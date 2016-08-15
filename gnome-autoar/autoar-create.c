@@ -28,7 +28,8 @@
 
 #include "autoar-misc.h"
 #include "autoar-private.h"
-#include "autoar-pref.h"
+#include "autoar-format-filter.h"
+#include "autoar-enum-types.h"
 
 #include <archive.h>
 #include <archive_entry.h>
@@ -46,9 +47,7 @@
  * @Include: gnome-autoar/autoar.h
  *
  * The #AutoarCreate object is used to automatically create an archive from
- * files and directories. The new archive will contain a top-level directory,
- * and its file format can be set via autoar_pref_set_default_format() and
- * autoar_pref_set_default_filter() on the provided #AutoarPref object.
+ * files and directories. The new archive will contain a top-level directory.
  * Applying multiple filters is currently not supported because most
  * applications do not need this function. GIO is used for both read and write
  * operations. A few POSIX functions are also used to get more information from
@@ -85,6 +84,8 @@ struct _AutoarCreatePrivate
 {
   GList *source_files;
   GFile *output_file;
+  AutoarFormat format;
+  AutoarFilter filter;
 
   int output_is_dest : 1;
 
@@ -96,7 +97,6 @@ struct _AutoarCreatePrivate
 
   gint64 notify_last;
   gint64 notify_interval;
-  AutoarPref *arpref;
 
   GOutputStream *ostream;
   void          *buffer;
@@ -132,6 +132,8 @@ enum
   PROP_0,
   PROP_SOURCE_FILES,
   PROP_OUTPUT_FILE,
+  PROP_FORMAT,
+  PROP_FILTER,
   PROP_SIZE, /* This property is currently unused */
   PROP_COMPLETED_SIZE,
   PROP_FILES,
@@ -160,6 +162,12 @@ autoar_create_get_property (GObject    *object,
       break;
     case PROP_OUTPUT_FILE:
       g_value_set_object (value, priv->output_file);
+      break;
+    case PROP_FORMAT:
+      g_value_set_enum (value, priv->format);
+      break;
+    case PROP_FILTER:
+      g_value_set_enum (value, priv->format);
       break;
     case PROP_SIZE:
       g_value_set_uint64 (value, priv->size);
@@ -209,6 +217,12 @@ autoar_create_set_property (GObject      *object,
       autoar_common_g_object_unref (priv->output_file);
       priv->output_file = g_object_ref (g_value_get_object (value));
       break;
+    case PROP_FORMAT:
+      priv->format = g_value_get_enum (value);
+      break;
+    case PROP_FILTER:
+      priv->filter = g_value_get_enum (value);
+      break;
     case PROP_OUTPUT_IS_DEST:
       priv->output_is_dest = g_value_get_boolean (value);
       break;
@@ -251,6 +265,36 @@ autoar_create_get_output_file (AutoarCreate *arcreate)
 {
   g_return_val_if_fail (AUTOAR_IS_CREATE (arcreate), NULL);
   return arcreate->priv->output_file;
+}
+
+/**
+ * autoar_create_get_format:
+ * @arcreate: an #AutoarCreate
+ *
+ * Gets the compression format
+ *
+ * Returns: the compression format
+ **/
+AutoarFormat
+autoar_create_get_format (AutoarCreate *arcreate)
+{
+  g_return_val_if_fail (AUTOAR_IS_CREATE (arcreate), AUTOAR_FORMAT_0);
+  return arcreate->priv->format;
+}
+
+/**
+ * autoar_create_get_filter:
+ * @arcreate: an #AutoarCreate
+ *
+ * Gets the compression filter
+ *
+ * Returns: the compression filter
+ **/
+AutoarFilter
+autoar_create_get_filter (AutoarCreate *arcreate)
+{
+  g_return_val_if_fail (AUTOAR_IS_CREATE (arcreate), AUTOAR_FILTER_0);
+  return arcreate->priv->filter;
 }
 
 /**
@@ -411,7 +455,6 @@ autoar_create_dispose (GObject *object)
   }
 
   g_clear_object (&(priv->dest));
-  g_clear_object (&(priv->arpref));
   g_clear_object (&(priv->cancellable));
   g_clear_object (&(priv->output_file));
 
@@ -991,6 +1034,27 @@ autoar_create_class_init (AutoarCreateClass *klass)
                                                         G_PARAM_CONSTRUCT_ONLY |
                                                         G_PARAM_STATIC_STRINGS));
 
+  g_object_class_install_property (object_class, PROP_FORMAT,
+                                   g_param_spec_enum ("format",
+                                                      "Compression format",
+                                                      "The compression format that will be used",
+                                                      AUTOAR_TYPE_FORMAT,
+                                                      AUTOAR_FORMAT_ZIP,
+                                                      G_PARAM_READWRITE |
+                                                      G_PARAM_CONSTRUCT_ONLY |
+                                                      G_PARAM_STATIC_STRINGS));
+
+  g_object_class_install_property (object_class, PROP_FILTER,
+                                   g_param_spec_enum ("filter",
+                                                      "Compression filter",
+                                                      "The compression filter that will be used",
+                                                      AUTOAR_TYPE_FILTER,
+                                                      AUTOAR_FILTER_NONE,
+                                                      G_PARAM_READWRITE |
+                                                      G_PARAM_CONSTRUCT_ONLY |
+                                                      G_PARAM_STATIC_STRINGS));
+
+
   g_object_class_install_property (object_class, PROP_SIZE, /* This propery is unused! */
                                    g_param_spec_uint64 ("size",
                                                         "Size",
@@ -1172,7 +1236,8 @@ autoar_create_init (AutoarCreate *arcreate)
  * @source_files: a #GList of source #GFiles to be archived
  * @output_file: output directory of the new archive, or the file name of the
  * new archive if you set #AutoarCreate:output-is-dest on the returned object
- * @arpref: an #AutoarPref object used to decide the output archive format
+ * @format: the compression format
+ * @filter: the compression filter
  *
  * Create a new #AutoarCreate object.
  *
@@ -1181,7 +1246,8 @@ autoar_create_init (AutoarCreate *arcreate)
 AutoarCreate*
 autoar_create_new (GList *source_files,
                    GFile *output_file,
-                   AutoarPref *arpref)
+                   AutoarFormat format,
+                   AutoarFilter filter)
 {
   AutoarCreate *arcreate;
 
@@ -1191,8 +1257,9 @@ autoar_create_new (GList *source_files,
                                                     (GCopyFunc)g_object_ref,
                                                     NULL),
                   "output-file", g_object_ref (output_file),
+                  "format", format,
+                  "filter", filter,
                   NULL);
-  arcreate->priv->arpref = g_object_ref (arpref);
 
   return arcreate;
 }
@@ -1202,8 +1269,6 @@ autoar_create_step_initialize_object (AutoarCreate *arcreate)
 {
   /* Step 0: Setup the libarchive object and the file name extension */
 
-  AutoarFormat format;
-  AutoarFilter filter;
   AutoarFormatFunc format_func;
   AutoarFilterFunc filter_func;
 
@@ -1212,21 +1277,20 @@ autoar_create_step_initialize_object (AutoarCreate *arcreate)
 
   priv = arcreate->priv;
 
-  format = autoar_pref_get_default_format (priv->arpref);
-  if (!autoar_format_is_valid (format)) {
+  if (!autoar_format_is_valid (priv->format)) {
     priv->error = g_error_new (AUTOAR_CREATE_ERROR, INVALID_FORMAT,
-                               "Format %d is invalid", format);
+                               "Format %d is invalid", priv->format);
     return;
   }
 
-  filter = autoar_pref_get_default_filter (priv->arpref);
-  if (!autoar_filter_is_valid (filter)) {
+  if (!autoar_filter_is_valid (priv->filter)) {
     priv->error = g_error_new (AUTOAR_CREATE_ERROR, INVALID_FILTER,
-                               "Filter %d is invalid", filter);
+                               "Filter %d is invalid", priv->filter);
     return;
   }
 
-  priv->extension = autoar_format_filter_get_extension (format, filter);
+  priv->extension = autoar_format_filter_get_extension (priv->format,
+                                                        priv->filter);
 
   r = archive_write_set_bytes_in_last_block (priv->a, 1);
   if (r != ARCHIVE_OK) {
@@ -1234,14 +1298,14 @@ autoar_create_step_initialize_object (AutoarCreate *arcreate)
     return;
   }
 
-  format_func = autoar_format_get_libarchive_write (format);
+  format_func = autoar_format_get_libarchive_write (priv->format);
   r = (*format_func)(priv->a);
   if (r != ARCHIVE_OK) {
     priv->error = autoar_common_g_error_new_a (priv->a, NULL);
     return;
   }
 
-  filter_func = autoar_filter_get_libarchive_write (filter);
+  filter_func = autoar_filter_get_libarchive_write (priv->filter);
   r = (*filter_func)(priv->a);
   if (r != ARCHIVE_OK) {
     priv->error = autoar_common_g_error_new_a (priv->a, NULL);

@@ -50,6 +50,9 @@ main (int argc,
 {
   AutoarCreate *arcreate;
   AutoarPref *arpref;
+  GList *source_files = NULL;
+  g_autoptr (GFile) output_file = NULL;
+  int i;
 
   if (argc < 5) {
     g_printerr ("Usage: %s format filter output_dir source ...\n", argv[0]);
@@ -62,7 +65,16 @@ main (int argc,
   autoar_pref_set_default_format (arpref, atoi (argv[1]));
   autoar_pref_set_default_filter (arpref, atoi (argv[2]));
 
-  arcreate = autoar_create_newv (arpref, argv[3], (const GStrv)argv + 4);
+  output_file = g_file_new_for_commandline_arg (argv[3]);
+
+  for (i = 4; i < argc; ++i) {
+    source_files = g_list_prepend (source_files,
+                                   g_file_new_for_commandline_arg (argv[i]));
+  }
+
+  source_files = g_list_reverse (source_files);
+
+  arcreate = autoar_create_new (source_files, output_file, arpref); 
   g_signal_connect (arcreate, "decide-dest", G_CALLBACK (my_handler_decide_dest), NULL);
   g_signal_connect (arcreate, "progress", G_CALLBACK (my_handler_progress), NULL);
   g_signal_connect (arcreate, "error", G_CALLBACK (my_handler_error), NULL);
@@ -70,6 +82,7 @@ main (int argc,
 
   autoar_create_start (arcreate, NULL);
 
+  g_list_free_full (source_files, g_object_unref);
   g_object_unref (arpref);
   g_object_unref (arcreate);
 

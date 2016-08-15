@@ -89,6 +89,8 @@ struct _AutoarCreatePrivate
 
   int output_is_dest : 1;
 
+  gboolean started;
+
   guint64 size; /* This field is currently unused */
   guint64 completed_size;
 
@@ -114,7 +116,7 @@ struct _AutoarCreatePrivate
   char                              *extension;
 
   int in_thread        : 1;
-  int prepend_basename : 1;
+  gboolean create_top_level_directory;
 };
 
 enum
@@ -134,6 +136,7 @@ enum
   PROP_OUTPUT_FILE,
   PROP_FORMAT,
   PROP_FILTER,
+  PROP_CREATE_TOP_LEVEL_DIRECTORY,
   PROP_SIZE, /* This property is currently unused */
   PROP_COMPLETED_SIZE,
   PROP_FILES,
@@ -168,6 +171,9 @@ autoar_create_get_property (GObject    *object,
       break;
     case PROP_FILTER:
       g_value_set_enum (value, priv->format);
+      break;
+    case PROP_CREATE_TOP_LEVEL_DIRECTORY:
+      g_value_set_boolean (value, priv->create_top_level_directory);
       break;
     case PROP_SIZE:
       g_value_set_uint64 (value, priv->size);
@@ -222,6 +228,9 @@ autoar_create_set_property (GObject      *object,
       break;
     case PROP_FILTER:
       priv->filter = g_value_get_enum (value);
+      break;
+    case PROP_CREATE_TOP_LEVEL_DIRECTORY:
+      priv->create_top_level_directory = g_value_get_boolean (value);
       break;
     case PROP_OUTPUT_IS_DEST:
       priv->output_is_dest = g_value_get_boolean (value);
@@ -295,6 +304,22 @@ autoar_create_get_filter (AutoarCreate *arcreate)
 {
   g_return_val_if_fail (AUTOAR_IS_CREATE (arcreate), AUTOAR_FILTER_0);
   return arcreate->priv->filter;
+}
+
+/**
+ * autoar_create_get_create_top_level_directory:
+ * @arcreate: an #AutoarCreate
+ *
+ * Gets whether a top level directory will be created in the archive. See
+ * autoar_create_set_create_top_level_directory() for more details.
+ *
+ * Returns: whether a top level directory will be created
+ **/
+gboolean
+autoar_create_get_create_top_level_directory (AutoarCreate *arcreate)
+{
+  g_return_val_if_fail (AUTOAR_IS_CREATE (arcreate), FALSE);
+  return arcreate->priv->create_top_level_directory;
 }
 
 /**
@@ -388,6 +413,28 @@ autoar_create_get_notify_interval (AutoarCreate *arcreate)
 {
   g_return_val_if_fail (AUTOAR_IS_CREATE (arcreate), 0);
   return arcreate->priv->notify_interval;
+}
+
+/**
+ * autoar_create_set_create_top_level_directory:
+ * @arcreate: an #AutoarCreate
+ * @create_top_level_directory: %TRUE if a top level directory should be
+ * created in the new archive
+ *
+ * By default #AutoarCreate:create-top-level-directory is set to %FALSE, so the
+ * source files will be added directly to the archive's root. By setting
+ * #AutoarCreate:create-top-level-directory to %TRUE a top level directory
+ * will be created and it will have the name of the archive without the
+ * extension. Setting the property once the operation is started will have no
+ * effect.
+ **/
+void
+autoar_create_set_create_top_level_directory (AutoarCreate *arcreate,
+                                              gboolean      create_top_level_directory)
+{
+  g_return_if_fail (AUTOAR_IS_CREATE (arcreate));
+  g_return_if_fail (arcreate->priv->started);
+  arcreate->priv->create_top_level_directory = create_top_level_directory;
 }
 
 /**
@@ -809,8 +856,8 @@ autoar_create_do_add_to_archive (AutoarCreate *arcreate,
       default:
         root_basename = g_file_get_basename (root);
         pathname_relative = g_file_get_relative_path (root, file);
-        pathname = g_strconcat (priv->prepend_basename ? priv->source_basename_noext : "",
-                                priv->prepend_basename ? "/" : "",
+        pathname = g_strconcat (priv->create_top_level_directory ? priv->source_basename_noext : "",
+                                priv->create_top_level_directory ? "/" : "",
                                 root_basename,
                                 pathname_relative != NULL ? "/" : "",
                                 pathname_relative != NULL ? pathname_relative : "",
@@ -1054,6 +1101,15 @@ autoar_create_class_init (AutoarCreateClass *klass)
                                                       G_PARAM_CONSTRUCT_ONLY |
                                                       G_PARAM_STATIC_STRINGS));
 
+  g_object_class_install_property (object_class, PROP_CREATE_TOP_LEVEL_DIRECTORY,
+                                   g_param_spec_boolean ("create-top-level-directory",
+                                                         "Create top level directory",
+                                                         "Whether to create a top level directory",
+                                                         FALSE,
+                                                         G_PARAM_READWRITE |
+                                                         G_PARAM_CONSTRUCT |
+                                                         G_PARAM_STATIC_STRINGS));
+
 
   g_object_class_install_property (object_class, PROP_SIZE, /* This propery is unused! */
                                    g_param_spec_uint64 ("size",
@@ -1228,7 +1284,6 @@ autoar_create_init (AutoarCreate *arcreate)
   priv->extension = NULL;
 
   priv->in_thread = FALSE;
-  priv->prepend_basename = FALSE;
 }
 
 /**
@@ -1421,12 +1476,6 @@ autoar_create_step_create (AutoarCreate *arcreate)
     return;
   }
 
-  /* Check whether we have multiple source files */
-  if (g_list_length (priv->source_files) == 1)
-    priv->prepend_basename = FALSE;
-  else
-    priv->prepend_basename = TRUE;
-
   archive_entry_linkresolver_set_strategy (priv->resolver, archive_format (priv->a));
 
   for (l = priv->source_files; l != NULL; l = l->next) {
@@ -1513,6 +1562,8 @@ autoar_create_run (AutoarCreate *arcreate)
 
   g_return_if_fail (AUTOAR_IS_CREATE (arcreate));
   priv = arcreate->priv;
+
+  priv->started = TRUE;
 
   g_return_if_fail (priv->source_files != NULL);
   g_return_if_fail (priv->output_file != NULL);

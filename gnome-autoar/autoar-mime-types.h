@@ -1,7 +1,8 @@
-/* vim: set sw=2 ts=2 sts=2 et: */
-/* -*- Mode: C; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /*
- * Copyright (C) 2013, 2014  Ting-Wei Lan
+ * autoar-mime-types.h
+ * Functions for checking autoar support for various mime types
+ *
+ * Copyright (C) 2016  Razvan Chitu
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -20,14 +21,17 @@
  *
  */
 
-#ifndef AUTOARCHIVE_H
-#define AUTOARCHIVE_H
+#ifndef AUTOAR_MIME_TYPES_H
+#define AUTOAR_MIME_TYPES_H
 
-#include <gnome-autoar/autoar-compressor.h>
-#include <gnome-autoar/autoar-format-filter.h>
-#include <gnome-autoar/autoar-extractor.h>
-#include <gnome-autoar/autoar-misc.h>
-#include <gnome-autoar/autoar-mime-types.h>
-#include <gnome-autoar/autoar-pref.h>
+#include <glib.h>
+#include <gio/gio.h>
 
-#endif /* AUTOARCHIVE_H */
+G_BEGIN_DECLS
+
+gboolean autoar_check_mime_type_supported (const gchar *mime_type);
+gboolean autoar_query_mime_type_supported (GFile *file);
+
+G_END_DECLS
+
+#endif /* AUTOAR_MIME_TYPES_H */

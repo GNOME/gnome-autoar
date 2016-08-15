@@ -27,6 +27,7 @@ libgnome_autoar_la_headers = \
 	gnome-autoar/autoar-format-filter.h	\
 	gnome-autoar/autoar-misc.h		\
 	gnome-autoar/autoar-pref.h		\
+	gnome-autoar/autoar-mime-types.h	\
 	$(NULL)
 libgnome_autoar_la_sources = \
 	gnome-autoar/autoar-compressor.c	\
@@ -34,6 +35,7 @@ libgnome_autoar_la_sources = \
 	gnome-autoar/autoar-format-filter.c	\
 	gnome-autoar/autoar-misc.c		\
 	gnome-autoar/autoar-pref.c		\
+	gnome-autoar/autoar-mime-types.c	\
 	$(NULL)
 libgnome_autoar_la_private_files = \
 	gnome-autoar/autoar-private.h		\

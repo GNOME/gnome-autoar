@@ -83,11 +83,8 @@ G_DEFINE_QUARK (autoar-create, autoar_create)
 
 struct _AutoarCreatePrivate
 {
-  GStrv  source;
-  char  *output;
-
-  GPtrArray *source_file; /* An array of GFile, not terminated by NULL */
-  GFile     *output_file;
+  GList *source_files;
+  GFile *output_file;
 
   int output_is_dest : 1;
 
@@ -133,9 +130,7 @@ enum
 enum
 {
   PROP_0,
-  PROP_SOURCE,
-  PROP_SOURCE_FILE,
-  PROP_OUTPUT,
+  PROP_SOURCE_FILES,
   PROP_OUTPUT_FILE,
   PROP_SIZE, /* This property is currently unused */
   PROP_COMPLETED_SIZE,
@@ -160,14 +155,8 @@ autoar_create_get_property (GObject    *object,
   priv = arcreate->priv;
 
   switch (property_id) {
-    case PROP_SOURCE:
-      g_value_set_boxed (value, priv->source);
-      break;
-    case PROP_SOURCE_FILE:
-      g_value_set_boxed (value, priv->source_file);
-      break;
-    case PROP_OUTPUT:
-      g_value_set_string (value, priv->output);
+    case PROP_SOURCE_FILES:
+      g_value_set_pointer (value, priv->source_files);
       break;
     case PROP_OUTPUT_FILE:
       g_value_set_object (value, priv->output_file);
@@ -209,18 +198,12 @@ autoar_create_set_property (GObject      *object,
   priv = arcreate->priv;
 
   switch (property_id) {
-    case PROP_SOURCE:
-      g_strfreev (priv->source);
-      priv->source = g_value_dup_boxed (value);
-      break;
-    case PROP_SOURCE_FILE:
-      if (priv->source_file != NULL)
-        g_ptr_array_unref (priv->source_file);
-      priv->source_file = g_value_dup_boxed (value);
-      break;
-    case PROP_OUTPUT:
-      g_free (priv->output);
-      priv->output = g_value_dup_string (value);
+    case PROP_SOURCE_FILES:
+      if (priv->source_files != NULL)
+        g_list_free_full (priv->source_files, g_object_unref);
+      priv->source_files = g_list_copy_deep (g_value_get_pointer (value),
+                                             (GCopyFunc)g_object_ref,
+                                             NULL);
       break;
     case PROP_OUTPUT_FILE:
       autoar_common_g_object_unref (priv->output_file);
@@ -239,61 +222,27 @@ autoar_create_set_property (GObject      *object,
 }
 
 /**
- * autoar_create_get_source:
+ * autoar_create_get_source_files:
  * @arcreate: an #AutoarCreate
  *
- * Gets the source files will be archived for this object. It may be an array of
- * filenames or URIs.
+ * Gets the list of source files.
  *
- * Returns: (transfer none): a %NULL-terminated array of strings
+ * Returns: (transfer none): a #GList with the source files
  **/
-GStrv
-autoar_create_get_source (AutoarCreate *arcreate)
+GList*
+autoar_create_get_source_files (AutoarCreate *arcreate)
 {
   g_return_val_if_fail (AUTOAR_IS_CREATE (arcreate), NULL);
-  return arcreate->priv->source;
-}
-
-/**
- * autoar_create_get_source_file:
- * @arcreate: an #AutoarCreate
- *
- * This function is similar to autoar_create_get_source(), except for the return
- * value is an array of #GFile.
- *
- * Returns: (element-type GLib.PtrArray) (transfer none): a #GPtrArray,
- * which is an array of #GFile
- **/
-GPtrArray*
-autoar_create_get_source_file (AutoarCreate *arcreate)
-{
-  g_return_val_if_fail (AUTOAR_IS_CREATE (arcreate), NULL);
-  return arcreate->priv->source_file;
-}
-
-/**
- * autoar_create_get_output:
- * @arcreate: an #AutoarCreate
- *
- * If #AutoarCreate:output_is_dest is %FALSE, gets the directory which contains
- * the new archive. Otherwise, get the filename of the new archive. See
- * autoar_create_set_output_is_dest().
- *
- * Returns: (transfer none): a filename
- **/
-char*
-autoar_create_get_output (AutoarCreate *arcreate)
-{
-  g_return_val_if_fail (AUTOAR_IS_CREATE (arcreate), NULL);
-  return arcreate->priv->output;
+  return arcreate->priv->source_files;
 }
 
 /**
  * autoar_create_get_output_file:
  * @arcreate: an #AutoarCreate
  *
- * This function is similar to autoar_create_get_output(), except for the return
- * value is a #GFile.
+ * If #AutoarCreate:output_is_dest is %FALSE, gets the directory which contains
+ * the new archive. Otherwise, gets the the new archive. See
+ * autoar_create_set_output_is_dest().
  *
  * Returns: (transfer none): a #GFile
  **/
@@ -471,9 +420,9 @@ autoar_create_dispose (GObject *object)
     priv->pathname_to_g_file = NULL;
   }
 
-  if (priv->source_file != NULL) {
-    g_ptr_array_unref (priv->source_file);
-    priv->source_file = NULL;
+  if (priv->source_files != NULL) {
+    g_list_free_full (priv->source_files, g_object_unref);
+    priv->source_files = NULL;
   }
 
   G_OBJECT_CLASS (autoar_create_parent_class)->dispose (object);
@@ -489,12 +438,6 @@ autoar_create_finalize (GObject *object)
   priv = arcreate->priv;
 
   g_debug ("AutoarCreate: finalize");
-
-  g_strfreev (priv->source);
-  priv->source = NULL;
-
-  g_free (priv->output);
-  priv->output = NULL;
 
   g_free (priv->buffer);
   priv->buffer = NULL;
@@ -1031,32 +974,13 @@ autoar_create_class_init (AutoarCreateClass *klass)
   object_class->dispose = autoar_create_dispose;
   object_class->finalize = autoar_create_finalize;
 
-  g_object_class_install_property (object_class, PROP_SOURCE,
-                                   g_param_spec_boxed ("source",
-                                                       "Source archive",
-                                                       "The source files and directories to be archived",
-                                                       G_TYPE_STRV,
-                                                       G_PARAM_READWRITE |
-                                                       G_PARAM_CONSTRUCT_ONLY |
-                                                       G_PARAM_STATIC_STRINGS));
-
-  g_object_class_install_property (object_class, PROP_SOURCE_FILE,
-                                   g_param_spec_boxed ("source-file",
-                                                       "Source archive GFile",
-                                                       "The source GFiles to be archived",
-                                                       G_TYPE_PTR_ARRAY,
-                                                       G_PARAM_READWRITE |
-                                                       G_PARAM_CONSTRUCT_ONLY |
-                                                       G_PARAM_STATIC_STRINGS));
-
-  g_object_class_install_property (object_class, PROP_OUTPUT,
-                                   g_param_spec_string ("output",
-                                                        "Output directory",
-                                                        "Output directory of created archive",
-                                                        NULL,
-                                                        G_PARAM_READWRITE |
-                                                        G_PARAM_CONSTRUCT_ONLY |
-                                                        G_PARAM_STATIC_STRINGS));
+  g_object_class_install_property (object_class, PROP_SOURCE_FILES,
+                                   g_param_spec_pointer ("source-files",
+                                                         "Source files list",
+                                                         "The list of GFiles to be archived",
+                                                         G_PARAM_READWRITE |
+                                                         G_PARAM_CONSTRUCT_ONLY |
+                                                         G_PARAM_STATIC_STRINGS));
 
   g_object_class_install_property (object_class, PROP_OUTPUT_FILE,
                                    g_param_spec_object ("output-file",
@@ -1243,186 +1167,34 @@ autoar_create_init (AutoarCreate *arcreate)
   priv->prepend_basename = FALSE;
 }
 
-static AutoarCreate*
-autoar_create_new_full (const GStrv  source,
-                        GFile **source_file,
-                        const char *output,
-                        GFile *output_file,
-                        AutoarPref *arpref)
+/**
+ * autoar_create_new:
+ * @source_files: a #GList of source #GFiles to be archived
+ * @output_file: output directory of the new archive, or the file name of the
+ * new archive if you set #AutoarCreate:output-is-dest on the returned object
+ * @arpref: an #AutoarPref object used to decide the output archive format
+ *
+ * Create a new #AutoarCreate object.
+ *
+ * Returns: (transfer full): a new #AutoarCreate object
+ **/
+AutoarCreate*
+autoar_create_new (GList *source_files,
+                   GFile *output_file,
+                   AutoarPref *arpref)
 {
   AutoarCreate *arcreate;
-  GStrv gen_source;
-  char *gen_output;
-  GPtrArray *gen_source_file;
-  GFile *gen_output_file;
-  int i;
-
-  gen_source      = NULL;
-  gen_source_file = NULL;
-  gen_output      = NULL;
-  gen_output_file = NULL;
-
-  if (source == NULL) {
-    GPtrArray *strv;
-    strv = g_ptr_array_new ();
-    for (i = 0; source_file[i] != NULL; i++)
-      g_ptr_array_add (strv, autoar_common_g_file_get_name (source_file[i]));
-    g_ptr_array_add (strv, NULL);
-    gen_source = (const GStrv) g_ptr_array_free (strv, FALSE);
-  }
-
-  gen_source_file = g_ptr_array_new_with_free_func (g_object_unref);
-  if (source_file == NULL) {
-    for (i = 0; source[i] != NULL; i++)
-      g_ptr_array_add (gen_source_file, g_file_new_for_commandline_arg (source[i]));
-  } else {
-    for (i = 0; source_file[i] != NULL; i++)
-      g_ptr_array_add (gen_source_file, g_object_ref (source_file[i]));
-  }
-
-  if (output == NULL)
-    gen_output = autoar_common_g_file_get_name (output_file);
-  if (output_file == NULL)
-    gen_output_file = g_file_new_for_commandline_arg (output);
 
   arcreate =
     g_object_new (AUTOAR_TYPE_CREATE,
-                  "source",         source      != NULL ? source      : gen_source,
-                  "source-file",                                        gen_source_file,
-                  "output",         output      != NULL ? output      : gen_output,
-                  "output-file",    output_file != NULL ? output_file : gen_output_file,
+                  "source-files", g_list_copy_deep (source_files,
+                                                    (GCopyFunc)g_object_ref,
+                                                    NULL),
+                  "output-file", g_object_ref (output_file),
                   NULL);
   arcreate->priv->arpref = g_object_ref (arpref);
 
-  g_strfreev (gen_source);
-  g_free (gen_output);
-
-  if (gen_source_file != NULL)
-    g_ptr_array_unref (gen_source_file);
-  if (gen_output_file != NULL)
-    g_object_unref (gen_output_file);
-
   return arcreate;
-}
-
-/**
- * autoar_create_new:
- * @arpref: an #AutoarPref object used to decide the output archive format
- * @output: output directory of the new archive, or the file name of the new
- * archive if you set #AutoarCreate:output-is-dest on the returned object
- * @...: a %NULL-terminated list of paths of source files to be archived
- *
- * Create a new #AutoarCreate object.
- *
- * Returns: (transfer full): a new #AutoarCreate object
- **/
-AutoarCreate*
-autoar_create_new (AutoarPref *arpref,
-                   const char *output,
-                   ...)
-{
-  AutoarCreate *arcreate;
-  char *str;
-  va_list ap;
-  GPtrArray *strv;
-
-  g_return_val_if_fail (output != NULL, NULL);
-
-  va_start (ap, output);
-  strv = g_ptr_array_new_with_free_func (NULL);
-  while ((str = va_arg (ap, char*)) != NULL)
-    g_ptr_array_add (strv, str);
-  g_ptr_array_add (strv, NULL);
-  va_end (ap);
-
-  arcreate = autoar_create_new_full ((const GStrv) strv->pdata, NULL,
-                                     output, NULL, arpref);
-  g_ptr_array_unref (strv);
-  return arcreate;
-}
-
-/**
- * autoar_create_new_file:
- * @arpref: an #AutoarPref object used to decide the output archive format
- * @output_file: output directory of the new archive, or the file name of the
- * new archive if you set #AutoarCreate:output-is-dest on the returned object
- * @...: a %NULL-terminated list of #GFile of source files to be archived
- *
- * Create a new #AutoarCreate object.
- *
- * Returns: (transfer full): a new #AutoarCreate object
- **/
-AutoarCreate*
-autoar_create_new_file (AutoarPref *arpref,
-                        GFile      *output_file,
-                        ...)
-{
-  AutoarCreate *arcreate;
-  GFile *file;
-  va_list ap;
-  GPtrArray *filev;
-
-  g_return_val_if_fail (output_file != NULL, NULL);
-
-  va_start (ap, output_file);
-  filev = g_ptr_array_new_with_free_func (NULL);
-  while ((file = va_arg (ap, GFile*)) != NULL)
-    g_ptr_array_add (filev, file);
-  g_ptr_array_add (filev, NULL);
-  va_end (ap);
-
-  arcreate = autoar_create_new_full (NULL, (GFile**)filev->pdata,
-                                     NULL, output_file, arpref);
-  g_ptr_array_unref (filev);
-  return arcreate;
-}
-
-/**
- * autoar_create_newv:
- * @arpref: an #AutoarPref object used to decide the output archive format
- * @output: output directory of the new archive, or the file name of the new
- * archive if you set #AutoarCreate:output-is-dest on the returned object
- * @source: a %NULL-terminated array of paths of source files to be archived
- *
- * Create a new #AutoarCreate object.
- *
- * Returns: (transfer full): a new #AutoarCreate object
- **/
-AutoarCreate*
-autoar_create_newv (AutoarPref  *arpref,
-                    const char  *output,
-                    const GStrv  source)
-{
-  g_return_val_if_fail (source != NULL, NULL);
-  g_return_val_if_fail (*source != NULL, NULL);
-  g_return_val_if_fail (output != NULL, NULL);
-
-  return autoar_create_new_full (source, NULL, output, NULL, arpref);
-
-}
-
-/**
- * autoar_create_new_filev:
- * @arpref: an #AutoarPref object used to decide the output archive format
- * @output_file: output directory of the new archive, or the file name of the
- * new archive if you set #AutoarCreate:output-is-dest on the returned object
- * @source_file: a %NULL-terminated array of #GFile of source files to be
- * archived
- *
- * Create a new #AutoarCreate object.
- *
- * Returns: (transfer full): a new #AutoarCreate object
- **/
-AutoarCreate*
-autoar_create_new_filev (AutoarPref  *arpref,
-                         GFile       *output_file,
-                         GFile      **source_file)
-{
-  g_return_val_if_fail (source_file != NULL, NULL);
-  g_return_val_if_fail (*source_file != NULL, NULL);
-  g_return_val_if_fail (output_file != NULL, NULL);
-
-  return autoar_create_new_full (NULL, source_file, NULL, output_file, arpref);
 }
 
 static void
@@ -1494,7 +1266,7 @@ autoar_create_step_decide_dest (AutoarCreate *arcreate)
     GFileInfo *source_info;
     char *source_basename;
 
-    file_source = g_ptr_array_index (priv->source_file, 0);
+    file_source = priv->source_files->data;
     source_info = g_file_query_info (file_source,
                                      G_FILE_ATTRIBUTE_STANDARD_TYPE,
                                      G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
@@ -1568,7 +1340,8 @@ autoar_create_step_create (AutoarCreate *arcreate)
 {
   /* Step 2: Create and open the new archive file */
   AutoarCreatePrivate *priv;
-  int i, r;
+  GList *l;
+  int r;
 
   g_debug ("autoar_create_step_create: called");
 
@@ -1585,20 +1358,24 @@ autoar_create_step_create (AutoarCreate *arcreate)
   }
 
   /* Check whether we have multiple source files */
-  if (priv->source[1] == NULL)
+  if (g_list_length (priv->source_files) == 1)
     priv->prepend_basename = FALSE;
   else
     priv->prepend_basename = TRUE;
 
   archive_entry_linkresolver_set_strategy (priv->resolver, archive_format (priv->a));
 
-  for (i = 0; i < priv->source_file->len; i++) {
+  for (l = priv->source_files; l != NULL; l = l->next) {
     GFile *file; /* Do not unref */
     GFileType filetype;
     GFileInfo *fileinfo;
+    g_autofree gchar *pathname;
 
-    g_debug ("autoar_create_step_create: source[%d] (%s)", i, priv->source[i]);
-    file = g_ptr_array_index (priv->source_file, i);
+    file = l->data;
+
+    pathname = g_file_get_path (file);
+    g_debug ("autoar_create_step_create: %s", pathname);
+
     fileinfo = g_file_query_info (file,
                                   G_FILE_ATTRIBUTE_STANDARD_TYPE,
                                   G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
@@ -1650,8 +1427,12 @@ autoar_create_step_cleanup (AutoarCreate *arcreate)
   priv->notify_last = 0;
   autoar_create_signal_progress (arcreate);
   if (archive_write_close (priv->a) != ARCHIVE_OK) {
+    g_autofree gchar *output_name;
+
+    output_name = autoar_common_g_file_get_name (priv->output_file);
+
     if (priv->error == NULL)
-      priv->error = autoar_common_g_error_new_a (priv->a, priv->output);
+      priv->error = autoar_common_g_error_new_a (priv->a, output_name);
     return;
   }
 }
@@ -1669,11 +1450,11 @@ autoar_create_run (AutoarCreate *arcreate)
   g_return_if_fail (AUTOAR_IS_CREATE (arcreate));
   priv = arcreate->priv;
 
-  g_return_if_fail (priv->source_file != NULL);
+  g_return_if_fail (priv->source_files != NULL);
   g_return_if_fail (priv->output_file != NULL);
 
-  /* A GFile* array without a GFile* is not allowed */
-  g_return_if_fail (*((GFile**)(priv->source_file->pdata)) != NULL);
+  /* A GFile* list without a GFile* is not allowed */
+  g_return_if_fail (priv->source_files->data != NULL);
 
   if (g_cancellable_is_cancelled (priv->cancellable)) {
     autoar_create_signal_cancelled (arcreate);

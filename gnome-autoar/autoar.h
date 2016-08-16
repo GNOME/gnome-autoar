@@ -28,6 +28,5 @@
 #include <gnome-autoar/autoar-extractor.h>
 #include <gnome-autoar/autoar-misc.h>
 #include <gnome-autoar/autoar-mime-types.h>
-#include <gnome-autoar/autoar-pref.h>
 
 #endif /* AUTOARCHIVE_H */

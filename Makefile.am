@@ -26,7 +26,6 @@ libgnome_autoar_la_headers = \
 	gnome-autoar/autoar-extractor.h		\
 	gnome-autoar/autoar-format-filter.h	\
 	gnome-autoar/autoar-misc.h		\
-	gnome-autoar/autoar-pref.h		\
 	gnome-autoar/autoar-mime-types.h	\
 	$(NULL)
 libgnome_autoar_la_sources = \
@@ -34,7 +33,6 @@ libgnome_autoar_la_sources = \
 	gnome-autoar/autoar-extractor.c		\
 	gnome-autoar/autoar-format-filter.c	\
 	gnome-autoar/autoar-misc.c		\
-	gnome-autoar/autoar-pref.c		\
 	gnome-autoar/autoar-mime-types.c	\
 	$(NULL)
 libgnome_autoar_la_private_files = \
@@ -188,7 +186,6 @@ EXTRA_DIST += $(gsettings_SCHEMAS)
 noinst_PROGRAMS = \
 	tests/test-extract	\
 	tests/test-extract-unit \
-	tests/test-pref		\
 	tests/test-create	\
 	$(NULL)
 
@@ -210,10 +207,6 @@ tests_test_extract_LDADD = $(test_libs)
 tests_test_extract_unit_SOURCES = tests/test-extract-unit.c
 tests_test_extract_unit_CFLAGS = $(test_cflags)
 tests_test_extract_unit_LDADD = $(test_libs)
-
-tests_test_pref_SOURCES = tests/test-pref.c
-tests_test_pref_CFLAGS = $(test_cflags)
-tests_test_pref_LDADD = $(test_libs)
 
 tests_test_create_SOURCES = tests/test-create.c
 tests_test_create_CFLAGS = $(test_cflags)

@@ -6,7 +6,7 @@
 #include <stdlib.h>
 
 static void
-my_handler_scanned (AutoarExtract *arextract,
+my_handler_scanned (AutoarExtractor *extractor,
                     guint files,
                     gpointer data)
 {
@@ -14,7 +14,7 @@ my_handler_scanned (AutoarExtract *arextract,
 }
 
 static GFile*
-my_handler_decide_destination (AutoarExtract *arextract,
+my_handler_decide_destination (AutoarExtractor *extractor,
                                GFile *dest,
                                GList *files,
                                gpointer data)
@@ -43,18 +43,18 @@ my_handler_decide_destination (AutoarExtract *arextract,
 }
 
 static void
-my_handler_progress (AutoarExtract *arextract,
+my_handler_progress (AutoarExtractor *extractor,
                      guint64 completed_size,
                      guint completed_files,
                      gpointer data)
 {
   g_print ("\rProgress: Archive Size %.2lf %%, Files %.2lf %%",
-           ((double)(completed_size)) * 100 / autoar_extract_get_size (arextract),
-           ((double)(completed_files)) * 100 / autoar_extract_get_files (arextract));
+           ((double)(completed_size)) * 100 / autoar_extractor_get_size (extractor),
+           ((double)(completed_files)) * 100 / autoar_extractor_get_files (extractor));
 }
 
 static AutoarConflictAction
-my_handler_conflict (AutoarExtract *arextract,
+my_handler_conflict (AutoarExtractor *extractor,
                      GFile *file,
                      GFile **new_file,
                      gpointer data)
@@ -69,7 +69,7 @@ my_handler_conflict (AutoarExtract *arextract,
 }
 
 static void
-my_handler_error (AutoarExtract *arextract,
+my_handler_error (AutoarExtractor *extractor,
                   GError *error,
                   gpointer data)
 {
@@ -77,7 +77,7 @@ my_handler_error (AutoarExtract *arextract,
 }
 
 static void
-my_handler_completed (AutoarExtract *arextract,
+my_handler_completed (AutoarExtractor *extractor,
                       gpointer data)
 {
   g_print ("\nCompleted!\n");
@@ -87,7 +87,7 @@ int
 main (int argc,
       char *argv[])
 {
-  AutoarExtract *arextract;
+  AutoarExtractor *extractor;
   char *content;
   g_autoptr (GFile) source = NULL;
   g_autoptr (GFile) output = NULL;
@@ -104,18 +104,18 @@ main (int argc,
 
   source = g_file_new_for_commandline_arg (argv[1]);
   output = g_file_new_for_commandline_arg (argv[2]);
-  arextract = autoar_extract_new (source, output);
+  extractor = autoar_extractor_new (source, output);
 
-  g_signal_connect (arextract, "scanned", G_CALLBACK (my_handler_scanned), NULL);
-  g_signal_connect (arextract, "decide-destination", G_CALLBACK (my_handler_decide_destination), NULL);
-  g_signal_connect (arextract, "progress", G_CALLBACK (my_handler_progress), NULL);
-  g_signal_connect (arextract, "conflict", G_CALLBACK (my_handler_conflict), NULL);
-  g_signal_connect (arextract, "error", G_CALLBACK (my_handler_error), NULL);
-  g_signal_connect (arextract, "completed", G_CALLBACK (my_handler_completed), NULL);
+  g_signal_connect (extractor, "scanned", G_CALLBACK (my_handler_scanned), NULL);
+  g_signal_connect (extractor, "decide-destination", G_CALLBACK (my_handler_decide_destination), NULL);
+  g_signal_connect (extractor, "progress", G_CALLBACK (my_handler_progress), NULL);
+  g_signal_connect (extractor, "conflict", G_CALLBACK (my_handler_conflict), NULL);
+  g_signal_connect (extractor, "error", G_CALLBACK (my_handler_error), NULL);
+  g_signal_connect (extractor, "completed", G_CALLBACK (my_handler_completed), NULL);
 
-  autoar_extract_start (arextract, NULL);
+  autoar_extractor_start (extractor, NULL);
 
-  g_object_unref (arextract);
+  g_object_unref (extractor);
   g_free (content);
 
   return 0;

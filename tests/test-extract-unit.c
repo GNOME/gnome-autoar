@@ -153,7 +153,7 @@ extract_test_free (ExtractTest *extract_test)
 }
 
 static void
-scanned_handler (AutoarExtract *arextract,
+scanned_handler (AutoarExtractor *extractor,
                  guint files,
                  gpointer user_data)
 {
@@ -163,7 +163,7 @@ scanned_handler (AutoarExtract *arextract,
 }
 
 static GFile*
-decide_destination_handler (AutoarExtract *arextract,
+decide_destination_handler (AutoarExtractor *extractor,
                             GFile *dest,
                             GList *files,
                             gpointer user_data)
@@ -180,7 +180,7 @@ decide_destination_handler (AutoarExtract *arextract,
 }
 
 static void
-progress_handler (AutoarExtract *arextract,
+progress_handler (AutoarExtractor *extractor,
                   guint64 completed_size,
                   guint completed_files,
                   gpointer user_data)
@@ -192,7 +192,7 @@ progress_handler (AutoarExtract *arextract,
 }
 
 static AutoarConflictAction
-conflict_handler (AutoarExtract *arextract,
+conflict_handler (AutoarExtractor *extractor,
                   GFile *file,
                   GFile **new_file,
                   gpointer user_data)
@@ -228,7 +228,7 @@ conflict_handler (AutoarExtract *arextract,
 }
 
 static void
-error_handler (AutoarExtract *arextract,
+error_handler (AutoarExtractor *extractor,
                GError *error,
                gpointer user_data)
 {
@@ -238,7 +238,7 @@ error_handler (AutoarExtract *arextract,
 }
 
 static void
-completed_handler (AutoarExtract *arextract,
+completed_handler (AutoarExtractor *extractor,
                    gpointer user_data)
 {
   ExtractTestData *data = user_data;
@@ -247,7 +247,7 @@ completed_handler (AutoarExtract *arextract,
 }
 
 static void
-cancelled_handler (AutoarExtract *arextract,
+cancelled_handler (AutoarExtractor *extractor,
                    gpointer user_data)
 {
   ExtractTestData *data = user_data;
@@ -256,7 +256,7 @@ cancelled_handler (AutoarExtract *arextract,
 }
 
 static ExtractTestData*
-extract_test_data_new_for_extract (AutoarExtract *arextract)
+extract_test_data_new_for_extract (AutoarExtractor *extractor)
 {
   ExtractTestData *data;
 
@@ -264,19 +264,19 @@ extract_test_data_new_for_extract (AutoarExtract *arextract)
 
   data->cancellable = g_cancellable_new ();
 
-  g_signal_connect (arextract, "scanned",
+  g_signal_connect (extractor, "scanned",
                     G_CALLBACK (scanned_handler), data);
-  g_signal_connect (arextract, "decide-destination",
+  g_signal_connect (extractor, "decide-destination",
                     G_CALLBACK (decide_destination_handler), data);
-  g_signal_connect (arextract, "progress",
+  g_signal_connect (extractor, "progress",
                     G_CALLBACK (progress_handler), data);
-  g_signal_connect (arextract, "conflict",
+  g_signal_connect (extractor, "conflict",
                     G_CALLBACK (conflict_handler), data);
-  g_signal_connect (arextract, "completed",
+  g_signal_connect (extractor, "completed",
                     G_CALLBACK (completed_handler), data);
-  g_signal_connect (arextract, "error",
+  g_signal_connect (extractor, "error",
                     G_CALLBACK (error_handler), data);
-  g_signal_connect (arextract, "cancelled",
+  g_signal_connect (extractor, "cancelled",
                     G_CALLBACK (cancelled_handler), data);
 
   data->conflict_files = g_hash_table_new_full (g_file_hash,
@@ -491,7 +491,7 @@ test_one_file_same_name (void)
   g_autoptr (ExtractTest) extract_test = NULL;
   g_autoptr (ExtractTestData) data = NULL;
   g_autoptr (GFile) archive = NULL;
-  g_autoptr (AutoarExtract) arextract = NULL;
+  g_autoptr (AutoarExtractor) extractor = NULL;
 
   extract_test = extract_test_new ("test-one-file-same-name");
 
@@ -502,11 +502,11 @@ test_one_file_same_name (void)
 
   archive = g_file_get_child (extract_test->input, "arextract.zip");
 
-  arextract = autoar_extract_new (archive, extract_test->output);
+  extractor = autoar_extractor_new (archive, extract_test->output);
 
-  data = extract_test_data_new_for_extract (arextract);
+  data = extract_test_data_new_for_extract (extractor);
 
-  autoar_extract_start (arextract, data->cancellable);
+  autoar_extractor_start (extractor, data->cancellable);
 
   g_assert_cmpuint (data->number_of_files, ==, 1);
   g_assert_no_error (data->error);
@@ -533,7 +533,7 @@ test_one_file_different_name (void)
   g_autoptr (ExtractTest) extract_test = NULL;
   g_autoptr (ExtractTestData) data = NULL;
   g_autoptr (GFile) archive = NULL;
-  g_autoptr (AutoarExtract) arextract = NULL;
+  g_autoptr (AutoarExtractor) extractor = NULL;
 
   extract_test = extract_test_new ("test-one-file-different-name");
 
@@ -544,11 +544,11 @@ test_one_file_different_name (void)
 
   archive = g_file_get_child (extract_test->input, "arextract.zip");
 
-  arextract = autoar_extract_new (archive, extract_test->output);
+  extractor = autoar_extractor_new (archive, extract_test->output);
 
-  data = extract_test_data_new_for_extract (arextract);
+  data = extract_test_data_new_for_extract (extractor);
 
-  autoar_extract_start (arextract, data->cancellable);
+  autoar_extractor_start (extractor, data->cancellable);
 
   g_assert_cmpuint (data->number_of_files, ==, 1);
   g_assert_no_error (data->error);
@@ -580,7 +580,7 @@ test_multiple_files_same_name (void)
   g_autoptr (ExtractTest) extract_test = NULL;
   g_autoptr (ExtractTestData) data = NULL;
   g_autoptr (GFile) archive = NULL;
-  g_autoptr (AutoarExtract) arextract = NULL;
+  g_autoptr (AutoarExtractor) extractor = NULL;
 
   extract_test = extract_test_new ("test-multiple-files-same-name");
 
@@ -591,11 +591,11 @@ test_multiple_files_same_name (void)
 
   archive = g_file_get_child (extract_test->input, "arextract.zip");
 
-  arextract = autoar_extract_new (archive, extract_test->output);
+  extractor = autoar_extractor_new (archive, extract_test->output);
 
-  data = extract_test_data_new_for_extract (arextract);
+  data = extract_test_data_new_for_extract (extractor);
 
-  autoar_extract_start (arextract, data->cancellable);
+  autoar_extractor_start (extractor, data->cancellable);
 
   g_assert_cmpuint (data->number_of_files, ==, 4);
   g_assert_no_error (data->error);
@@ -630,7 +630,7 @@ test_multiple_files_different_name (void)
   g_autoptr (ExtractTest) extract_test = NULL;
   g_autoptr (ExtractTestData) data = NULL;
   g_autoptr (GFile) archive = NULL;
-  g_autoptr (AutoarExtract) arextract = NULL;
+  g_autoptr (AutoarExtractor) extractor = NULL;
 
   extract_test = extract_test_new ("test-multiple-files-different-name");
 
@@ -641,11 +641,11 @@ test_multiple_files_different_name (void)
 
   archive = g_file_get_child (extract_test->input, "arextract.zip");
 
-  arextract = autoar_extract_new (archive, extract_test->output);
+  extractor = autoar_extractor_new (archive, extract_test->output);
 
-  data = extract_test_data_new_for_extract (arextract);
+  data = extract_test_data_new_for_extract (extractor);
 
-  autoar_extract_start (arextract, data->cancellable);
+  autoar_extractor_start (extractor, data->cancellable);
 
   g_assert_cmpuint (data->number_of_files, ==, 5);
   g_assert_no_error (data->error);
@@ -673,7 +673,7 @@ test_one_file_conflict_overwrite (void)
   g_autoptr (GFile) archive = NULL;
   g_autoptr (GFile) conflict_file = NULL;
   g_autoptr (GFile) reference_file = NULL;
-  g_autoptr (AutoarExtract) arextract = NULL;
+  g_autoptr (AutoarExtractor) extractor = NULL;
 
   extract_test = extract_test_new ("test-one-file-conflict-overwrite");
 
@@ -692,11 +692,11 @@ test_one_file_conflict_overwrite (void)
 
   archive = g_file_get_child (extract_test->input, "arextract.zip");
 
-  arextract = autoar_extract_new (archive, extract_test->output);
+  extractor = autoar_extractor_new (archive, extract_test->output);
 
-  data = extract_test_data_new_for_extract (arextract);
+  data = extract_test_data_new_for_extract (extractor);
 
-  autoar_extract_start (arextract, data->cancellable);
+  autoar_extractor_start (extractor, data->cancellable);
 
   g_assert_cmpuint (data->number_of_files, ==, 1);
   g_assert_true (g_hash_table_contains (data->conflict_files,
@@ -727,7 +727,7 @@ test_one_file_conflict_new_destination (void)
   g_autoptr (GFile) archive = NULL;
   g_autoptr (GFile) conflict_file = NULL;
   g_autoptr (GFile) reference_file = NULL;
-  g_autoptr (AutoarExtract) arextract = NULL;
+  g_autoptr (AutoarExtractor) extractor = NULL;
 
   extract_test = extract_test_new ("test-one-file-conflict-new-destination");
 
@@ -746,9 +746,9 @@ test_one_file_conflict_new_destination (void)
 
   archive = g_file_get_child (extract_test->input, "arextract.zip");
 
-  arextract = autoar_extract_new (archive, extract_test->output);
+  extractor = autoar_extractor_new (archive, extract_test->output);
 
-  data = extract_test_data_new_for_extract (arextract);
+  data = extract_test_data_new_for_extract (extractor);
 
   g_hash_table_insert (data->conflict_files_actions,
                        g_object_ref (conflict_file),
@@ -759,7 +759,7 @@ test_one_file_conflict_new_destination (void)
                        g_file_get_child (extract_test->output,
                                          "arextract_new.txt"));
 
-  autoar_extract_start (arextract, data->cancellable);
+  autoar_extractor_start (extractor, data->cancellable);
 
   g_assert_cmpuint (data->number_of_files, ==, 1);
   g_assert_true (g_hash_table_contains (data->conflict_files,
@@ -789,7 +789,7 @@ test_one_file_conflict_skip_file (void)
   g_autoptr (GFile) archive = NULL;
   g_autoptr (GFile) conflict_file = NULL;
   g_autoptr (GFile) reference_file = NULL;
-  g_autoptr (AutoarExtract) arextract = NULL;
+  g_autoptr (AutoarExtractor) extractor = NULL;
 
   extract_test = extract_test_new ("test-one-file-conflict-skip-file");
 
@@ -808,15 +808,15 @@ test_one_file_conflict_skip_file (void)
 
   archive = g_file_get_child (extract_test->input, "arextract.zip");
 
-  arextract = autoar_extract_new (archive, extract_test->output);
+  extractor = autoar_extractor_new (archive, extract_test->output);
 
-  data = extract_test_data_new_for_extract (arextract);
+  data = extract_test_data_new_for_extract (extractor);
 
   g_hash_table_insert (data->conflict_files_actions,
                        g_object_ref (conflict_file),
                        GUINT_TO_POINTER (AUTOAR_CONFLICT_SKIP));
 
-  autoar_extract_start (arextract, data->cancellable);
+  autoar_extractor_start (extractor, data->cancellable);
 
   g_assert_cmpuint (data->number_of_files, ==, 1);
   g_assert_true (g_hash_table_contains (data->conflict_files,
@@ -851,7 +851,7 @@ test_one_file_error_file_over_directory (void)
   g_autoptr (GFile) conflict_directory = NULL;
   g_autoptr (GFile) dummy_file = NULL;
   g_autoptr (GFileOutputStream) out = NULL;
-  g_autoptr (AutoarExtract) arextract = NULL;
+  g_autoptr (AutoarExtractor) extractor = NULL;
 
   extract_test = extract_test_new ("test-one-file-error-file-over-directory");
 
@@ -871,11 +871,11 @@ test_one_file_error_file_over_directory (void)
 
   archive = g_file_get_child (extract_test->input, "arextract.zip");
 
-  arextract = autoar_extract_new (archive, extract_test->output);
+  extractor = autoar_extractor_new (archive, extract_test->output);
 
-  data = extract_test_data_new_for_extract (arextract);
+  data = extract_test_data_new_for_extract (extractor);
 
-  autoar_extract_start (arextract, data->cancellable);
+  autoar_extractor_start (extractor, data->cancellable);
 
   g_assert_cmpuint (data->number_of_files, ==, 1);
   g_assert_true (g_hash_table_contains (data->conflict_files,
@@ -909,7 +909,7 @@ test_change_extract_destination (void)
   g_autoptr (ExtractTest) extract_test = NULL;
   g_autoptr (ExtractTestData) data = NULL;
   g_autoptr (GFile) archive = NULL;
-  g_autoptr (AutoarExtract) arextract = NULL;
+  g_autoptr (AutoarExtractor) extractor = NULL;
 
   extract_test = extract_test_new ("test-change-extract-destination");
 
@@ -920,13 +920,13 @@ test_change_extract_destination (void)
 
   archive = g_file_get_child (extract_test->input, "arextract.zip");
 
-  arextract = autoar_extract_new (archive, extract_test->output);
+  extractor = autoar_extractor_new (archive, extract_test->output);
 
-  data = extract_test_data_new_for_extract (arextract);
+  data = extract_test_data_new_for_extract (extractor);
   data->destination_to_suggest = g_file_get_child (extract_test->output,
                                                    "new_destination");
 
-  autoar_extract_start (arextract, data->cancellable);
+  autoar_extractor_start (extractor, data->cancellable);
 
   g_assert_cmpuint (data->number_of_files, ==, 4);
   g_assert_no_error (data->error);

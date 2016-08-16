@@ -25,7 +25,7 @@
 
 #include <gnome-autoar/autoar-create.h>
 #include <gnome-autoar/autoar-format-filter.h>
-#include <gnome-autoar/autoar-extract.h>
+#include <gnome-autoar/autoar-extractor.h>
 #include <gnome-autoar/autoar-misc.h>
 #include <gnome-autoar/autoar-pref.h>
 

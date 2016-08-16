@@ -33,28 +33,9 @@
 
 G_BEGIN_DECLS
 
-#define AUTOAR_TYPE_CREATE              autoar_create_get_type ()
-#define AUTOAR_CREATE(obj)              (G_TYPE_CHECK_INSTANCE_CAST ((obj), AUTOAR_TYPE_CREATE, AutoarCreate))
-#define AUTOAR_CREATE_CLASS(klass)      (G_TYPE_CHECK_CLASS_CAST ((klass), AUTOAR_TYPE_CREATE, AutoarCreateClass))
-#define AUTOAR_IS_CREATE(obj)           (G_TYPE_CHECK_INSTANCE_TYPE ((obj), AUTOAR_TYPE_CREATE))
-#define AUTOAR_IS_CREATE_CLASS(klass)   (G_TYPE_CHECK_CLASS_TYPE ((klass), AUTOAR_TYPE_CREATE))
-#define AUTOAR_CREATE_GET_CLASS(obj)    (G_TYPE_INSTANCE_GET_CLASS ((obj), AUTOAR_TYPE_CREATE, AutoarCreateClass))
+#define AUTOAR_TYPE_CREATE autoar_create_get_type ()
 
-typedef struct _AutoarCreate AutoarCreate;
-typedef struct _AutoarCreateClass AutoarCreateClass;
-typedef struct _AutoarCreatePrivate AutoarCreatePrivate;
-
-struct _AutoarCreate
-{
-  GObject parent;
-
-  AutoarCreatePrivate *priv;
-};
-
-struct _AutoarCreateClass
-{
-  GObjectClass parent_class;
-};
+G_DECLARE_FINAL_TYPE (AutoarCreate, autoar_create, AUTOAR, CREATE, GObject)
 
 /**
  * AUTOAR_CREATE_ERROR:

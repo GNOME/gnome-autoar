@@ -23,7 +23,7 @@
 #ifndef AUTOARCHIVE_H
 #define AUTOARCHIVE_H
 
-#include <gnome-autoar/autoar-create.h>
+#include <gnome-autoar/autoar-compressor.h>
 #include <gnome-autoar/autoar-format-filter.h>
 #include <gnome-autoar/autoar-extractor.h>
 #include <gnome-autoar/autoar-misc.h>

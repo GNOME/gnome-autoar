@@ -22,14 +22,14 @@ EXTRA_DIST += \
 	$(NULL)
 
 libgnome_autoar_la_headers = \
-	gnome-autoar/autoar-create.h		\
+	gnome-autoar/autoar-compressor.h	\
 	gnome-autoar/autoar-extractor.h		\
 	gnome-autoar/autoar-format-filter.h	\
 	gnome-autoar/autoar-misc.h		\
 	gnome-autoar/autoar-pref.h		\
 	$(NULL)
 libgnome_autoar_la_sources = \
-	gnome-autoar/autoar-create.c		\
+	gnome-autoar/autoar-compressor.c	\
 	gnome-autoar/autoar-extractor.c		\
 	gnome-autoar/autoar-format-filter.c	\
 	gnome-autoar/autoar-misc.c		\

@@ -6,7 +6,7 @@
 #include <stdlib.h>
 
 static void
-my_handler_decide_dest (AutoarCreate *arcreate,
+my_handler_decide_dest (AutoarCompressor *compressor,
                         GFile *dest)
 {
   char *path, *uri;
@@ -19,7 +19,7 @@ my_handler_decide_dest (AutoarCreate *arcreate,
 }
 
 static void
-my_handler_progress (AutoarCreate *arcreate,
+my_handler_progress (AutoarCompressor *compressor,
                      guint64 completed_size,
                      guint completed_files,
                      gpointer data)
@@ -30,7 +30,7 @@ my_handler_progress (AutoarCreate *arcreate,
 }
 
 static void
-my_handler_error (AutoarCreate *arcreate,
+my_handler_error (AutoarCompressor *compressor,
                   GError *error,
                   gpointer data)
 {
@@ -38,7 +38,7 @@ my_handler_error (AutoarCreate *arcreate,
 }
 
 static void
-my_handler_completed (AutoarCreate *arcreate,
+my_handler_completed (AutoarCompressor *compressor,
                       gpointer data)
 {
   g_print ("\nCompleted!\n");
@@ -48,7 +48,7 @@ int
 main (int argc,
       char* argv[])
 {
-  AutoarCreate *arcreate;
+  AutoarCompressor *compressor;
   GList *source_files = NULL;
   g_autoptr (GFile) output_file = NULL;
   int i;
@@ -69,19 +69,19 @@ main (int argc,
 
   source_files = g_list_reverse (source_files);
 
-  arcreate = autoar_create_new (source_files,
-                                output_file,
-                                atoi (argv[1]),
-                                atoi (argv[2]));
-  g_signal_connect (arcreate, "decide-dest", G_CALLBACK (my_handler_decide_dest), NULL);
-  g_signal_connect (arcreate, "progress", G_CALLBACK (my_handler_progress), NULL);
-  g_signal_connect (arcreate, "error", G_CALLBACK (my_handler_error), NULL);
-  g_signal_connect (arcreate, "completed", G_CALLBACK (my_handler_completed), NULL);
+  compressor = autoar_compressor_new (source_files,
+                                      output_file,
+                                      atoi (argv[1]),
+                                      atoi (argv[2]));
+  g_signal_connect (compressor, "decide-dest", G_CALLBACK (my_handler_decide_dest), NULL);
+  g_signal_connect (compressor, "progress", G_CALLBACK (my_handler_progress), NULL);
+  g_signal_connect (compressor, "error", G_CALLBACK (my_handler_error), NULL);
+  g_signal_connect (compressor, "completed", G_CALLBACK (my_handler_completed), NULL);
 
-  autoar_create_start (arcreate, NULL);
+  autoar_compressor_start (compressor, NULL);
 
   g_list_free_full (source_files, g_object_unref);
-  g_object_unref (arcreate);
+  g_object_unref (compressor);
 
   return 0;
 }

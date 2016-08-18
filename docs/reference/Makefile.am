@@ -14,7 +14,7 @@ HFILE_GLOB=$(top_srcdir)/gnome-autoar/*.h
 CFILE_GLOB=$(top_srcdir)/gnome-autoar/*.c
 
 IGNORE_HFILES = \
-	autoar.h \
+	gnome-autoar.h \
 	autoar-gtk.h \
 	autoar-enum-types.h \
 	autoar-private.h \

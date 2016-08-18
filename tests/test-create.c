@@ -1,6 +1,6 @@
 /* vim: set sw=2 ts=2 sts=2 et: */
 
-#include <gnome-autoar/autoar.h>
+#include <gnome-autoar/gnome-autoar.h>
 #include <glib.h>
 #include <locale.h>
 #include <stdlib.h>

@@ -6,7 +6,7 @@ AC_PREREQ([2.68])
 AC_INIT([gnome-autoar], [0.1], [BUG-REPORT-ADDRESS], [gnome-autoar])
 
 AC_CONFIG_MACRO_DIR([m4])
-AC_CONFIG_SRCDIR([gnome-autoar/autoar.h])
+AC_CONFIG_SRCDIR([gnome-autoar/gnome-autoar.h])
 AC_CONFIG_HEADERS([config.h])
 
 AM_INIT_AUTOMAKE([1.11 foreign dist-xz no-dist-gzip tar-ustar subdir-objects])

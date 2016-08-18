@@ -58,9 +58,9 @@ void             autoar_extractor_start_async                 (AutoarExtractor *
 
 GFile           *autoar_extractor_get_source_file             (AutoarExtractor *self);
 GFile           *autoar_extractor_get_output_file             (AutoarExtractor *self);
-guint64          autoar_extractor_get_size                    (AutoarExtractor *self);
+guint64          autoar_extractor_get_total_size              (AutoarExtractor *self);
 guint64          autoar_extractor_get_completed_size          (AutoarExtractor *self);
-guint            autoar_extractor_get_files                   (AutoarExtractor *self);
+guint            autoar_extractor_get_total_files             (AutoarExtractor *self);
 guint            autoar_extractor_get_completed_files         (AutoarExtractor *self);
 gboolean         autoar_extractor_get_output_is_dest          (AutoarExtractor *self);
 gboolean         autoar_extractor_get_delete_after_extraction (AutoarExtractor *self);

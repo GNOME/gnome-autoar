@@ -117,10 +117,10 @@ struct _AutoarExtractor
   gint64 notify_interval;
 
   /* Variables used to show progess */
-  guint64 size;
+  guint64 total_size;
   guint64 completed_size;
 
-  guint files;
+  guint total_files;
   guint completed_files;
 
   gint64 notify_last;
@@ -172,9 +172,9 @@ enum
   PROP_0,
   PROP_SOURCE_FILE,
   PROP_OUTPUT_FILE,
-  PROP_SIZE,
+  PROP_TOTAL_SIZE,
   PROP_COMPLETED_SIZE,
-  PROP_FILES,
+  PROP_TOTAL_FILES,
   PROP_COMPLETED_FILES,
   PROP_OUTPUT_IS_DEST,
   PROP_DELETE_AFTER_EXTRACTION,
@@ -200,14 +200,14 @@ autoar_extractor_get_property (GObject    *object,
     case PROP_OUTPUT_FILE:
       g_value_set_object (value, self->output_file);
       break;
-    case PROP_SIZE:
-      g_value_set_uint64 (value, self->size);
+    case PROP_TOTAL_SIZE:
+      g_value_set_uint64 (value, self->total_size);
       break;
     case PROP_COMPLETED_SIZE:
       g_value_set_uint64 (value, self->completed_size);
       break;
-    case PROP_FILES:
-      g_value_set_uint (value, self->files);
+    case PROP_TOTAL_FILES:
+      g_value_set_uint (value, self->total_files);
       break;
     case PROP_COMPLETED_FILES:
       g_value_set_uint (value, self->completed_files);
@@ -297,7 +297,7 @@ autoar_extractor_get_output_file (AutoarExtractor *self)
 }
 
 /**
- * autoar_extractor_get_size:
+ * autoar_extractor_get_total_size:
  * @self: an #AutoarExtractor
  *
  * Gets the size in bytes will be written when the operation is completed.
@@ -305,10 +305,10 @@ autoar_extractor_get_output_file (AutoarExtractor *self)
  * Returns: total size of extracted files in bytes
  **/
 guint64
-autoar_extractor_get_size (AutoarExtractor *self)
+autoar_extractor_get_total_size (AutoarExtractor *self)
 {
   g_return_val_if_fail (AUTOAR_IS_EXTRACTOR (self), 0);
-  return self->size;
+  return self->total_size;
 }
 
 /**
@@ -327,7 +327,7 @@ autoar_extractor_get_completed_size (AutoarExtractor *self)
 }
 
 /**
- * autoar_extractor_get_files:
+ * autoar_extractor_get_total_files:
  * @self: an #AutoarExtractor
  *
  * Gets the total number of files will be written when the operation is
@@ -336,10 +336,10 @@ autoar_extractor_get_completed_size (AutoarExtractor *self)
  * Returns: total number of extracted files
  **/
 guint
-autoar_extractor_get_files (AutoarExtractor *self)
+autoar_extractor_get_total_files (AutoarExtractor *self)
 {
   g_return_val_if_fail (AUTOAR_IS_EXTRACTOR (self), 0);
-  return self->files;
+  return self->total_files;
 }
 
 /**
@@ -718,7 +718,7 @@ autoar_extractor_signal_scanned (AutoarExtractor *self)
 {
   autoar_common_g_signal_emit (self, self->in_thread,
                                autoar_extractor_signals[SCANNED], 0,
-                               self->files);
+                               self->total_files);
 }
 
 static inline void
@@ -1280,10 +1280,10 @@ autoar_extractor_class_init (AutoarExtractorClass *klass)
                                                         G_PARAM_CONSTRUCT_ONLY |
                                                         G_PARAM_STATIC_STRINGS));
 
-  g_object_class_install_property (object_class, PROP_SIZE,
-                                   g_param_spec_uint64 ("size",
-                                                        "File size",
-                                                        "Size of the extracted files",
+  g_object_class_install_property (object_class, PROP_TOTAL_SIZE,
+                                   g_param_spec_uint64 ("total-size",
+                                                        "Total files size",
+                                                        "Total size of the extracted files",
                                                         0, G_MAXUINT64, 0,
                                                         G_PARAM_READABLE |
                                                         G_PARAM_STATIC_STRINGS));
@@ -1296,9 +1296,9 @@ autoar_extractor_class_init (AutoarExtractorClass *klass)
                                                         G_PARAM_READABLE |
                                                         G_PARAM_STATIC_STRINGS));
 
-  g_object_class_install_property (object_class, PROP_FILES,
-                                   g_param_spec_uint ("files",
-                                                      "Files",
+  g_object_class_install_property (object_class, PROP_TOTAL_FILES,
+                                   g_param_spec_uint ("total-files",
+                                                      "Total files",
                                                       "Number of files in the archive",
                                                       0, G_MAXUINT32, 0,
                                                       G_PARAM_READABLE |
@@ -1483,12 +1483,12 @@ autoar_extractor_init (AutoarExtractor *self)
 {
   self->cancellable = NULL;
 
-  self->size = 0;
+  self->total_size = 0;
   self->completed_size = 0;
 
   self->files_list = NULL;
 
-  self->files = 0;
+  self->total_files = 0;
   self->completed_files = 0;
 
   self->notify_last = 0;
@@ -1590,13 +1590,13 @@ autoar_extractor_step_scan_toplevel (AutoarExtractor *self)
 
     pathname = archive_entry_pathname (entry);
     g_debug ("autoar_extractor_step_scan_toplevel: %d: pathname = %s",
-             self->files, pathname);
+             self->total_files, pathname);
 
     self->files_list =
       g_list_prepend (self->files_list,
                       g_file_get_child (self->output_file, pathname));
-    self->files++;
-    self->size += archive_entry_size (entry);
+    self->total_files++;
+    self->total_size += archive_entry_size (entry);
     archive_read_data_skip (a);
   }
 
@@ -1623,12 +1623,13 @@ autoar_extractor_step_scan_toplevel (AutoarExtractor *self)
 
   /* If we are unable to determine the total size, set it to a positive
    * number to prevent strange percentage. */
-  if (self->size <= 0)
-    self->size = G_MAXUINT64;
+  if (self->total_size <= 0)
+    self->total_size = G_MAXUINT64;
 
   archive_read_free (a);
 
-  g_debug ("autoar_extractor_step_scan_toplevel: files = %d", self->files);
+  g_debug ("autoar_extractor_step_scan_toplevel: files = %d",
+           self->total_files);
 
   self->files_list = g_list_reverse (self->files_list);
 
@@ -1899,8 +1900,8 @@ autoar_extractor_step_cleanup (AutoarExtractor *self) {
 
   g_debug ("autoar_extractor_step_cleanup: called");
 
-  self->completed_size = self->size;
-  self->completed_files = self->files;
+  self->completed_size = self->total_size;
+  self->completed_files = self->total_files;
   self->notify_last = 0;
   autoar_extractor_signal_progress (self);
   g_debug ("autoar_extractor_step_cleanup: Update progress");

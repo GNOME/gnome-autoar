@@ -60,9 +60,9 @@ char            *autoar_extractor_get_source            (AutoarExtractor *extrac
 GFile           *autoar_extractor_get_source_file       (AutoarExtractor *extractor);
 char            *autoar_extractor_get_output            (AutoarExtractor *extractor);
 GFile           *autoar_extractor_get_output_file       (AutoarExtractor *extractor);
-guint64          autoar_extractor_get_size              (AutoarExtractor *extractor);
+guint64          autoar_extractor_get_total_size        (AutoarExtractor *extractor);
 guint64          autoar_extractor_get_completed_size    (AutoarExtractor *extractor);
-guint            autoar_extractor_get_files             (AutoarExtractor *extractor);
+guint            autoar_extractor_get_total_files       (AutoarExtractor *extractor);
 guint            autoar_extractor_get_completed_files   (AutoarExtractor *extractor);
 gboolean         autoar_extractor_get_output_is_dest    (AutoarExtractor *extractor);
 gboolean         autoar_extractor_get_delete_if_succeed (AutoarExtractor *extractor);

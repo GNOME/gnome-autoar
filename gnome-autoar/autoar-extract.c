@@ -441,7 +441,7 @@ gboolean
 autoar_extract_get_output_is_dest (AutoarExtract *arextract)
 {
   g_return_val_if_fail (AUTOAR_IS_EXTRACT (arextract), FALSE);
-  return arextract->priv->source_is_mem;
+  return arextract->priv->output_is_dest;
 }
 
 /**

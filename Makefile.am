@@ -61,7 +61,7 @@ pkgconfig_DATA = gnome-autoar/gnome-autoar.pc
 
 autoarincludedir = $(includedir)/gnome-autoar
 autoarinclude_HEADERS = \
-	gnome-autoar/autoar.h			\
+	gnome-autoar/gnome-autoar.h		\
 	$(libgnome_autoar_la_headers)		\
 	$(NULL)
 

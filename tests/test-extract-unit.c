@@ -1,4 +1,4 @@
-#include <gnome-autoar/autoar.h>
+#include <gnome-autoar/gnome-autoar.h>
 #include <gio/gio.h>
 
 

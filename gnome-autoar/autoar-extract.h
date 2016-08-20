@@ -31,28 +31,9 @@
 
 G_BEGIN_DECLS
 
-#define AUTOAR_TYPE_EXTRACT             autoar_extract_get_type ()
-#define AUTOAR_EXTRACT(obj)             (G_TYPE_CHECK_INSTANCE_CAST ((obj), AUTOAR_TYPE_EXTRACT, AutoarExtract))
-#define AUTOAR_EXTRACT_CLASS(klass)     (G_TYPE_CHECK_CLASS_CAST ((klass), AUTOAR_TYPE_EXTRACT, AutoarExtractClass))
-#define AUTOAR_IS_EXTRACT(obj)          (G_TYPE_CHECK_INSTANCE_TYPE ((obj), AUTOAR_TYPE_EXTRACT))
-#define AUTOAR_IS_EXTRACT_CLASS(klass)  (G_TYPE_CHECK_CLASS_TYPE ((klass), AUTOAR_TYPE_EXTRACT))
-#define AUTOAR_EXTRACT_GET_CLASS(obj)   (G_TYPE_INSTANCE_GET_CLASS ((obj), AUTOAR_TYPE_EXTRACT, AutoarExtractClass))
+#define AUTOAR_TYPE_EXTRACT autoar_extract_get_type ()
 
-typedef struct _AutoarExtract AutoarExtract;
-typedef struct _AutoarExtractClass AutoarExtractClass;
-typedef struct _AutoarExtractPrivate AutoarExtractPrivate;
-
-struct _AutoarExtract
-{
-  GObject parent;
-
-  AutoarExtractPrivate *priv;
-};
-
-struct _AutoarExtractClass
-{
-  GObjectClass parent_class;
-};
+G_DECLARE_FINAL_TYPE (AutoarExtract, autoar_extract, AUTOAR, EXTRACT, GObject)
 
 /**
  * AUTOAR_EXTRACT_ERROR:

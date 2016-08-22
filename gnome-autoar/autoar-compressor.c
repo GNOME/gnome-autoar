@@ -720,8 +720,6 @@ autoar_compressor_do_write_data (AutoarCompressor     *self,
     if (istream == NULL)
       return;
 
-    self->completed_files++;
-
     do {
       read_actual = g_input_stream_read (istream,
                                          self->buffer,
@@ -746,6 +744,7 @@ autoar_compressor_do_write_data (AutoarCompressor     *self,
       }
     } while (read_actual > 0 && written_actual >= 0);
 
+    self->completed_files++;
 
     g_input_stream_close (istream, self->cancellable, NULL);
     g_object_unref (istream);

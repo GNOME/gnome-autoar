@@ -58,7 +58,7 @@ lib_LTLIBRARIES = gnome-autoar/libgnome-autoar-@LIBGNOME_AUTOAR_API_VERSION@.la
 pkgconfigdir = $(libdir)/pkgconfig
 nodist_pkgconfig_DATA = gnome-autoar/gnome-autoar-$(LIBGNOME_AUTOAR_API_VERSION).pc
 
-autoarincludedir = $(includedir)/gnome-autoar-$(LIBGNOME_AUTOAR_API_VERSION)
+autoarincludedir = $(includedir)/gnome-autoar-$(LIBGNOME_AUTOAR_API_VERSION)/gnome-autoar
 autoarinclude_HEADERS = \
 	gnome-autoar/gnome-autoar.h		\
 	$(libgnome_autoar_la_headers)		\

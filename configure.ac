@@ -18,6 +18,16 @@ AM_INIT_AUTOMAKE([1.11 foreign dist-xz no-dist-gzip tar-ustar subdir-objects])
 AM_MAINTAINER_MODE([enable])
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 
+# reset to 0 at the beginning of a development cycle
+# increment by 1 for every stable micro release
+m4_define([interface_age], [0])
+m4_define([binary_age], [m4_eval(100 * minor_version + micro_version)])
+m4_define([lt_current], [m4_eval(binary_age - interface_age)])
+m4_define([lt_revision], [interface_age])
+m4_define([lt_age], [m4_eval(binary_age - interface_age)])
+
+AC_SUBST([LIBGNOME_AUTOAR_LT_VERSION], [lt_current:lt_revision:lt_age])
+
 AC_PROG_CC
 AC_PROG_CC_STDC
 AC_PROG_INSTALL

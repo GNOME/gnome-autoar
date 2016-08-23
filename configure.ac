@@ -3,7 +3,12 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.68])
-AC_INIT([gnome-autoar], [0.1], [BUG-REPORT-ADDRESS], [gnome-autoar])
+
+m4_define([major_version], [0])
+m4_define([minor_version], [1])
+m4_define([micro_version], [0])
+
+AC_INIT([gnome-autoar], [major_version.minor_version.micro_version], [BUG-REPORT-ADDRESS], [gnome-autoar])
 
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_SRCDIR([gnome-autoar/gnome-autoar.h])

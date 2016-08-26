@@ -46,8 +46,6 @@ G_DECLARE_FINAL_TYPE (AutoarExtractor, autoar_extractor, AUTOAR, EXTRACTOR, GObj
 
 GQuark           autoar_extractor_quark                       (void);
 
-GType            autoar_extractor_get_type                    (void) G_GNUC_CONST;
-
 AutoarExtractor *autoar_extractor_new                         (GFile *source_file,
                                                                GFile *output_file);
 

@@ -48,8 +48,6 @@ G_DECLARE_FINAL_TYPE (AutoarCompressor, autoar_compressor, AUTOAR, COMPRESSOR, G
 
 GQuark             autoar_compressor_quark                          (void);
 
-GType              autoar_compressor_get_type                       (void) G_GNUC_CONST;
-
 AutoarCompressor * autoar_compressor_new                            (GList        *source_files,
                                                                      GFile        *output_file,
                                                                      AutoarFormat  format,

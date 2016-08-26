@@ -727,11 +727,11 @@ autoar_extractor_signal_decide_destination (AutoarExtractor *self,
                                             GList *files,
                                             GFile **new_destination)
 {
-  autoar_common_g_signal_emit (self, self->in_thread,
-                               autoar_extractor_signals[DECIDE_DESTINATION], 0,
-                               destination,
-                               files,
-                               new_destination);
+  g_signal_emit (self,
+                 autoar_extractor_signals[DECIDE_DESTINATION], 0,
+                 destination,
+                 files,
+                 new_destination);
 }
 
 static inline void

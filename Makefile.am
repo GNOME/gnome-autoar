@@ -61,6 +61,7 @@ nodist_pkgconfig_DATA = gnome-autoar/gnome-autoar-$(LIBGNOME_AUTOAR_API_VERSION)
 autoarincludedir = $(includedir)/gnome-autoar-$(LIBGNOME_AUTOAR_API_VERSION)/gnome-autoar
 autoarinclude_HEADERS = \
 	gnome-autoar/gnome-autoar.h		\
+	gnome-autoar/autoar-enum-types.h	\
 	$(libgnome_autoar_la_headers)		\
 	$(NULL)
 

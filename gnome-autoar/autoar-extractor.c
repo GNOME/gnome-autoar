@@ -1588,6 +1588,16 @@ autoar_extractor_step_scan_toplevel (AutoarExtractor *self)
       return;
     }
 
+    if (archive_entry_is_encrypted (entry)) {
+      if (self->error == NULL) {
+        self->error = g_error_new (G_IO_ERROR,
+                                   G_IO_ERROR_NOT_SUPPORTED,
+                                   "Encrypted archives are not supported.");
+      }
+      archive_read_free (a);
+      return;
+    }
+
     pathname = archive_entry_pathname (entry);
     g_debug ("autoar_extractor_step_scan_toplevel: %d: pathname = %s",
              self->total_files, pathname);

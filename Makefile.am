@@ -198,6 +198,7 @@ test_cflags = \
 	$(NULL)
 
 test_libs = \
+	$(GIO_LIBS)		\
 	$(top_builddir)/gnome-autoar/libgnome-autoar-@LIBGNOME_AUTOAR_API_VERSION@.la	\
 	$(NULL)
 
@@ -226,6 +227,7 @@ test_gtk_cflags = \
 	$(NULL)
 
 test_gtk_libs = \
+	$(GTK_LIBS)		\
 	$(top_builddir)/gnome-autoar/libgnome-autoar-gtk-@LIBGNOME_AUTOAR_API_VERSION@.la	\
 	$(top_builddir)/gnome-autoar/libgnome-autoar-@LIBGNOME_AUTOAR_API_VERSION@.la	\
 	$(NULL)

@@ -8,4 +8,4 @@ Description: GTK+ widgets for gnome-autoar library
 Version: @VERSION@
 Requires: gtk+-3.0
 Libs: -L${libdir} -lgnome-autoar-gtk-@LIBGNOME_AUTOAR_API_VERSION@
-Cflags: -I${includedir}/gnome-autoar-gtk-@LIBGNOME_AUTOAR_API_VERSION@
+Cflags: -I${includedir}/gnome-autoar-@LIBGNOME_AUTOAR_API_VERSION@

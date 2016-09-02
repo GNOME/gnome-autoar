@@ -90,7 +90,7 @@ if ENABLE_GTK
 lib_LTLIBRARIES += gnome-autoar/libgnome-autoar-gtk-@LIBGNOME_AUTOAR_API_VERSION@.la
 nodist_pkgconfig_DATA += gnome-autoar/gnome-autoar-gtk-$(LIBGNOME_AUTOAR_API_VERSION).pc
 
-autoargtkincludedir = $(includedir)/gnome-autoar-gtk-$(LIBGNOME_AUTOAR_API_VERSION)/gnome-autoar-gtk
+autoargtkincludedir = $(includedir)/gnome-autoar-$(LIBGNOME_AUTOAR_API_VERSION)/gnome-autoar
 autoargtkinclude_HEADERS = \
 	gnome-autoar/autoar-gtk.h		\
 	$(libgnome_autoar_gtk_la_headers)	\

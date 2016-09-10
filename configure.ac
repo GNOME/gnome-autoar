@@ -51,6 +51,8 @@ GTK_DOC_CHECK([1.14],[--flavour no-tmpl])
 # check for gobject-introspection
 GOBJECT_INTROSPECTION_CHECK([1.30.0])
 
+VAPIGEN_CHECK([0.22])
+
 # Checks for libraries.
 GLIB_REQUIRED=2.35.6
 GTK_REQUIRED=3.2

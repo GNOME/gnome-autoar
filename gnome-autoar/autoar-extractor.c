@@ -1589,13 +1589,7 @@ autoar_extractor_step_scan_toplevel (AutoarExtractor *self)
     }
 
     if (archive_entry_is_encrypted (entry)) {
-      if (self->error == NULL) {
-        self->error = g_error_new (G_IO_ERROR,
-                                   G_IO_ERROR_NOT_SUPPORTED,
-                                   "Encrypted archives are not supported.");
-      }
-      archive_read_free (a);
-      return;
+      break;
     }
 
     pathname = archive_entry_pathname (entry);
@@ -1608,6 +1602,17 @@ autoar_extractor_step_scan_toplevel (AutoarExtractor *self)
     self->total_files++;
     self->total_size += archive_entry_size (entry);
     archive_read_data_skip (a);
+  }
+
+  if (entry && archive_entry_is_encrypted (entry)) {
+    g_debug ("autoar_extractor_step_scan_toplevel: encrypted entry");
+    if (self->error == NULL) {
+      self->error = g_error_new (G_IO_ERROR,
+                                 G_IO_ERROR_NOT_SUPPORTED,
+                                 "Encrypted archives are not supported.");
+    }
+    archive_read_free (a);
+    return;
   }
 
   if (self->files_list == NULL) {

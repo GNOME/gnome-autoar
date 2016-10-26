@@ -1686,7 +1686,8 @@ autoar_extractor_step_set_destination (AutoarExtractor *self)
     prefix_name = g_file_get_basename (self->prefix);
     prefix_name_no_ext = autoar_common_get_basename_remove_extension (prefix_name);
 
-    if (g_strcmp0 (prefix_name_no_ext, self->suggested_destname) == 0) {
+    if (g_strcmp0 (prefix_name, self->suggested_destname) == 0 ||
+        g_strcmp0 (prefix_name_no_ext, self->suggested_destname) == 0) {
       self->destination_dir = g_object_ref (self->output_file);
     } else {
       g_clear_object (&self->prefix);

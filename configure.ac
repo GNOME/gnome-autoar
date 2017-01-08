@@ -8,7 +8,10 @@ m4_define([major_version], [0])
 m4_define([minor_version], [1])
 m4_define([micro_version], [1])
 
-AC_INIT([gnome-autoar], [major_version.minor_version.micro_version], [BUG-REPORT-ADDRESS], [gnome-autoar])
+AC_INIT([gnome-autoar],
+        [major_version.minor_version.micro_version],
+        [https://bugzilla.gnome.org/enter_bug.cgi?product=gnome-autoar],
+        [gnome-autoar])
 
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_SRCDIR([gnome-autoar/gnome-autoar.h])

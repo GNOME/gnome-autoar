@@ -29,7 +29,7 @@ m4_define([lt_current], [m4_eval(binary_age - interface_age)])
 m4_define([lt_revision], [interface_age])
 m4_define([lt_age], [m4_eval(binary_age - interface_age)])
 
-AC_SUBST([LIBGNOME_AUTOAR_LT_VERSION], [lt_current:lt_revision:lt_age])
+AC_SUBST([LT_VERSION_INFO], [lt_current:lt_revision:lt_age])
 AC_SUBST([API_VERSION], [0.2])
 AC_SUBST([API_VERSION_U], [AS_TR_SH([$API_VERSION])])
 

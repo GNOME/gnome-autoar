@@ -81,6 +81,9 @@ gnome_autoar_libgnome_autoar_@API_VERSION@_la_CFLAGS = \
 	-I$(top_builddir)/gnome-autoar		\
 	$(AM_CFLAGS)				\
 	$(NULL)
+gnome_autoar_libgnome_autoar_@API_VERSION@_la_LDFLAGS = \
+	-version-info $(LT_VERSION_INFO)	\
+	$(NULL)
 gnome_autoar_libgnome_autoar_@API_VERSION@_la_LIBADD = \
 	$(GIO_LIBS)				\
 	$(LIBARCHIVE_LIBS)			\
@@ -109,6 +112,9 @@ gnome_autoar_libgnome_autoar_gtk_@API_VERSION@_la_CFLAGS = \
 	-I$(top_srcdir)				\
 	-I$(top_builddir)/gnome-autoar		\
 	$(AM_CFLAGS)				\
+	$(NULL)
+gnome_autoar_libgnome_autoar_gtk_@API_VERSION@_la_LDFLAGS = \
+	-version-info $(LT_VERSION_INFO)	\
 	$(NULL)
 gnome_autoar_libgnome_autoar_gtk_@API_VERSION@_la_LIBADD = \
 	$(GTK_LIBS)				\

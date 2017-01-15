@@ -1,7 +1,8 @@
 Major changes in 0.1.1:
-* Fix library link issues for Evolution (Razvan Chitu)
-* Make decide destination signal synchronous for Evolution (Razvan Chitu)
-* Fix licence to LGPLv2.1+ (Ting-Wei Lan)
+ * Fix library link issues for Evolution (Razvan Chitu)
+ * Make decide destination signal synchronous for Evolution (Razvan Chitu)
+ * Fix licence to LGPLv2.1+ (Ting-Wei Lan)
 
 Major changes in 0.1.0:
- * First development release of GNOME Autoar, a library to integrate compressed files management with GNOME.
+ * First development release of GNOME Autoar, a library to integrate
+   compressed files management with GNOME.

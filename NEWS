@@ -1,3 +1,8 @@
+Major changes in 0.1.2:
+ * Make it possible to install multiple incompatible versions (Ting-Wei Lan)
+ * Fix name matching of top-level item in archives (Razvan Chitu)
+ * Fix detection of encrypted header (Razvan Chitu)
+
 Major changes in 0.1.1:
  * Fix library link issues for Evolution (Razvan Chitu)
  * Make decide destination signal synchronous for Evolution (Razvan Chitu)

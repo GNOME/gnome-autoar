@@ -5,7 +5,7 @@
 AC_PREREQ([2.68])
 
 m4_define([major_version], [0])
-m4_define([minor_version], [1])
+m4_define([minor_version], [2])
 m4_define([micro_version], [0])
 
 AC_INIT([gnome-autoar],
@@ -30,8 +30,8 @@ m4_define([lt_revision], [interface_age])
 m4_define([lt_age], [m4_eval(binary_age - interface_age)])
 
 AC_SUBST([LIBGNOME_AUTOAR_LT_VERSION], [lt_current:lt_revision:lt_age])
-
-AC_SUBST([LIBGNOME_AUTOAR_API_VERSION], [0])
+AC_SUBST([API_VERSION], [0.2])
+AC_SUBST([API_VERSION_U], [AS_TR_SH([$API_VERSION])])
 
 AC_PROG_CC
 AC_PROG_CC_STDC
@@ -122,8 +122,8 @@ AC_CHECK_FUNCS([getgrnam getpwnam link mkfifo mknod stat])
 AC_CONFIG_FILES([Makefile
                  docs/Makefile
                  docs/reference/Makefile
-                 gnome-autoar/gnome-autoar-$LIBGNOME_AUTOAR_API_VERSION.pc:gnome-autoar/gnome-autoar.pc.in
-                 gnome-autoar/gnome-autoar-gtk-$LIBGNOME_AUTOAR_API_VERSION.pc:gnome-autoar/gnome-autoar-gtk.pc.in])
+                 gnome-autoar/gnome-autoar-$API_VERSION.pc:gnome-autoar/gnome-autoar.pc.in
+                 gnome-autoar/gnome-autoar-gtk-$API_VERSION.pc:gnome-autoar/gnome-autoar-gtk.pc.in])
 AS_MKDIR_P([data])
 AC_OUTPUT
 

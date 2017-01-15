@@ -53,66 +53,66 @@ BUILT_SOURCES += \
 	$(libgnome_autoar_la_generated_files)	\
 	$(NULL)
 
-lib_LTLIBRARIES = gnome-autoar/libgnome-autoar-@LIBGNOME_AUTOAR_API_VERSION@.la
+lib_LTLIBRARIES = gnome-autoar/libgnome-autoar-@API_VERSION@.la
 
 pkgconfigdir = $(libdir)/pkgconfig
-nodist_pkgconfig_DATA = gnome-autoar/gnome-autoar-$(LIBGNOME_AUTOAR_API_VERSION).pc
+nodist_pkgconfig_DATA = gnome-autoar/gnome-autoar-@API_VERSION@.pc
 
-autoarincludedir = $(includedir)/gnome-autoar-$(LIBGNOME_AUTOAR_API_VERSION)/gnome-autoar
+autoarincludedir = $(includedir)/gnome-autoar-@API_VERSION@/gnome-autoar
 autoarinclude_HEADERS = \
 	gnome-autoar/gnome-autoar.h		\
 	gnome-autoar/autoar-enum-types.h	\
 	$(libgnome_autoar_la_headers)		\
 	$(NULL)
 
-gnome_autoar_libgnome_autoar_@LIBGNOME_AUTOAR_API_VERSION@_la_SOURCES = \
+gnome_autoar_libgnome_autoar_@API_VERSION@_la_SOURCES = \
 	$(libgnome_autoar_la_generated_files)	\
 	$(libgnome_autoar_la_private_files)	\
 	$(libgnome_autoar_la_headers)		\
 	$(libgnome_autoar_la_sources)		\
 	$(NULL)
-gnome_autoar_libgnome_autoar_@LIBGNOME_AUTOAR_API_VERSION@_la_CPPFLAGS = \
+gnome_autoar_libgnome_autoar_@API_VERSION@_la_CPPFLAGS = \
 	$(AM_CPPFLAGS)				\
 	$(NULL)
-gnome_autoar_libgnome_autoar_@LIBGNOME_AUTOAR_API_VERSION@_la_CFLAGS = \
+gnome_autoar_libgnome_autoar_@API_VERSION@_la_CFLAGS = \
 	$(GIO_CFLAGS)				\
 	$(LIBARCHIVE_CFLAGS)			\
 	-I$(top_srcdir)				\
 	-I$(top_builddir)/gnome-autoar		\
 	$(AM_CFLAGS)				\
 	$(NULL)
-gnome_autoar_libgnome_autoar_@LIBGNOME_AUTOAR_API_VERSION@_la_LIBADD = \
+gnome_autoar_libgnome_autoar_@API_VERSION@_la_LIBADD = \
 	$(GIO_LIBS)				\
 	$(LIBARCHIVE_LIBS)			\
 	$(NULL)
 
 if ENABLE_GTK
 
-lib_LTLIBRARIES += gnome-autoar/libgnome-autoar-gtk-@LIBGNOME_AUTOAR_API_VERSION@.la
-nodist_pkgconfig_DATA += gnome-autoar/gnome-autoar-gtk-$(LIBGNOME_AUTOAR_API_VERSION).pc
+lib_LTLIBRARIES += gnome-autoar/libgnome-autoar-gtk-@API_VERSION@.la
+nodist_pkgconfig_DATA += gnome-autoar/gnome-autoar-gtk-@API_VERSION@.pc
 
-autoargtkincludedir = $(includedir)/gnome-autoar-$(LIBGNOME_AUTOAR_API_VERSION)/gnome-autoar
+autoargtkincludedir = $(includedir)/gnome-autoar-@API_VERSION@/gnome-autoar
 autoargtkinclude_HEADERS = \
 	gnome-autoar/autoar-gtk.h		\
 	$(libgnome_autoar_gtk_la_headers)	\
 	$(NULL)
 
-gnome_autoar_libgnome_autoar_gtk_@LIBGNOME_AUTOAR_API_VERSION@_la_SOURCES = \
+gnome_autoar_libgnome_autoar_gtk_@API_VERSION@_la_SOURCES = \
 	$(libgnome_autoar_gtk_la_headers)	\
 	$(libgnome_autoar_gtk_la_sources)	\
 	$(NULL)
-gnome_autoar_libgnome_autoar_gtk_@LIBGNOME_AUTOAR_API_VERSION@_la_CPPFLAGS = \
+gnome_autoar_libgnome_autoar_gtk_@API_VERSION@_la_CPPFLAGS = \
 	$(AM_CPPFLAGS)
 	$(NULL)
-gnome_autoar_libgnome_autoar_gtk_@LIBGNOME_AUTOAR_API_VERSION@_la_CFLAGS = \
+gnome_autoar_libgnome_autoar_gtk_@API_VERSION@_la_CFLAGS = \
 	$(GTK_CFLAGS)				\
 	-I$(top_srcdir)				\
 	-I$(top_builddir)/gnome-autoar		\
 	$(AM_CFLAGS)				\
 	$(NULL)
-gnome_autoar_libgnome_autoar_gtk_@LIBGNOME_AUTOAR_API_VERSION@_la_LIBADD = \
+gnome_autoar_libgnome_autoar_gtk_@API_VERSION@_la_LIBADD = \
 	$(GTK_LIBS)				\
-	$(top_builddir)/gnome-autoar/libgnome-autoar-@LIBGNOME_AUTOAR_API_VERSION@.la	\
+	$(top_builddir)/gnome-autoar/libgnome-autoar-@API_VERSION@.la	\
 	$(NULL)
 
 endif
@@ -124,8 +124,8 @@ gnome-autoar/autoar-enum-types.c: gnome-autoar/autoar-enum-types.c.template $(li
 
 CLEANFILES = $(BUILT_SOURCES)
 DISTCLEANFILES = $(BUILT_SOURCES) \
-                 gnome-autoar/gnome-autoar-gtk-@LIBGNOME_AUTOAR_API_VERSION@.pc \
-                 gnome-autoar/gnome-autoar-@LIBGNOME_AUTOAR_API_VERSION@.pc
+                 gnome-autoar/gnome-autoar-gtk-@API_VERSION@.pc \
+                 gnome-autoar/gnome-autoar-@API_VERSION@.pc
 MAINTAINERCLEANFILES = $(BUILT_SOURCES)
 
 -include $(INTROSPECTION_MAKEFILE)
@@ -135,7 +135,7 @@ INTROSPECTION_COMPILER_ARGS = --includedir=$(top_builddir)/gnome-autoar
 
 if HAVE_INTROSPECTION
 
-INTROSPECTION_GIRS += gnome-autoar/GnomeAutoar-0.1.gir
+INTROSPECTION_GIRS += gnome-autoar/GnomeAutoar-@API_VERSION@.gir
 
 girdir = $(datadir)/gir-1.0
 gir_DATA = $(INTROSPECTION_GIRS)
@@ -145,26 +145,26 @@ typelib_DATA = $(INTROSPECTION_GIRS:.gir=.typelib)
 
 CLEANFILES += $(gir_DATA) $(typelib_DATA)
 
-gnome-autoar/GnomeAutoar-0.1.gir: gnome-autoar/libgnome-autoar-@LIBGNOME_AUTOAR_API_VERSION@.la
-gnome_autoar_GnomeAutoar_0_1_gir_SCANNERFLAGS = --identifier-prefix=Autoar --c-include="gnome-autoar/gnome-autoar.h"
-gnome_autoar_GnomeAutoar_0_1_gir_CFLAGS = -I$(top_srcdir) $(AM_CFLAGS)
-gnome_autoar_GnomeAutoar_0_1_gir_INCLUDES = GLib-2.0 GObject-2.0 Gio-2.0
-gnome_autoar_GnomeAutoar_0_1_gir_LIBS = gnome-autoar/libgnome-autoar-@LIBGNOME_AUTOAR_API_VERSION@.la
-gnome_autoar_GnomeAutoar_0_1_gir_FILES = \
+gnome-autoar/GnomeAutoar-@API_VERSION@.gir: gnome-autoar/libgnome-autoar-@API_VERSION@.la
+gnome_autoar_GnomeAutoar_@API_VERSION_U@_gir_SCANNERFLAGS = --identifier-prefix=Autoar --c-include="gnome-autoar/gnome-autoar.h"
+gnome_autoar_GnomeAutoar_@API_VERSION_U@_gir_CFLAGS = -I$(top_srcdir) $(AM_CFLAGS)
+gnome_autoar_GnomeAutoar_@API_VERSION_U@_gir_INCLUDES = GLib-2.0 GObject-2.0 Gio-2.0
+gnome_autoar_GnomeAutoar_@API_VERSION_U@_gir_LIBS = gnome-autoar/libgnome-autoar-@API_VERSION@.la
+gnome_autoar_GnomeAutoar_@API_VERSION_U@_gir_FILES = \
 	$(libgnome_autoar_la_headers)		\
 	$(libgnome_autoar_la_sources)		\
 	$(NULL)
 
 if ENABLE_GTK
 
-INTROSPECTION_GIRS += gnome-autoar/GnomeAutoarGtk-0.1.gir
+INTROSPECTION_GIRS += gnome-autoar/GnomeAutoarGtk-@API_VERSION@.gir
 
-gnome-autoar/GnomeAutoarGtk-0.1.gir: gnome-autoar/libgnome-autoar-gtk-@LIBGNOME_AUTOAR_API_VERSION@.la gnome-autoar/GnomeAutoar-0.1.gir
-gnome_autoar_GnomeAutoarGtk_0_1_gir_SCANNERFLAGS = --identifier-prefix=AutoarGtk --c-include="gnome-autoar/autoar-gtk.h"
-gnome_autoar_GnomeAutoarGtk_0_1_gir_CFLAGS = -I$(top_srcdir) $(AM_CFLAGS)
-gnome_autoar_GnomeAutoarGtk_0_1_gir_INCLUDES = GnomeAutoar-0.1 Gtk-3.0
-gnome_autoar_GnomeAutoarGtk_0_1_gir_LIBS = gnome-autoar/libgnome-autoar-gtk-@LIBGNOME_AUTOAR_API_VERSION@.la
-gnome_autoar_GnomeAutoarGtk_0_1_gir_FILES = \
+gnome-autoar/GnomeAutoarGtk-@API_VERSION@.gir: gnome-autoar/libgnome-autoar-gtk-@API_VERSION@.la gnome-autoar/GnomeAutoar-@API_VERSION@.gir
+gnome_autoar_GnomeAutoarGtk_@API_VERSION_U@_gir_SCANNERFLAGS = --identifier-prefix=AutoarGtk --c-include="gnome-autoar/autoar-gtk.h"
+gnome_autoar_GnomeAutoarGtk_@API_VERSION_U@_gir_CFLAGS = -I$(top_srcdir) $(AM_CFLAGS)
+gnome_autoar_GnomeAutoarGtk_@API_VERSION_U@_gir_INCLUDES = GnomeAutoar-@API_VERSION@ Gtk-3.0
+gnome_autoar_GnomeAutoarGtk_@API_VERSION_U@_gir_LIBS = gnome-autoar/libgnome-autoar-gtk-@API_VERSION@.la
+gnome_autoar_GnomeAutoarGtk_@API_VERSION_U@_gir_FILES = \
 	$(libgnome_autoar_gtk_la_headers)		\
 	$(libgnome_autoar_gtk_la_sources)		\
 	$(NULL)
@@ -174,24 +174,24 @@ endif
 if ENABLE_VAPIGEN
 include $(VAPIGEN_MAKEFILE)
 
-gnome-autoar/gnome-autoar-@LIBGNOME_AUTOAR_API_VERSION@.vapi: gnome-autoar/GnomeAutoar-0.1.gir
+gnome-autoar/gnome-autoar-@API_VERSION@.vapi: gnome-autoar/GnomeAutoar-@API_VERSION@.gir
 
-VAPIGEN_VAPIS = gnome-autoar/gnome-autoar-@LIBGNOME_AUTOAR_API_VERSION@.vapi
+VAPIGEN_VAPIS = gnome-autoar/gnome-autoar-@API_VERSION@.vapi
 
-gnome_autoar_gnome_autoar_@LIBGNOME_AUTOAR_API_VERSION@_vapi_DEPS = gio-2.0
-gnome_autoar_gnome_autoar_@LIBGNOME_AUTOAR_API_VERSION@_vapi_METADATADIRS = $(srcdir)/gnome-autoar
-gnome_autoar_gnome_autoar_@LIBGNOME_AUTOAR_API_VERSION@_vapi_FILES = gnome-autoar/GnomeAutoar-0.1.gir
+gnome_autoar_gnome_autoar_@API_VERSION_U@_vapi_DEPS = gio-2.0
+gnome_autoar_gnome_autoar_@API_VERSION_U@_vapi_METADATADIRS = $(srcdir)/gnome-autoar
+gnome_autoar_gnome_autoar_@API_VERSION_U@_vapi_FILES = gnome-autoar/GnomeAutoar-@API_VERSION@.gir
 
 if ENABLE_GTK
-gnome-autoar/gnome-autoar-gtk-@LIBGNOME_AUTOAR_API_VERSION@.vapi: gnome-autoar/GnomeAutoarGtk-0.1.gir gnome-autoar/gnome-autoar-@LIBGNOME_AUTOAR_API_VERSION@.vapi
+gnome-autoar/gnome-autoar-gtk-@API_VERSION@.vapi: gnome-autoar/GnomeAutoarGtk-@API_VERSION@.gir gnome-autoar/gnome-autoar-@API_VERSION@.vapi
 
-VAPIGEN_VAPIS += gnome-autoar/gnome-autoar-gtk-@LIBGNOME_AUTOAR_API_VERSION@.vapi
+VAPIGEN_VAPIS += gnome-autoar/gnome-autoar-gtk-@API_VERSION@.vapi
 
-gnome_autoar_gnome_autoar_gtk_@LIBGNOME_AUTOAR_API_VERSION@_vapi_DEPS = gnome-autoar-@LIBGNOME_AUTOAR_API_VERSION@ gtk+-3.0
-gnome_autoar_gnome_autoar_gtk_@LIBGNOME_AUTOAR_API_VERSION@_vapi_VAPIDIRS = $(builddir)/gnome-autoar
-gnome_autoar_gnome_autoar_gtk_@LIBGNOME_AUTOAR_API_VERSION@_vapi_METADATADIRS = $(srcdir)/gnome-autoar
-gnome_autoar_gnome_autoar_gtk_@LIBGNOME_AUTOAR_API_VERSION@_vapi_FILES = gnome-autoar/GnomeAutoarGtk-0.1.gir
-gnome_autoar_gnome_autoar_gtk_@LIBGNOME_AUTOAR_API_VERSION@_vapi_GIRDIRS = $(builddir)/gnome-autoar
+gnome_autoar_gnome_autoar_gtk_@API_VERSION_U@_vapi_DEPS = gnome-autoar-@API_VERSION@ gtk+-3.0
+gnome_autoar_gnome_autoar_gtk_@API_VERSION_U@_vapi_VAPIDIRS = $(builddir)/gnome-autoar
+gnome_autoar_gnome_autoar_gtk_@API_VERSION_U@_vapi_METADATADIRS = $(srcdir)/gnome-autoar
+gnome_autoar_gnome_autoar_gtk_@API_VERSION_U@_vapi_FILES = gnome-autoar/GnomeAutoarGtk-@API_VERSION@.gir
+gnome_autoar_gnome_autoar_gtk_@API_VERSION_U@_vapi_GIRDIRS = $(builddir)/gnome-autoar
 endif
 
 vapidir = $(datadir)/vala/vapi
@@ -227,7 +227,7 @@ test_cflags = \
 
 test_libs = \
 	$(GIO_LIBS)		\
-	$(top_builddir)/gnome-autoar/libgnome-autoar-@LIBGNOME_AUTOAR_API_VERSION@.la	\
+	$(top_builddir)/gnome-autoar/libgnome-autoar-@API_VERSION@.la	\
 	$(NULL)
 
 tests_test_extract_SOURCES = tests/test-extract.c
@@ -256,8 +256,8 @@ test_gtk_cflags = \
 
 test_gtk_libs = \
 	$(GTK_LIBS)		\
-	$(top_builddir)/gnome-autoar/libgnome-autoar-gtk-@LIBGNOME_AUTOAR_API_VERSION@.la	\
-	$(top_builddir)/gnome-autoar/libgnome-autoar-@LIBGNOME_AUTOAR_API_VERSION@.la	\
+	$(top_builddir)/gnome-autoar/libgnome-autoar-gtk-@API_VERSION@.la	\
+	$(top_builddir)/gnome-autoar/libgnome-autoar-@API_VERSION@.la	\
 	$(NULL)
 
 tests_test_ui_SOURCES = tests/test-ui.c

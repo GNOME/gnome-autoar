@@ -7,5 +7,5 @@ Name: gnome-autoar
 Description: Archives integration support for GNOME
 Version: @VERSION@
 Requires: gio-2.0 gobject-2.0 glib-2.0 @GNOME_AUTOAR_LIBARCHIVE_REQUIRES@
-Libs: -L${libdir} -lgnome-autoar-@LIBGNOME_AUTOAR_API_VERSION@ @GNOME_AUTOAR_LIBARCHIVE_LIBS@
-Cflags: -I${includedir}/gnome-autoar-@LIBGNOME_AUTOAR_API_VERSION@
+Libs: -L${libdir} -lgnome-autoar-@API_VERSION@ @GNOME_AUTOAR_LIBARCHIVE_LIBS@
+Cflags: -I${includedir}/gnome-autoar-@API_VERSION@

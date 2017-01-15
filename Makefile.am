@@ -181,8 +181,6 @@ gsettings_ENUM_FILES = $(top_srcdir)/gnome-autoar/autoar-format-filter.h
 gsettings_SCHEMAS = data/org.gnome.desktop.archives.gschema.xml
 EXTRA_DIST += $(gsettings_SCHEMAS)
 
-@GSETTINGS_RULES@
-
 
 # Directory: tests
 noinst_PROGRAMS = \

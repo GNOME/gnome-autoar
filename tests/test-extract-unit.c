@@ -967,7 +967,7 @@ main (int argc,
   int tests_result;
 
   if (!setup_extract_tests_directory (argv[0])) {
-    return -1;
+    return 255;
   }
 
   g_test_init (&argc, &argv, NULL);

@@ -44,12 +44,13 @@ gnome-autoar/*-enum-types.[ch]
 gnome-autoar/gnome-autoar-*.pc
 gnome-autoar/gnome-autoar-*.vapi
 
-tests/test-extract
 tests/test-extract-unit
-tests/test-extract-memory
-tests/test-create
-tests/test-pref
-tests/test-ui
+
+tools/autoar-extract
+tools/autoar-extract-memory
+tools/autoar-create
+tools/autoar-pref
+tools/autoar-gtk
 
 docs/reference/html
 docs/reference/xml

@@ -218,12 +218,6 @@ EXTRA_DIST += $(gsettings_SCHEMAS)
 
 
 # Directory: tests
-noinst_PROGRAMS = \
-	tests/test-extract	\
-	tests/test-extract-unit \
-	tests/test-create	\
-	$(NULL)
-
 test_cflags = \
 	$(GIO_CFLAGS)		\
 	$(LIBARCHIVE_CFLAGS)	\
@@ -234,24 +228,6 @@ test_cflags = \
 test_libs = \
 	$(GIO_LIBS)		\
 	$(top_builddir)/gnome-autoar/libgnome-autoar-@API_VERSION@.la	\
-	$(NULL)
-
-tests_test_extract_SOURCES = tests/test-extract.c
-tests_test_extract_CFLAGS = $(test_cflags)
-tests_test_extract_LDADD = $(test_libs)
-
-tests_test_extract_unit_SOURCES = tests/test-extract-unit.c
-tests_test_extract_unit_CFLAGS = $(test_cflags)
-tests_test_extract_unit_LDADD = $(test_libs)
-
-tests_test_create_SOURCES = tests/test-create.c
-tests_test_create_CFLAGS = $(test_cflags)
-tests_test_create_LDADD = $(test_libs)
-
-if ENABLE_GTK
-
-noinst_PROGRAMS += \
-	tests/test-ui		\
 	$(NULL)
 
 test_gtk_cflags = \
@@ -266,9 +242,38 @@ test_gtk_libs = \
 	$(top_builddir)/gnome-autoar/libgnome-autoar-@API_VERSION@.la	\
 	$(NULL)
 
-tests_test_ui_SOURCES = tests/test-ui.c
-tests_test_ui_CFLAGS = $(test_gtk_cflags)
-tests_test_ui_LDADD = $(test_gtk_libs)
+noinst_PROGRAMS = \
+	tests/test-extract-unit \
+	$(NULL)
+
+tests_test_extract_unit_SOURCES = tests/test-extract-unit.c
+tests_test_extract_unit_CFLAGS = $(test_cflags)
+tests_test_extract_unit_LDADD = $(test_libs)
+
+
+# Directory: tools
+noinst_PROGRAMS += \
+	tools/autoar-extract	\
+	tools/autoar-create	\
+	$(NULL)
+
+tools_autoar_extract_SOURCES = tools/autoar-extract.c
+tools_autoar_extract_CFLAGS = $(test_cflags)
+tools_autoar_extract_LDADD = $(test_libs)
+
+tools_autoar_create_SOURCES = tools/autoar-create.c
+tools_autoar_create_CFLAGS = $(test_cflags)
+tools_autoar_create_LDADD = $(test_libs)
+
+if ENABLE_GTK
+
+noinst_PROGRAMS += \
+	tools/autoar-gtk	\
+	$(NULL)
+
+tools_autoar_gtk_SOURCES = tools/autoar-gtk.c
+tools_autoar_gtk_CFLAGS = $(test_gtk_cflags)
+tools_autoar_gtk_LDADD = $(test_gtk_libs)
 
 endif
 

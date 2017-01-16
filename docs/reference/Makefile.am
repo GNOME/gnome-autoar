@@ -5,7 +5,7 @@ NULL =
 # We require automake 1.6 at least.
 AUTOMAKE_OPTIONS = 1.6
 
-DOC_MODULE=gnome-autoar
+DOC_MODULE=gnome-autoar-@API_VERSION@
 DOC_MAIN_SGML_FILE=$(DOC_MODULE)-docs.xml
 MKDB_OPTIONS=--xml-mode --output-format=xml
 

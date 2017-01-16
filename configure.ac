@@ -49,7 +49,7 @@ AC_PATH_PROG(GLIB_MKENUMS, glib-mkenums)
 AC_PATH_PROG(GLIB_COMPILE_RESOURCES, glib-compile-resources)
 
 # check for gtk-doc
-GTK_DOC_CHECK([1.14],[--flavour no-tmpl])
+GTK_DOC_CHECK([1.25],[--flavour no-tmpl])
 
 # check for gobject-introspection
 GOBJECT_INTROSPECTION_CHECK([1.30.0])

@@ -41,8 +41,8 @@ missing
 gnome-autoar-*.tar.*
 
 gnome-autoar/*-enum-types.[ch]
-gnome-autoar/gnome-autoar.pc
-gnome-autoar/gnome-autoar-gtk.pc
+gnome-autoar/gnome-autoar-*.pc
+gnome-autoar/gnome-autoar-*.vapi
 
 tests/test-extract
 tests/test-extract-unit

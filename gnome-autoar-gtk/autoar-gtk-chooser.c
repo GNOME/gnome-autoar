@@ -36,7 +36,7 @@
  * SECTION:autoar-gtk-chooser
  * @Short_description: GTK+ widgets to choose archive format and filter
  * @Title: autoar-gtk-chooser
- * @Include: gnome-autoar/autoar-gtk.h
+ * @Include: gnome-autoar-gtk/gnome-autoar-gtk.h
  *
  * autoar-gtk-chooser contains two widgets for users to choose preferred
  * archive format and filter.

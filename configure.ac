@@ -123,7 +123,7 @@ AC_CONFIG_FILES([Makefile
                  docs/Makefile
                  docs/reference/Makefile
                  gnome-autoar/gnome-autoar-$API_VERSION.pc:gnome-autoar/gnome-autoar.pc.in
-                 gnome-autoar/gnome-autoar-gtk-$API_VERSION.pc:gnome-autoar/gnome-autoar-gtk.pc.in])
+                 gnome-autoar-gtk/gnome-autoar-gtk-$API_VERSION.pc:gnome-autoar-gtk/gnome-autoar-gtk.pc.in])
 AS_MKDIR_P([data])
 AC_OUTPUT
 

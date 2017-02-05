@@ -28,7 +28,7 @@
 
 #include <gtk/gtk.h>
 
-#include "autoar-format-filter.h"
+#include <gnome-autoar/gnome-autoar.h>
 
 G_BEGIN_DECLS
 

@@ -9,13 +9,13 @@ DOC_MODULE=gnome-autoar-@API_VERSION@
 DOC_MAIN_SGML_FILE=$(DOC_MODULE)-docs.xml
 MKDB_OPTIONS=--xml-mode --output-format=xml
 
-DOC_SOURCE_DIR=$(top_srcdir)/gnome-autoar
-HFILE_GLOB=$(top_srcdir)/gnome-autoar/*.h
-CFILE_GLOB=$(top_srcdir)/gnome-autoar/*.c
+DOC_SOURCE_DIR=$(top_srcdir)/gnome-autoar $(top_srcdir)/gnome-autoar-gtk
+HFILE_GLOB=$(top_srcdir)/gnome-autoar/*.h $(top_srcdir)/gnome-autoar-gtk/*.h
+CFILE_GLOB=$(top_srcdir)/gnome-autoar/*.c $(top_srcdir)/gnome-autoar-gtk/*.c
 
 IGNORE_HFILES = \
 	gnome-autoar.h \
-	autoar-gtk.h \
+	gnome-autoar-gtk.h \
 	autoar-enum-types.h \
 	autoar-private.h \
 	$(NULL)

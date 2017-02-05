@@ -46,4 +46,4 @@ gboolean   autoar_gtk_chooser_advanced_get        (GtkWidget *advanced,
 
 G_END_DECLS
 
-#endif /* AUTOAR_GTK_H */
+#endif /* AUTOAR_GTK_CHOOSER_H */

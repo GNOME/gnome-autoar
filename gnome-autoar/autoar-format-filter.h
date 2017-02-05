@@ -147,4 +147,4 @@ gchar        *autoar_format_filter_get_description      (AutoarFormat format,
 
 G_END_DECLS
 
-#endif /* AUTOAR_PREF_H */
+#endif /* AUTOAR_FORMAT_H */

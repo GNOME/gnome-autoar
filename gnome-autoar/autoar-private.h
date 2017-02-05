@@ -58,4 +58,4 @@ char*     autoar_common_g_file_get_name                (GFile *file);
 
 G_END_DECLS
 
-#endif /* AUTOAR_COMMON_H */
+#endif /* AUTOAR_PRIVATE_H */

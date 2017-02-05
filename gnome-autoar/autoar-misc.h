@@ -44,4 +44,4 @@ GQuark    autoar_libarchive_quark                      (void);
 
 G_END_DECLS
 
-#endif /* AUTOAR_COMMON_H */
+#endif /* AUTOAR_MISC_H */

@@ -20,8 +20,8 @@
  *
  */
 
-#ifndef AUTOARCHIVE_H
-#define AUTOARCHIVE_H
+#ifndef GNOME_AUTOAR_H
+#define GNOME_AUTOAR_H
 
 #include <gnome-autoar/autoar-compressor.h>
 #include <gnome-autoar/autoar-format-filter.h>
@@ -30,4 +30,4 @@
 #include <gnome-autoar/autoar-mime-types.h>
 #include <gnome-autoar/autoar-enum-types.h>
 
-#endif /* AUTOARCHIVE_H */
+#endif /* GNOME_AUTOAR_H */

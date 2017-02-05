@@ -71,7 +71,7 @@
  * destination directory already exists, it will proceed normally. If the
  * destionation directory cannot be created, it will fail with an error.
  * It is possible however to change the destination, when
- * #AutoarExtractor::decide-destination is emitted. The signal provides the decided
+ * #AutoarExtractor::change-destination is emitted. The signal provides the decided
  * destination and the list of files to be extracted. The signal also allows a
  * new output destination to be used instead of the one provided by
  * #AutoarExtractor. This is convenient for solving name conflicts and
@@ -158,6 +158,7 @@ struct _GFileAndInfo
 enum
 {
   SCANNED,
+  CHANGE_DESTINATION,
   DECIDE_DESTINATION,
   PROGRESS,
   CONFLICT,
@@ -416,7 +417,7 @@ autoar_extractor_get_notify_interval (AutoarExtractor *self)
  * determined by analyzing the contents of the archive. If this is not wanted,
  * #AutoarExtractor:output-is-dest can be set to %TRUE, which will make
  * #AutoarExtractor:output the destination for extracted files. In any case, the
- * destination will be notified via #AutoarExtractor::decide-destination, when
+ * destination will be notified via #AutoarExtractor::change-destination, when
  * it is possible to set a new destination.
  *
  * #AutoarExtractor will attempt to create the destination regardless to whether
@@ -722,16 +723,16 @@ autoar_extractor_signal_scanned (AutoarExtractor *self)
 }
 
 static inline void
-autoar_extractor_signal_decide_destination (AutoarExtractor *self,
+autoar_extractor_signal_change_destination (AutoarExtractor *self,
                                             GFile *destination,
                                             GList *files,
                                             GFile **new_destination)
 {
-  autoar_common_g_signal_emit (self, self->in_thread,
-                               autoar_extractor_signals[DECIDE_DESTINATION], 0,
-                               destination,
-                               files,
-                               new_destination);
+  g_signal_emit (self,
+                 autoar_extractor_signals[CHANGE_DESTINATION], 0,
+                 destination,
+                 files,
+                 new_destination);
 }
 
 static inline void
@@ -1359,7 +1360,7 @@ autoar_extractor_class_init (AutoarExtractorClass *klass)
                   G_TYPE_UINT);
 
 /**
- * AutoarExtractor::decide-destination:
+ * AutoarExtractor::change-destination:
  * @self: the #AutoarExtractor
  * @destination: the location where files will be extracted
  * @files: the list of files to be extracted. All have @destination as their
@@ -1372,8 +1373,8 @@ autoar_extractor_class_init (AutoarExtractorClass *klass)
  * useful for solving name conflicts or for setting a new destination, based on
  * the contents of the archive.
  **/
-  autoar_extractor_signals[DECIDE_DESTINATION] =
-    g_signal_new ("decide-destination",
+  autoar_extractor_signals[CHANGE_DESTINATION] =
+    g_signal_new ("change-destination",
                   type,
                   G_SIGNAL_RUN_LAST,
                   0, NULL, NULL,
@@ -1731,14 +1732,14 @@ autoar_extractor_step_decide_destination (AutoarExtractor *self)
    * needed in order to replace it with the new one
    */
   if (self->prefix != NULL) {
-    autoar_extractor_signal_decide_destination (self,
+    autoar_extractor_signal_change_destination (self,
                                                 self->prefix,
                                                 files,
                                                 &new_destination);
 
     self->new_prefix = new_destination;
   } else {
-    autoar_extractor_signal_decide_destination (self,
+    autoar_extractor_signal_change_destination (self,
                                                 self->destination_dir,
                                                 files,
                                                 &new_destination);

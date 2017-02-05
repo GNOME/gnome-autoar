@@ -163,7 +163,7 @@ scanned_handler (AutoarExtractor *extractor,
 }
 
 static GFile*
-decide_destination_handler (AutoarExtractor *extractor,
+change_destination_handler (AutoarExtractor *extractor,
                             GFile *dest,
                             GList *files,
                             gpointer user_data)
@@ -266,8 +266,8 @@ extract_test_data_new_for_extract (AutoarExtractor *extractor)
 
   g_signal_connect (extractor, "scanned",
                     G_CALLBACK (scanned_handler), data);
-  g_signal_connect (extractor, "decide-destination",
-                    G_CALLBACK (decide_destination_handler), data);
+  g_signal_connect (extractor, "change-destination",
+                    G_CALLBACK (change_destination_handler), data);
   g_signal_connect (extractor, "progress",
                     G_CALLBACK (progress_handler), data);
   g_signal_connect (extractor, "conflict",

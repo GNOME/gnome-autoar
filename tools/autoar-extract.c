@@ -14,7 +14,7 @@ my_handler_scanned (AutoarExtractor *extractor,
 }
 
 static GFile*
-my_handler_decide_destination (AutoarExtractor *extractor,
+my_handler_change_destination (AutoarExtractor *extractor,
                                GFile *dest,
                                GList *files,
                                gpointer data)
@@ -109,7 +109,7 @@ main (int argc,
   autoar_extractor_set_delete_after_extraction (extractor, TRUE);
 
   g_signal_connect (extractor, "scanned", G_CALLBACK (my_handler_scanned), NULL);
-  g_signal_connect (extractor, "decide-destination", G_CALLBACK (my_handler_decide_destination), NULL);
+  g_signal_connect (extractor, "change-destination", G_CALLBACK (my_handler_change_destination), NULL);
   g_signal_connect (extractor, "progress", G_CALLBACK (my_handler_progress), NULL);
   g_signal_connect (extractor, "conflict", G_CALLBACK (my_handler_conflict), NULL);
   g_signal_connect (extractor, "error", G_CALLBACK (my_handler_error), NULL);

@@ -244,7 +244,7 @@ autoar_compressor_set_property (GObject      *object,
  *
  * Gets the list of source files.
  *
- * Returns: (transfer none): a #GList with the source files
+ * Returns: (element-type GFile) (transfer none): a #GList with the source files
  **/
 GList*
 autoar_compressor_get_source_files (AutoarCompressor *self)
@@ -1263,7 +1263,7 @@ autoar_compressor_init (AutoarCompressor *self)
 
 /**
  * autoar_compressor_new:
- * @source_files: a #GList of source #GFiles to be archived
+ * @source_files: (element-type GFile): a #GList of source #GFiles to be archived
  * @output_file: output directory of the new archive, or the file name of the
  * new archive if you set #AutoarCompressor:output-is-dest on the returned object
  * @format: the compression format

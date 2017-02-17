@@ -1317,10 +1317,8 @@ autoar_compressor_new (GList        *source_files,
 
   self =
     g_object_new (AUTOAR_TYPE_COMPRESSOR,
-                  "source-files", g_list_copy_deep (source_files,
-                                                    (GCopyFunc)g_object_ref,
-                                                    NULL),
-                  "output-file", g_object_ref (output_file),
+                  "source-files", source_files,
+                  "output-file", output_file,
                   "format", format,
                   "filter", filter,
                   "create-top-level-directory", create_top_level_directory,

@@ -1,3 +1,9 @@
+Major changes in 0.1.1:
+ * Generate vala bindings (Rico Tzschichholz)
+ * Check encrypted entry after header is read (Razvan Chitu)
+ * Fix extraction name case, e.j.'sample.odt' in 'sample.odt.zip' (Razvan Chitu)
+ * Remove GSettings schema files (Ting-Wei Lan)
+
 Major changes in 0.1.0:
  * First development release of GNOME Autoar, a library to integrate
    compressed files management with GNOME.

@@ -32,7 +32,6 @@ static gchar *supported_mime_types[] = {
   "application/x-lha",
   "application/x-lzip",
   "application/x-lzma",
-  "application/vnd.rar",
   "application/x-tar",
   "application/x-xar",
   "application/x-xz",

@@ -1,3 +1,6 @@
+Major changes in 0.2.1:
+ * Drop rar support since rar5 is not yet supported by libarchive (Carlos Soriano)
+
 Major changes in 0.1.1:
  * Generate vala bindings (Rico Tzschichholz)
  * Check encrypted entry after header is read (Razvan Chitu)

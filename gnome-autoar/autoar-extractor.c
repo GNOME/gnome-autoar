@@ -1592,10 +1592,15 @@ autoar_extractor_step_scan_toplevel (AutoarExtractor *self)
       break;
     }
 
-    pathname = archive_entry_pathname (entry);
-    g_debug ("autoar_extractor_step_scan_toplevel: %d: pathname = %s",
-             self->total_files, pathname);
-
+    if (self->use_raw_format) {
+      pathname = autoar_common_get_basename_remove_extension (g_file_get_path(self->source_file));
+      g_debug ("autoar_extractor_step_scan_toplevel: %d: raw pathname = %s",
+               self->total_files, pathname);
+    } else {
+      pathname = archive_entry_pathname (entry);
+      g_debug ("autoar_extractor_step_scan_toplevel: %d: pathname = %s",
+               self->total_files, pathname);
+    }
     self->files_list =
       g_list_prepend (self->files_list,
                       g_file_get_child (self->output_file, pathname));

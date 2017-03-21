@@ -37,7 +37,24 @@ static gchar *supported_mime_types[] = {
   "application/x-xz",
   "application/zip",
   "application/gzip",
+  NULL
 };
+
+static GHashTable *supported_mime_types_table = NULL;
+
+static void
+initialize_supported_mime_types_table (void)
+{
+  int i;
+
+  supported_mime_types_table = g_hash_table_new (g_str_hash,
+                                                 g_str_equal);
+
+  for (i = 0; supported_mime_types[i] != NULL; ++i) {
+    g_hash_table_add (supported_mime_types_table,
+                      supported_mime_types[i]);
+  }
+}
 
 /**
  * autoar_check_mime_type_supported:
@@ -51,17 +68,11 @@ static gchar *supported_mime_types[] = {
 gboolean
 autoar_check_mime_type_supported (const gchar *mime_type)
 {
-  gint i;
-  gboolean supported = FALSE;
-
-  for (i = 0; i < G_N_ELEMENTS (supported_mime_types); i++) {
-    if (g_content_type_is_a (mime_type, supported_mime_types[i])) {
-      supported = TRUE;
-      break;
-    }
+  if (supported_mime_types_table == NULL) {
+    initialize_supported_mime_types_table ();
   }
 
-  return supported;
+  return g_hash_table_contains (supported_mime_types_table, mime_type);
 }
 
 /**

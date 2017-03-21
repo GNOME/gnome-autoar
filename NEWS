@@ -1,3 +1,6 @@
+Major changes in 0.2.2:
+ * Fix docx files and other format subtypes of zip to be uncompressed (Carlos Soriano)
+
 Major changes in 0.2.1:
  * Drop rar support since rar5 is not yet supported by libarchive (Carlos Soriano)
 

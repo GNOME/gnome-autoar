@@ -845,13 +845,16 @@ autoar_extractor_get_common_prefix (GList *files,
 
 static GFile*
 autoar_extractor_do_sanitize_pathname (AutoarExtractor *self,
-                                       const char      *pathname)
+                                       const char      *pathname_bytes)
 {
   GFile *extracted_filename;
   gboolean valid_filename;
   g_autofree char *sanitized_pathname;
+  g_autofree char *utf8_pathname;
 
-  extracted_filename = g_file_get_child (self->destination_dir, pathname);
+  utf8_pathname = autoar_common_get_utf8_pathname (pathname_bytes);
+  extracted_filename = g_file_get_child (self->destination_dir,
+                                         utf8_pathname ?  utf8_pathname : pathname_bytes);
 
   valid_filename =
     g_file_equal (extracted_filename, self->destination_dir) ||
@@ -1582,6 +1585,7 @@ autoar_extractor_step_scan_toplevel (AutoarExtractor *self)
 
   while ((r = archive_read_next_header (a, &entry)) == ARCHIVE_OK) {
     const char *pathname;
+    g_autofree char *utf8_pathname = NULL;
 
     if (g_cancellable_is_cancelled (self->cancellable)) {
       archive_read_free (a);
@@ -1598,12 +1602,17 @@ autoar_extractor_step_scan_toplevel (AutoarExtractor *self)
                self->total_files, pathname);
     } else {
       pathname = archive_entry_pathname (entry);
-      g_debug ("autoar_extractor_step_scan_toplevel: %d: pathname = %s",
-               self->total_files, pathname);
+      utf8_pathname = autoar_common_get_utf8_pathname (pathname);
+
+      g_debug ("autoar_extractor_step_scan_toplevel: %d: pathname = %s %s%s",
+               self->total_files, pathname,
+               utf8_pathname ? "utf8 pathname = " :"",
+               utf8_pathname ? utf8_pathname : "");
     }
     self->files_list =
       g_list_prepend (self->files_list,
-                      g_file_get_child (self->output_file, pathname));
+                      g_file_get_child (self->output_file,
+                                        utf8_pathname ? utf8_pathname : pathname));
     self->total_files++;
     self->total_size += archive_entry_size (entry);
     archive_read_data_skip (a);

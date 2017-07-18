@@ -55,6 +55,7 @@ GError*   autoar_common_g_error_new_a_entry            (struct archive *a,
                                                         struct archive_entry *entry);
 
 char*     autoar_common_g_file_get_name                (GFile *file);
+char*     autoar_common_get_utf8_pathname              (const char *pathname);
 
 G_END_DECLS
 

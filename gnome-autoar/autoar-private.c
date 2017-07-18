@@ -279,3 +279,36 @@ autoar_common_g_file_get_name (GFile *file)
     name = g_file_get_uri (file);
   return name;
 }
+
+/**
+ * autoar_common_get_utf8_pathname:
+ * @pathname: a pathname with an unspecified encoding
+ *
+ * Transforms pathname into a UTF-8 filename from a variety of common
+ * legacy encodings.
+ *
+ * Returns: (transfer full): a UTF-8 filename, or %NULL if the filename
+ * could not be converted or is already in UTF-8. Free the string with
+ * g_free().
+ **/
+G_GNUC_INTERNAL char*
+autoar_common_get_utf8_pathname (const char *pathname)
+{
+  char *utf8_pathname;
+  static const char *try_charsets[] = { "CSPC8CODEPAGE437", "ISO-8859-1", "WINDOWS-1252" };
+  guint i;
+
+  if (g_utf8_validate (pathname, -1, NULL))
+    return NULL;
+  /* If pathname is not in UTF-8 encoding already, try
+   * to convert it using commonly used encoding in various archive types.
+   * See also https://git.gnome.org//browse/file-roller/tree/src/fr-process.c#n245 */
+  for (i = 0; i < G_N_ELEMENTS (try_charsets); i++) {
+    utf8_pathname = g_convert (pathname, -1, "UTF-8",
+                               try_charsets[i], NULL, NULL, NULL);
+    if (utf8_pathname != NULL)
+      break;
+  }
+
+  return utf8_pathname;
+}

@@ -106,7 +106,7 @@ main (int argc,
   output = g_file_new_for_commandline_arg (argv[2]);
   extractor = autoar_extractor_new (source, output);
 
-  autoar_extractor_set_delete_after_extraction (extractor, TRUE);
+  autoar_extractor_set_delete_after_extraction (extractor, FALSE);
 
   g_signal_connect (extractor, "scanned", G_CALLBACK (my_handler_scanned), NULL);
   g_signal_connect (extractor, "decide-destination", G_CALLBACK (my_handler_decide_destination), NULL);

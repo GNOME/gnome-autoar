@@ -1,3 +1,7 @@
+Major changes in 0.2.3:
+ * Use proper extracted name for xz archives (Vyas)
+ * Fix decompressing files with legacy encoding file names (Bastien Nocera)
+
 Major changes in 0.2.2:
  * Fix docx files and other format subtypes of zip to be uncompressed (Carlos Soriano)
 

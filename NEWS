@@ -1,3 +1,6 @@
+Major changes in 0.2.4:
+ * Use autoreconf instead of deprecated gnome-common (Javier Jardon)
+ 
 Major changes in 0.2.3:
  * Use proper extracted name for xz archives (Vyas)
  * Fix decompressing files with legacy encoding file names (Bastien Nocera)

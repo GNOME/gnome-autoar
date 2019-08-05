@@ -973,7 +973,9 @@ autoar_extractor_do_write_entry (AutoarExtractor      *self,
 {
   GFileInfo *info;
   mode_t filetype;
+#if defined HAVE_LINK || defined HAVE_MKNOD || defined HAVE_MKFIFO
   int r;
+#endif
 
   {
     GFile *parent;
@@ -1025,10 +1027,10 @@ autoar_extractor_do_write_entry (AutoarExtractor      *self,
   /* user */
   {
     guint32 uid;
-    const char *uname;
 
     g_debug ("autoar_extractor_do_write_entry: user");
 #ifdef HAVE_GETPWNAM
+    const char *uname;
     if ((uname = archive_entry_uname (entry)) != NULL) {
       void *got_uid;
       if (g_hash_table_lookup_extended (self->userhash, uname, NULL, &got_uid) == TRUE) {
@@ -1054,10 +1056,10 @@ autoar_extractor_do_write_entry (AutoarExtractor      *self,
   /* group */
   {
     guint32 gid;
-    const char *gname;
 
     g_debug ("autoar_extractor_do_write_entry: group");
 #ifdef HAVE_GETGRNAM
+    const char *gname;
     if ((gname = archive_entry_gname (entry)) != NULL) {
       void *got_gid;
       if (g_hash_table_lookup_extended (self->grouphash, gname, NULL, &got_gid) == TRUE) {
@@ -1103,7 +1105,9 @@ autoar_extractor_do_write_entry (AutoarExtractor      *self,
 #endif
 
   g_debug ("autoar_extractor_do_write_entry: writing");
+#if defined HAVE_MKNOD || defined HAVE_MKFIFO
   r = 0;
+#endif
 
   switch (filetype = archive_entry_filetype (entry)) {
     default:
@@ -1269,7 +1273,9 @@ autoar_extractor_do_write_entry (AutoarExtractor      *self,
   }
 #endif
 
+#ifdef HAVE_LINK
 applyinfo:
+#endif
   g_debug ("autoar_extractor_do_write_entry: applying info");
   g_file_set_attributes_from_info (dest,
                                    info,

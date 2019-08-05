@@ -71,7 +71,7 @@ initialize_supported_mime_types_table (void)
  * Checks whether a mime type is supported by autoar. This function does no
  * blocking IO.
  *
- * Returns: an #AutoarFilter
+ * Returns: %TRUE if the mime type is supported
  **/
 gboolean
 autoar_check_mime_type_supported (const gchar *mime_type)
@@ -90,7 +90,7 @@ autoar_check_mime_type_supported (const gchar *mime_type)
  * This function will query the file's mime type and then call
  * autoar_check_mime_type_supported(), so it does blocking IO.
  *
- * Returns: an #AutoarFilter
+ * Returns: %TRUE if the mime type of the #GFile is supported
  **/
 gboolean
 autoar_query_mime_type_supported (GFile *file)

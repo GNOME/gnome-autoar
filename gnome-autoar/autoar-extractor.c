@@ -97,6 +97,7 @@ G_DEFINE_QUARK (autoar-extractor, autoar_extractor)
 #define BUFFER_SIZE (64 * 1024)
 #define NOT_AN_ARCHIVE_ERRNO 2013
 #define EMPTY_ARCHIVE_ERRNO 2014
+#define INCORRECT_PASSPHRASE_ERRNO 2015
 
 typedef struct _GFileAndInfo GFileAndInfo;
 
@@ -145,6 +146,9 @@ struct _AutoarExtractor
 
   int in_thread         : 1;
   int use_raw_format    : 1;
+
+  gchar *passphrase;
+  gboolean passphrase_requested;
 };
 
 G_DEFINE_TYPE (AutoarExtractor, autoar_extractor, G_TYPE_OBJECT)
@@ -163,6 +167,7 @@ enum
   CONFLICT,
   CANCELLED,
   COMPLETED,
+  REQUEST_PASSPHRASE,
   AR_ERROR,
   LAST_SIGNAL
 };
@@ -511,6 +516,10 @@ autoar_extractor_dispose (GObject *object)
     self->extracted_dir_list = NULL;
   }
 
+  if (self->passphrase != NULL) {
+    g_free (self->passphrase);
+  }
+
   G_OBJECT_CLASS (autoar_extractor_parent_class)->dispose (object);
 }
 
@@ -684,6 +693,18 @@ libarchive_read_skip_cb (struct archive *ar_read,
   return 0;
 }
 
+static inline gchar *
+autoar_extractor_request_passphrase (AutoarExtractor *self)
+{
+  if (!self->passphrase_requested) {
+    autoar_common_g_signal_emit (self, self->in_thread,
+                                 autoar_extractor_signals[REQUEST_PASSPHRASE], 0, &self->passphrase);
+    self->passphrase_requested = TRUE;
+  }
+
+  return self->passphrase;
+}
+
 static int
 libarchive_create_read_object (gboolean          use_raw_format,
                                AutoarExtractor  *self,
@@ -701,6 +722,10 @@ libarchive_create_read_object (gboolean          use_raw_format,
   archive_read_set_seek_callback (*a, libarchive_read_seek_cb);
   archive_read_set_skip_callback (*a, libarchive_read_skip_cb);
   archive_read_set_callback_data (*a, self);
+
+  if (self->passphrase != NULL) {
+    archive_read_add_passphrase (*a, self->passphrase);
+  }
 
   return archive_read_open1 (*a);
 }
@@ -964,6 +989,57 @@ autoar_extractor_check_file_conflict (GFile  *file,
   return conflict;
 }
 
+static gboolean
+autoar_extractor_delete_file_recursively (AutoarExtractor *self,
+                                          GFile *file)
+{
+  gboolean success;
+  g_autoptr (GError) error = NULL;
+
+  do {
+    g_autoptr (GFileEnumerator) enumerator = NULL;
+
+    success = g_file_delete (file, self->cancellable, &error);
+    if (success || !g_error_matches (error, G_IO_ERROR, G_IO_ERROR_NOT_EMPTY)) {
+      break;
+    }
+
+    g_clear_error (&error);
+    enumerator = g_file_enumerate_children (file,
+                                            G_FILE_ATTRIBUTE_STANDARD_NAME,
+                                            G_FILE_QUERY_INFO_NONE,
+                                            self->cancellable, &error);
+    if (enumerator) {
+      GFileInfo *info;
+
+      success = TRUE;
+
+      info = g_file_enumerator_next_file (enumerator,
+                                          self->cancellable,
+                                          &error);
+      while (info != NULL) {
+        g_autoptr (GFile) child = NULL;
+
+        child = g_file_enumerator_get_child (enumerator, info);
+
+        success = success && autoar_extractor_delete_file_recursively (self, child);
+        g_object_unref (info);
+
+        info = g_file_enumerator_next_file (enumerator,
+                                            self->cancellable,
+                                            &error);
+      }
+    }
+
+    if (error != NULL) {
+      success = FALSE;
+    }
+
+  } while (success);
+
+  return success;
+}
+
 static void
 autoar_extractor_do_write_entry (AutoarExtractor      *self,
                                  struct archive       *a,
@@ -1134,7 +1210,7 @@ autoar_extractor_do_write_entry (AutoarExtractor      *self,
         if (ostream != NULL) {
           /* Archive entry size may be zero if we use raw format. */
           if (archive_entry_size(entry) > 0 || self->use_raw_format) {
-            while (archive_read_data_block (a, &buffer, &size, &offset) == ARCHIVE_OK) {
+            while ((r = archive_read_data_block (a, &buffer, &size, &offset)) == ARCHIVE_OK) {
               /* buffer == NULL occurs in some zip archives when an entry is
                * completely read. We just skip this situation to prevent GIO
                * warnings. */
@@ -1160,6 +1236,20 @@ autoar_extractor_do_write_entry (AutoarExtractor      *self,
               }
               self->completed_size += written;
               autoar_extractor_signal_progress (self);
+            }
+
+            if (r == ARCHIVE_FAILED) {
+              autoar_extractor_delete_file_recursively (self, self->destination_dir);
+              if (self->error == NULL) {
+                self->error = g_error_new (AUTOAR_EXTRACTOR_ERROR,
+                                           INCORRECT_PASSPHRASE_ERRNO,
+                                           "%s",
+                                           archive_error_string (a));
+              }
+              g_output_stream_close (ostream, self->cancellable, NULL);
+              g_object_unref (ostream);
+
+              return;
             }
           }
           g_output_stream_close (ostream, self->cancellable, NULL);
@@ -1501,6 +1591,22 @@ autoar_extractor_class_init (AutoarExtractorClass *klass)
                   0);
 
 /**
+ * AutoarExtractor::request-passphrase:
+ * @self: the #AutoarExtractor
+ *
+ * This signal is emitted when the archive extracting job needs a
+ * passphrase.
+ **/
+  autoar_extractor_signals[REQUEST_PASSPHRASE] =
+    g_signal_new ("request-passphrase",
+                  type,
+                  G_SIGNAL_RUN_LAST,
+                  0, NULL, NULL,
+                  g_cclosure_marshal_generic,
+                  G_TYPE_STRING,
+                  0);
+
+/**
  * AutoarExtractor::error:
  * @self: the #AutoarExtractor
  * @error: the #GError
@@ -1553,6 +1659,9 @@ autoar_extractor_init (AutoarExtractor *self)
 
   self->in_thread = FALSE;
   self->use_raw_format = FALSE;
+
+  self->passphrase = NULL;
+  self->passphrase_requested = FALSE;
 }
 
 /**
@@ -1634,7 +1743,7 @@ autoar_extractor_step_scan_toplevel (AutoarExtractor *self)
     }
 
     if (archive_entry_is_encrypted (entry)) {
-      break;
+      autoar_extractor_request_passphrase (self);
     }
 
     if (self->use_raw_format) {
@@ -1657,17 +1766,6 @@ autoar_extractor_step_scan_toplevel (AutoarExtractor *self)
     self->total_files++;
     self->total_size += archive_entry_size (entry);
     archive_read_data_skip (a);
-  }
-
-  if (entry && archive_entry_is_encrypted (entry)) {
-    g_debug ("autoar_extractor_step_scan_toplevel: encrypted entry");
-    if (self->error == NULL) {
-      self->error = g_error_new (G_IO_ERROR,
-                                 G_IO_ERROR_NOT_SUPPORTED,
-                                 "Encrypted archives are not supported.");
-    }
-    archive_read_free (a);
-    return;
   }
 
   if (self->files_list == NULL) {

@@ -67,7 +67,7 @@ gint64           autoar_extractor_get_notify_interval         (AutoarExtractor *
 void             autoar_extractor_set_output_is_dest          (AutoarExtractor *self,
                                                                gboolean         output_is_dest);
 void             autoar_extractor_set_delete_after_extraction (AutoarExtractor *self,
-                                                               gboolean         delete_if_succeed);
+                                                               gboolean         delete_after_extraction);
 void             autoar_extractor_set_notify_interval         (AutoarExtractor *self,
                                                                gint64           notify_interval);
 

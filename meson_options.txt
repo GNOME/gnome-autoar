@@ -1,0 +1,8 @@
+option('gtk', type: 'boolean', value: true, description: 'build some common GTK+ widgets support')
+
+option('introspection', type: 'feature', value: 'auto', description: 'build introspection support')
+option('vapi', type: 'boolean', value: false, description: 'build vala bindings')
+
+option('tests', type: 'boolean', value: false, description: 'build tests')
+
+option('gtk_doc', type: 'boolean', value: false, description: 'build GTK Doc reference')

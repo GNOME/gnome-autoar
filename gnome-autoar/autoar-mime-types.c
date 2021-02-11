@@ -31,7 +31,6 @@ static gchar *supported_mime_types[] = {
   "application/x-compress",
   "application/x-compressed-tar",
   "application/x-cpio",
-  "application/x-gzip",
   "application/x-lha",
   "application/x-lzip",
   "application/x-lzip-compressed-tar",

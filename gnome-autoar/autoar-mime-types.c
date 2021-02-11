@@ -48,22 +48,6 @@ static gchar *supported_mime_types[] = {
   NULL
 };
 
-static GHashTable *supported_mime_types_table = NULL;
-
-static void
-initialize_supported_mime_types_table (void)
-{
-  int i;
-
-  supported_mime_types_table = g_hash_table_new (g_str_hash,
-                                                 g_str_equal);
-
-  for (i = 0; supported_mime_types[i] != NULL; ++i) {
-    g_hash_table_add (supported_mime_types_table,
-                      supported_mime_types[i]);
-  }
-}
-
 /**
  * autoar_check_mime_type_supported:
  * @mime_type: a string representing the mime type
@@ -76,11 +60,13 @@ initialize_supported_mime_types_table (void)
 gboolean
 autoar_check_mime_type_supported (const gchar *mime_type)
 {
-  if (supported_mime_types_table == NULL) {
-    initialize_supported_mime_types_table ();
+  gint i;
+  for (i = 0; supported_mime_types[i] != NULL; ++i) {
+    if (g_content_type_equals (supported_mime_types[i], mime_type))
+      return TRUE;
   }
 
-  return g_hash_table_contains (supported_mime_types_table, mime_type);
+  return FALSE;
 }
 
 /**

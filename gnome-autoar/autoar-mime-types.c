@@ -21,7 +21,7 @@
  *
  */
 
- #include "autoar-mime-types.h"
+#include "autoar-mime-types.h"
 
 static gchar *supported_mime_types[] = {
   "application/x-7z-compressed",

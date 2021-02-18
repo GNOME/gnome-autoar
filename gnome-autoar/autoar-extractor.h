@@ -72,7 +72,8 @@ void             autoar_extractor_set_notify_interval         (AutoarExtractor *
                                                                gint64           notify_interval);
 
 typedef enum {
-    AUTOAR_CONFLICT_SKIP = 0,
+    AUTOAR_CONFLICT_UNHANDLED = 0,
+    AUTOAR_CONFLICT_SKIP,
     AUTOAR_CONFLICT_OVERWRITE,
     AUTOAR_CONFLICT_CHANGE_DESTINATION
 } AutoarConflictAction;

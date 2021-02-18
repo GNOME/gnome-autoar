@@ -780,13 +780,15 @@ autoar_extractor_signal_conflict (AutoarExtractor  *self,
                                   GFile            *file,
                                   GFile           **new_file)
 {
-  AutoarConflictAction action = AUTOAR_CONFLICT_OVERWRITE;
+  AutoarConflictAction action = AUTOAR_CONFLICT_UNHANDLED;
 
   autoar_common_g_signal_emit (self, self->in_thread,
                                autoar_extractor_signals[CONFLICT], 0,
                                file,
                                new_file,
                                &action);
+  if (action == AUTOAR_CONFLICT_UNHANDLED)
+    return AUTOAR_CONFLICT_SKIP;
 
   if (*new_file) {
     g_autofree char *previous_path;

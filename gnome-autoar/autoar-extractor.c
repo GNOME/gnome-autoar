@@ -1699,7 +1699,7 @@ autoar_extractor_step_scan_toplevel (AutoarExtractor *self)
     }
 
     if (self->use_raw_format) {
-      pathname = autoar_common_get_basename_remove_extension (g_file_get_path(self->source_file));
+      pathname = autoar_common_get_basename_remove_extension (g_file_peek_path (self->source_file));
       g_debug ("autoar_extractor_step_scan_toplevel: %d: raw pathname = %s",
                self->total_files, pathname);
     } else {

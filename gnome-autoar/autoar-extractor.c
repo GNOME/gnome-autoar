@@ -60,16 +60,16 @@
  * The #AutoarExtractor object is used to automatically extract files and
  * directories from an archive. By default, it will only create one file or
  * directory in the output directory. This is done to avoid clutter on the
- * user's output directory. If the archive contains only one file, the file
- * will be extracted to the output directory. If the archive has more than one
- * file, the files will be extracted in a directory having the same name as the
- * archive, except the extension. It is also possible to just extract all files
- * to the output directory (note that this will not perform any checks) by
- * using autoar_extractor_set_output_is_dest().
+ * user's output directory. If the archive contains only one file with the same
+ * name as the source archive without the extension, the file will be extracted
+ * to the output directory. Otherwise the files will be extracted in a directory
+ * having the same name as the source archive, except the extension. It is also
+ * possible to just extract all files to the output directory (note that this
+ * will not perform any checks) by using autoar_extractor_set_output_is_dest().
 
  * #AutoarExtractor will not attempt to solve any name conflicts. If the
  * destination directory already exists, it will proceed normally. If the
- * destionation directory cannot be created, it will fail with an error.
+ * destination directory cannot be created, it will fail with an error.
  * It is possible however to change the destination, when
  * #AutoarExtractor::decide-destination is emitted. The signal provides the decided
  * destination and the list of files to be extracted. The signal also allows a
@@ -289,8 +289,9 @@ autoar_extractor_get_source_file (AutoarExtractor *self)
  * autoar_extractor_get_output_file:
  * @self: an #AutoarExtractor
  *
- * This function is similar to autoar_extractor_get_output(), except for the
- * return value is a #GFile.
+ * Gets the #GFile object which represents the output directory of extracted
+ * file or directory, or the extracted file or directory itself if you set
+ * #AutoarExtractor:output-is-dest on the returned object.
  *
  * Returns: (transfer none): a #GFile
  **/
@@ -368,8 +369,8 @@ autoar_extractor_get_completed_files (AutoarExtractor *self)
  *
  * See autoar_extractor_set_output_is_dest().
  *
- * Returns: %TRUE if #AutoarExtractor:output is the location of extracted file
- * or directory
+ * Returns: %TRUE if #AutoarExtractor:output-file is the destination for
+ * extracted files
  **/
 gboolean
 autoar_extractor_get_output_is_dest (AutoarExtractor *self)
@@ -413,16 +414,17 @@ autoar_extractor_get_notify_interval (AutoarExtractor *self)
 /**
  * autoar_extractor_set_output_is_dest:
  * @self: an #AutoarExtractor
- * @output_is_dest: %TRUE if the location of the extracted directory or file
- * has been already decided
+ * @output_is_dest: %TRUE if #AutoarExtractor:output-file is the destination for
+ * extracted files
  *
  * By default #AutoarExtractor:output-is-dest is set to %FALSE, which means
- * only one file or directory will be generated. The destination is internally
- * determined by analyzing the contents of the archive. If this is not wanted,
- * #AutoarExtractor:output-is-dest can be set to %TRUE, which will make
- * #AutoarExtractor:output the destination for extracted files. In any case, the
- * destination will be notified via #AutoarExtractor::decide-destination, when
- * it is possible to set a new destination.
+ * only one file or directory will be created in #AutoarExtractor:output-file.
+ * The destination is internally determined by analyzing the contents of the
+ * archive. If this is not wanted, #AutoarExtractor:output-is-dest can be set to
+ * %TRUE, which will make #AutoarExtractor:output-file the destination for
+ * extracted files. In any case, the destination will be notified via
+ * #AutoarExtractor::decide-destination, when it is possible to set a new
+ * destination.
  *
  * #AutoarExtractor will attempt to create the destination regardless to whether
  * its path was internally decided or not.
@@ -1349,8 +1351,8 @@ autoar_extractor_class_init (AutoarExtractorClass *klass)
 
   g_object_class_install_property (object_class, PROP_SOURCE_FILE,
                                    g_param_spec_object ("source-file",
-                                                        "Source archive GFile",
-                                                        "The archive GFile to be extracted",
+                                                        "Source archive",
+                                                        "The #GFile of the source archive that will be extracted",
                                                         G_TYPE_FILE,
                                                         G_PARAM_READWRITE |
                                                         G_PARAM_CONSTRUCT_ONLY |
@@ -1358,8 +1360,8 @@ autoar_extractor_class_init (AutoarExtractorClass *klass)
 
   g_object_class_install_property (object_class, PROP_OUTPUT_FILE,
                                    g_param_spec_object ("output-file",
-                                                        "Output directory GFile",
-                                                        "Output directory GFile of extracted archives",
+                                                        "Output file",
+                                                        "The #GFile of the directory where the files will be extracted",
                                                         G_TYPE_FILE,
                                                         G_PARAM_READWRITE |
                                                         G_PARAM_CONSTRUCT_ONLY |
@@ -1400,7 +1402,7 @@ autoar_extractor_class_init (AutoarExtractorClass *klass)
   g_object_class_install_property (object_class, PROP_OUTPUT_IS_DEST,
                                    g_param_spec_boolean ("output-is-dest",
                                                          "Output is destination",
-                                                         "Whether output direcotry is used as destination",
+                                                         "Whether #AutoarExtractor:output-file is used as destination",
                                                          FALSE,
                                                          G_PARAM_READWRITE |
                                                          G_PARAM_CONSTRUCT |
@@ -1446,12 +1448,12 @@ autoar_extractor_class_init (AutoarExtractorClass *klass)
 /**
  * AutoarExtractor::decide-destination:
  * @self: the #AutoarExtractor
- * @destination: the location where files will be extracted
- * @files: the list of files to be extracted. All have @destination as their
-           common prefix
+ * @destination: a #GFile for the location where files will be extracted
+ * @files: the list of #GFile objects to be extracted. All have @destination as
+ *         their common prefix
  *
- * Returns: (transfer full): a new destination that will overwrite the previous
- *                           one, or %NULL if this is not wanted
+ * Returns: (transfer full): #GFile for location that will overwrite
+ *                           @destination, or %NULL if this is not wanted
  *
  * This signal is emitted when the path of the destination is determined. It is
  * useful for solving name conflicts or for setting a new destination, based on
@@ -1474,7 +1476,7 @@ autoar_extractor_class_init (AutoarExtractorClass *klass)
  * @completed_size: bytes has been written to disk
  * @completed_files: number of files have been written to disk
  *
- * This signal is used to report progress of creating archives.
+ * This signal is used to report progress of extraction.
  **/
   autoar_extractor_signals[PROGRESS] =
     g_signal_new ("progress",
@@ -1490,13 +1492,14 @@ autoar_extractor_class_init (AutoarExtractorClass *klass)
 /**
  * AutoarExtractor::conflict:
  * @self: the #AutoarExtractor
- * @file: the file that caused a conflict
- * @new_file: an address to store the new destination for a conflict file
+ * @file: a #GFile for the file that caused a conflict
+ * @new_file: a #GFile for the new destination of @file
  *
- * Returns: the action to be performed by #AutoarExtractor
+ * Returns: the #AutoarConflictAction to be performed by #AutoarExtractor
  *
  * This signal is used to report and offer the possibility to solve name
- * conflicts when extracting files.
+ * conflicts when extracting files. If it is not handled, the @file will be
+ * skipped.
  **/
   autoar_extractor_signals[CONFLICT] =
     g_signal_new ("conflict",
@@ -1617,10 +1620,8 @@ autoar_extractor_init (AutoarExtractor *self)
 
 /**
  * autoar_extractor_new:
- * @source_file: source archive
- * @output_file: output directory of extracted file or directory, or the
- * file name of the extracted file or directory itself if you set
- * #AutoarExtractor:output-is-dest on the returned object
+ * @source_file: a #GFile for the source archive
+ * @output_file: a #GFile for the directory where the files will be extracted
  *
  * Create a new #AutoarExtractor object.
  *

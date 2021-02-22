@@ -992,57 +992,6 @@ autoar_extractor_check_file_conflict (GFile  *file,
   return conflict;
 }
 
-static gboolean
-autoar_extractor_delete_file_recursively (AutoarExtractor *self,
-                                          GFile *file)
-{
-  gboolean success;
-  g_autoptr (GError) error = NULL;
-
-  do {
-    g_autoptr (GFileEnumerator) enumerator = NULL;
-
-    success = g_file_delete (file, self->cancellable, &error);
-    if (success || !g_error_matches (error, G_IO_ERROR, G_IO_ERROR_NOT_EMPTY)) {
-      break;
-    }
-
-    g_clear_error (&error);
-    enumerator = g_file_enumerate_children (file,
-                                            G_FILE_ATTRIBUTE_STANDARD_NAME,
-                                            G_FILE_QUERY_INFO_NONE,
-                                            self->cancellable, &error);
-    if (enumerator) {
-      GFileInfo *info;
-
-      success = TRUE;
-
-      info = g_file_enumerator_next_file (enumerator,
-                                          self->cancellable,
-                                          &error);
-      while (info != NULL) {
-        g_autoptr (GFile) child = NULL;
-
-        child = g_file_enumerator_get_child (enumerator, info);
-
-        success = success && autoar_extractor_delete_file_recursively (self, child);
-        g_object_unref (info);
-
-        info = g_file_enumerator_next_file (enumerator,
-                                            self->cancellable,
-                                            &error);
-      }
-    }
-
-    if (error != NULL) {
-      success = FALSE;
-    }
-
-  } while (success);
-
-  return success;
-}
-
 static void
 autoar_extractor_do_write_entry (AutoarExtractor      *self,
                                  struct archive       *a,
@@ -1242,7 +1191,6 @@ autoar_extractor_do_write_entry (AutoarExtractor      *self,
             }
 
             if (r == ARCHIVE_FAILED) {
-              autoar_extractor_delete_file_recursively (self, self->destination_dir);
               if (self->error == NULL) {
                 self->error = g_error_new (AUTOAR_EXTRACTOR_ERROR,
                                            INCORRECT_PASSPHRASE_ERRNO,

@@ -1243,11 +1243,17 @@ autoar_extractor_do_write_entry (AutoarExtractor      *self,
       }
       break;
     case AE_IFLNK:
-      g_debug ("autoar_extractor_do_write_entry: case LNK");
-      g_file_make_symbolic_link (dest,
-                                 archive_entry_symlink (entry),
-                                 self->cancellable,
-                                 &(self->error));
+      {
+        const char *symlink_path = archive_entry_symlink (entry);
+
+        g_debug ("autoar_extractor_do_write_entry: case LNK, %s => %s",
+                 g_file_peek_path (dest), symlink_path);
+
+        g_file_make_symbolic_link (dest,
+                                   symlink_path,
+                                   self->cancellable,
+                                   &(self->error));
+      }
       break;
     /* FIFOs, sockets, block files, character files are not important
      * in the regular archives, so errors are not fatal. */
@@ -1703,13 +1709,22 @@ autoar_extractor_step_scan_toplevel (AutoarExtractor *self)
       g_debug ("autoar_extractor_step_scan_toplevel: %d: raw pathname = %s",
                self->total_files, pathname);
     } else {
+      const char *symlink_pathname;
+      const char *hardlink_pathname;
+
       pathname = archive_entry_pathname (entry);
       utf8_pathname = autoar_common_get_utf8_pathname (pathname);
+      symlink_pathname = archive_entry_symlink (entry);
+      hardlink_pathname = archive_entry_hardlink (entry);
 
-      g_debug ("autoar_extractor_step_scan_toplevel: %d: pathname = %s %s%s",
+      g_debug ("autoar_extractor_step_scan_toplevel: %d: pathname = %s%s%s%s%s%s%s",
                self->total_files, pathname,
-               utf8_pathname ? "utf8 pathname = " :"",
-               utf8_pathname ? utf8_pathname : "");
+               utf8_pathname ? " utf8 pathname = " : "",
+               utf8_pathname ? utf8_pathname : "",
+               symlink_pathname ? " symlink = " : "",
+               symlink_pathname ? symlink_pathname : "",
+               hardlink_pathname ? " hardlink = " : "",
+               hardlink_pathname ? hardlink_pathname : "");
     }
     self->files_list =
       g_list_prepend (self->files_list,

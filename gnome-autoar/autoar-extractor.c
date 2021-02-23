@@ -1768,18 +1768,6 @@ autoar_extractor_step_scan_toplevel (AutoarExtractor *self)
 
   self->files_list = g_list_reverse (self->files_list);
 
-  self->prefix =
-    autoar_extractor_get_common_prefix (self->files_list,
-                                        self->output_file);
-
-  if (self->prefix != NULL) {
-    g_autofree char *path_prefix;
-
-    path_prefix = g_file_get_path (self->prefix);
-    g_debug ("autoar_extractor_step_scan_toplevel: pathname_prefix = %s",
-             path_prefix);
-  }
-
   autoar_extractor_signal_scanned (self);
 }
 
@@ -1795,6 +1783,8 @@ autoar_extractor_step_set_destination (AutoarExtractor *self)
     return;
   }
 
+  self->prefix = autoar_extractor_get_common_prefix (self->files_list,
+                                                     self->output_file);
   if (self->prefix != NULL) {
     /* We must check if the archive and the prefix have the same name (without
      * the extension). If they do, then the destination should be the output
@@ -1802,6 +1792,9 @@ autoar_extractor_step_set_destination (AutoarExtractor *self)
      */
     g_autofree char *prefix_name;
     g_autofree char *prefix_name_no_ext;
+
+    g_debug ("autoar_extractor_step_set_destination: pathname_prefix = %s",
+             g_file_peek_path (self->prefix));
 
     prefix_name = g_file_get_basename (self->prefix);
     prefix_name_no_ext = autoar_common_get_basename_remove_extension (prefix_name);

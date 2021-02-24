@@ -1974,6 +1974,8 @@ autoar_extractor_step_extract (AutoarExtractor *self) {
     }
 
     if (file_conflict && action == AUTOAR_CONFLICT_SKIP) {
+      self->total_files -= 1;
+      self->total_size -= archive_entry_size (entry);
       continue;
     }
 

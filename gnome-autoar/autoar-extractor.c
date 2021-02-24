@@ -1152,12 +1152,10 @@ autoar_extractor_do_write_entry (AutoarExtractor      *self,
 
         g_debug ("autoar_extractor_do_write_entry: case REG");
 
-        ostream = (GOutputStream*)g_file_replace (dest,
-                                                  NULL,
-                                                  FALSE,
-                                                  G_FILE_CREATE_NONE,
-                                                  self->cancellable,
-                                                  &(self->error));
+        ostream = (GOutputStream*)g_file_create (dest,
+                                                 G_FILE_CREATE_NONE,
+                                                 self->cancellable,
+                                                 &(self->error));
         if (self->error != NULL) {
           g_object_unref (info);
           return;
@@ -1956,6 +1954,14 @@ autoar_extractor_step_extract (AutoarExtractor *self) {
 
       switch (action) {
         case AUTOAR_CONFLICT_OVERWRITE:
+          /* It is expected that this will fail for non-empty directories to
+           * prevent data loss.
+           */
+          g_file_delete (extracted_filename, self->cancellable, &self->error);
+          if (self->error != NULL) {
+            archive_read_free (a);
+            return;
+          }
           break;
         case AUTOAR_CONFLICT_CHANGE_DESTINATION:
           g_assert_nonnull (new_extracted_filename);

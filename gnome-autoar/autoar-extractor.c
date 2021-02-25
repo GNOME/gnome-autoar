@@ -964,7 +964,6 @@ autoar_extractor_check_file_conflict (GFile  *file,
                                       mode_t  extracted_filetype)
 {
   GFileType file_type;
-  gboolean conflict = FALSE;
 
   file_type = g_file_query_file_type (file,
                                       G_FILE_QUERY_INFO_NONE,
@@ -974,26 +973,13 @@ autoar_extractor_check_file_conflict (GFile  *file,
     return FALSE;
   }
 
-  switch (extracted_filetype) {
-    case AE_IFDIR:
-      break;
-    case AE_IFREG:
-    case AE_IFLNK:
-#if defined HAVE_MKFIFO || defined HAVE_MKNOD
-    case AE_IFIFO:
-#endif
-#ifdef HAVE_MKNOD
-    case AE_IFSOCK:
-    case AE_IFBLK:
-    case AE_IFCHR:
-#endif
-      conflict = TRUE;
-      break;
-    default:
-      break;
+  /* It is not problem if the directory already exists */
+  if (file_type == G_FILE_TYPE_DIRECTORY &&
+      extracted_filetype == AE_IFDIR) {
+    return FALSE;
   }
 
-  return conflict;
+  return TRUE;
 }
 
 static void
@@ -1964,6 +1950,9 @@ autoar_extractor_step_extract (AutoarExtractor *self) {
           }
           break;
         case AUTOAR_CONFLICT_CHANGE_DESTINATION:
+          /* FIXME: If the destination is changed for directory, it should be
+           * changed also for its children...
+           */
           g_assert_nonnull (new_extracted_filename);
           g_clear_object (&extracted_filename);
           extracted_filename = new_extracted_filename;

@@ -966,7 +966,7 @@ autoar_extractor_check_file_conflict (GFile  *file,
   GFileType file_type;
 
   file_type = g_file_query_file_type (file,
-                                      G_FILE_QUERY_INFO_NONE,
+                                      G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
                                       NULL);
   /* If there is no file with the given name, there will be no conflict */
   if (file_type == G_FILE_TYPE_UNKNOWN) {

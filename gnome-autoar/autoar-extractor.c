@@ -872,67 +872,32 @@ autoar_extractor_get_common_prefix (GList *files,
   return prefix;
 }
 
-static gboolean
-is_valid_filename (GFile *file, GFile *destination)
-{
-  g_autoptr (GFile) parent = NULL;
-  g_autoptr (GFileInfo) info = NULL;
-
-  if (g_file_equal (file, destination))
-    return TRUE;
-
-  if (!g_file_has_prefix (file, destination))
-    return FALSE;
-
-  /* Resolve symbolic link ancestors to confirm file is actually inside destination. */
-  parent = g_file_get_parent (file);
-  info = g_file_query_info (parent,
-                            G_FILE_ATTRIBUTE_STANDARD_IS_SYMLINK ","
-                            G_FILE_ATTRIBUTE_STANDARD_SYMLINK_TARGET,
-                            G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
-                            NULL,
-                            NULL);
-  if (info == NULL)
-    return FALSE;
-
-  if (g_file_info_get_is_symlink (info)) {
-    g_autoptr (GFile) cwd = NULL;
-    const gchar *target;
-
-    target = g_file_info_get_symlink_target (info);
-    if (g_path_is_absolute (target))
-      return FALSE;
-
-    cwd = g_file_get_parent (parent);
-    g_object_unref (parent);
-    parent = g_file_resolve_relative_path (cwd, target);
-  }
-
-  /* Climb up the path to resolve every symbolic link ancestor found */
-  return is_valid_filename (parent, destination);
-}
-
 static GFile*
 autoar_extractor_do_sanitize_pathname (AutoarExtractor *self,
                                        const char      *pathname_bytes)
 {
   GFile *extracted_filename;
   gboolean valid_filename;
-  g_autofree char *sanitized_pathname = NULL;
+  g_autofree char *sanitized_pathname;
   g_autofree char *utf8_pathname;
 
   utf8_pathname = autoar_common_get_utf8_pathname (pathname_bytes);
   extracted_filename = g_file_get_child (self->destination_dir,
                                          utf8_pathname ?  utf8_pathname : pathname_bytes);
 
-  valid_filename = is_valid_filename (extracted_filename, self->destination_dir);
+  valid_filename =
+    g_file_equal (extracted_filename, self->destination_dir) ||
+    g_file_has_prefix (extracted_filename, self->destination_dir);
+
   if (!valid_filename) {
-    g_warning ("autoar_extractor_do_sanitize_pathname: %s is outside of the destination dir",
-                g_file_peek_path (extracted_filename));
+    g_autofree char *basename;
+
+    basename = g_file_get_basename (extracted_filename);
 
     g_object_unref (extracted_filename);
 
-    return NULL;
+    extracted_filename = g_file_get_child (self->destination_dir,
+                                           basename);
   }
 
   if (self->prefix != NULL && self->new_prefix != NULL) {
@@ -1911,18 +1876,10 @@ autoar_extractor_step_extract (AutoarExtractor *self) {
 
     extracted_filename =
       autoar_extractor_do_sanitize_pathname (self, pathname);
-    if (extracted_filename == NULL) {
-      archive_read_data_skip (a);
-      continue;
-    }
 
     if (hardlink != NULL) {
       hardlink_filename =
         autoar_extractor_do_sanitize_pathname (self, hardlink);
-        if (hardlink_filename == NULL) {
-          archive_read_data_skip (a);
-          continue;
-        }
     }
 
     /* Attempt to solve any name conflict before doing any operations */

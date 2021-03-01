@@ -921,27 +921,42 @@ autoar_extractor_do_sanitize_pathname (AutoarExtractor *self,
   return extracted_filename;
 }
 
-static gboolean
-autoar_extractor_check_file_conflict (GFile  *file,
+/* The function checks @file for conflicts with already existing files on the
+ * disk. It also recursively checks parents of @file to be sure it is directory.
+ * It doesn't follow symlinks, so symlinks in parents are also considered as
+ * conflicts even though they point to directory. It returns #GFile object for
+ * the file, which cause the conflict (so @file, or some of its parents). If
+ * there aren't any conflicts, NULL is returned.
+ */
+static GFile *
+autoar_extractor_check_file_conflict (AutoarExtractor *self,
+                                      GFile  *file,
                                       mode_t  extracted_filetype)
 {
   GFileType file_type;
+  g_autoptr (GFile) parent = NULL;
 
   file_type = g_file_query_file_type (file,
                                       G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
                                       NULL);
-  /* If there is no file with the given name, there will be no conflict */
-  if (file_type == G_FILE_TYPE_UNKNOWN) {
-    return FALSE;
+
+  /* It is a conflict if the file already exists with an exception for already
+   * existing directories.
+   */
+  if (file_type != G_FILE_TYPE_UNKNOWN &&
+      (file_type != G_FILE_TYPE_DIRECTORY ||
+       extracted_filetype != AE_IFDIR)) {
+    return g_object_ref (file);
   }
 
-  /* It is not problem if the directory already exists */
-  if (file_type == G_FILE_TYPE_DIRECTORY &&
-      extracted_filetype == AE_IFDIR) {
-    return FALSE;
+  if ((self->new_prefix && g_file_equal (self->new_prefix, file)) ||
+      (!self->new_prefix && g_file_equal (self->destination_dir, file))) {
+    return NULL;
   }
 
-  return TRUE;
+  /* Check also parents for conflict to be sure it is directory. */
+  parent = g_file_get_parent (file);
+  return autoar_extractor_check_file_conflict (self, parent, AE_IFDIR);
 }
 
 static void
@@ -1864,7 +1879,7 @@ autoar_extractor_step_extract (AutoarExtractor *self) {
     g_autoptr (GFile) extracted_filename = NULL;
     g_autoptr (GFile) hardlink_filename = NULL;
     AutoarConflictAction action;
-    gboolean file_conflict;
+    g_autoptr (GFile) file_conflict = NULL;
 
     if (g_cancellable_is_cancelled (self->cancellable)) {
       archive_read_free (a);
@@ -1883,10 +1898,26 @@ autoar_extractor_step_extract (AutoarExtractor *self) {
     }
 
     /* Attempt to solve any name conflict before doing any operations */
-    file_conflict = autoar_extractor_check_file_conflict (extracted_filename,
+    file_conflict = autoar_extractor_check_file_conflict (self,
+                                                          extracted_filename,
                                                           archive_entry_filetype (entry));
     while (file_conflict) {
       GFile *new_extracted_filename = NULL;
+
+      /* Do not try to solve any conflicts in parents for now. Especially
+       * symlinks in parents are dangerous as it can easily happen that files
+       * are written outside of the destination. The tar cmd fails to extract
+       * such archives with ENOTDIR. Let's do the same here. This is most
+       * probably malicious, or corrupted archive if the conflict was caused
+       * only by files from the archive...
+       */
+      if (!g_file_equal (file_conflict, extracted_filename)) {
+        self->error = g_error_new (G_IO_ERROR,
+                                   G_IO_ERROR_NOT_DIRECTORY,
+                                   "The file is not a directory");
+        archive_read_free (a);
+        return;
+      }
 
       action = autoar_extractor_signal_conflict (self,
                                                  extracted_filename,
@@ -1923,7 +1954,9 @@ autoar_extractor_step_extract (AutoarExtractor *self) {
         break;
       }
 
-      file_conflict = autoar_extractor_check_file_conflict (extracted_filename,
+      g_clear_object (&file_conflict);
+      file_conflict = autoar_extractor_check_file_conflict (self,
+                                                            extracted_filename,
                                                             archive_entry_filetype (entry));
     }
 

@@ -877,7 +877,6 @@ is_valid_filename (GFile *file, GFile *destination)
 {
   g_autoptr (GFile) parent = NULL;
   g_autoptr (GFileInfo) info = NULL;
-  g_autoptr (GError) error = NULL;
 
   if (g_file_equal (file, destination))
     return TRUE;
@@ -892,13 +891,11 @@ is_valid_filename (GFile *file, GFile *destination)
                             G_FILE_ATTRIBUTE_STANDARD_SYMLINK_TARGET,
                             G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
                             NULL,
-                            &error);
-
-  /* The parent directories don't have to be created yet. */
-  if (error && !g_error_matches (error, G_IO_ERROR, G_IO_ERROR_NOT_FOUND))
+                            NULL);
+  if (info == NULL)
     return FALSE;
 
-  if (info && g_file_info_get_is_symlink (info)) {
+  if (g_file_info_get_is_symlink (info)) {
     g_autoptr (GFile) cwd = NULL;
     const gchar *target;
 

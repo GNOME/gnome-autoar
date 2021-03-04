@@ -876,6 +876,64 @@ test_conflict_skip_file (void)
   assert_reference_and_output_match (extract_test);
 }
 
+/* Be sure that the default action is skip to prevent data-loss. */
+static void
+test_conflict_skip_file_default (void)
+{
+  /* arextract.zip
+   * └── arextract.txt
+   *
+   * 0 directories, 1 file
+   *
+   *
+   * ref
+   * └── arextract.txt
+   *
+   * 0 directories, 1 file
+   */
+
+  g_autoptr (ExtractTest) extract_test = NULL;
+  g_autoptr (ExtractTestData) data = NULL;
+  g_autoptr (GFile) archive = NULL;
+  g_autoptr (GFile) conflict_file = NULL;
+  g_autoptr (GFile) reference_file = NULL;
+  g_autoptr (AutoarExtractor) extractor = NULL;
+
+  extract_test = extract_test_new ("test-conflict-skip-file-default");
+
+  if (!extract_test) {
+    g_assert_nonnull (extract_test);
+    return;
+  }
+
+  reference_file = g_file_get_child (extract_test->reference,
+                                     "arextract.txt");
+  conflict_file = g_file_get_child (extract_test->output,
+                                    "arextract.txt");
+
+  g_file_copy (reference_file, conflict_file, G_FILE_COPY_NONE,
+               NULL, NULL, NULL, NULL);
+
+  archive = g_file_get_child (extract_test->input, "arextract.zip");
+
+  extractor = autoar_extractor_new (archive, extract_test->output);
+
+  data = extract_test_data_new_for_extract (extractor);
+
+  g_hash_table_insert (data->conflict_files_actions,
+                       g_object_ref (conflict_file),
+                       GUINT_TO_POINTER (AUTOAR_CONFLICT_UNHANDLED));
+
+  autoar_extractor_start (extractor, data->cancellable);
+
+  g_assert_cmpuint (data->number_of_files, ==, 1);
+  g_assert_true (g_hash_table_contains (data->conflict_files,
+                                        conflict_file));
+  g_assert_no_error (data->error);
+  g_assert_true (data->completed_signalled);
+  assert_reference_and_output_match (extract_test);
+}
+
 static void
 test_one_file_error_file_over_directory (void)
 {
@@ -1004,6 +1062,8 @@ setup_test_suite (void)
                    test_conflict_new_destination);
   g_test_add_func ("/autoar-extract/test-conflict-skip-file",
                    test_conflict_skip_file);
+  g_test_add_func ("/autoar-extract/test-conflict-skip-file-default",
+                   test_conflict_skip_file_default);
 
   g_test_add_func ("/autoar-extract/test-one-file-error-file-over-directory",
                    test_one_file_error_file_over_directory);

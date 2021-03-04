@@ -817,6 +817,110 @@ test_conflict_overwrite_nonempty_directory (void)
   assert_reference_and_output_match (extract_test);
 }
 
+/* Be sure that symlink itself is replaced, not its target. */
+static void
+test_conflict_overwrite_symlink (void)
+{
+  /* arextract.tar
+   * ├── arextract -> arectract.txt
+   * └── arextract
+   *
+   * 0 directories, 2 files
+   *
+   *
+   * ref
+   * └── arextract
+   *
+   * 0 directories, 1 file
+   */
+
+  g_autoptr (ExtractTest) extract_test = NULL;
+  g_autoptr (ExtractTestData) data = NULL;
+  g_autoptr (GFile) archive = NULL;
+  g_autoptr (GFile) conflict_directory = NULL;
+  g_autoptr (GFile) conflict_file = NULL;
+  g_autoptr (AutoarExtractor) extractor = NULL;
+
+  extract_test = extract_test_new ("test-conflict-overwrite-symlink");
+
+  if (!extract_test) {
+    g_assert_nonnull (extract_test);
+    return;
+  }
+
+  conflict_file = g_file_get_child (extract_test->output, "arextract");
+  archive = g_file_get_child (extract_test->input, "arextract.tar");
+
+  extractor = autoar_extractor_new (archive, extract_test->output);
+
+  data = extract_test_data_new_for_extract (extractor);
+
+  g_hash_table_insert (data->conflict_files_actions,
+                       g_object_ref (conflict_file),
+                       GUINT_TO_POINTER (AUTOAR_CONFLICT_OVERWRITE));
+
+  autoar_extractor_start (extractor, data->cancellable);
+
+  g_assert_cmpuint (data->number_of_files, ==, 2);
+  g_assert_true (g_hash_table_contains (data->conflict_files,
+                                        conflict_file));
+  g_assert_true (data->completed_signalled);
+  assert_reference_and_output_match (extract_test);
+}
+
+/* Be sure that hardlink itself is replaced, not its target. */
+static void
+test_conflict_overwrite_hardlink (void)
+{
+  /* arextract.tar
+   * ├── arectract.txt
+   * ├── arextract -> arectract.txt
+   * └── arextract
+   *
+   * 0 directories, 3 files
+   *
+   *
+   * ref
+   * ├── arextract.txt
+   * └── arextract
+   *
+   * 0 directories, 2 files
+   */
+
+  g_autoptr (ExtractTest) extract_test = NULL;
+  g_autoptr (ExtractTestData) data = NULL;
+  g_autoptr (GFile) archive = NULL;
+  g_autoptr (GFile) conflict_file = NULL;
+  g_autoptr (AutoarExtractor) extractor = NULL;
+
+  extract_test = extract_test_new ("test-conflict-overwrite-hardlink");
+
+  if (!extract_test) {
+    g_assert_nonnull (extract_test);
+    return;
+  }
+
+  conflict_file = g_file_get_child (extract_test->output, "arextract");
+  archive = g_file_get_child (extract_test->input, "arextract.tar");
+
+  extractor = autoar_extractor_new (archive, extract_test->output);
+  autoar_extractor_set_output_is_dest (extractor, TRUE);
+
+  data = extract_test_data_new_for_extract (extractor);
+
+  g_hash_table_insert (data->conflict_files_actions,
+                       g_object_ref (conflict_file),
+                       GUINT_TO_POINTER (AUTOAR_CONFLICT_OVERWRITE));
+
+  autoar_extractor_start (extractor, data->cancellable);
+
+  g_assert_cmpuint (data->number_of_files, ==, 3);
+  g_assert_true (g_hash_table_contains (data->conflict_files,
+                                        conflict_file));
+  g_assert_true (data->completed_signalled);
+  assert_reference_and_output_match (extract_test);
+}
+
 static void
 test_conflict_new_destination (void)
 {
@@ -1062,6 +1166,10 @@ setup_test_suite (void)
                    test_conflict_overwrite);
   g_test_add_func ("/autoar-extract/test-conflict-overwrite-nonempty-directory",
                    test_conflict_overwrite_nonempty_directory);
+  g_test_add_func ("/autoar-extract/test-conflict-overwrite-symlink",
+                   test_conflict_overwrite_symlink);
+  g_test_add_func ("/autoar-extract/test-conflict-overwrite-hardlink",
+                   test_conflict_overwrite_hardlink);
   g_test_add_func ("/autoar-extract/test-conflict-new-destination",
                    test_conflict_new_destination);
   g_test_add_func ("/autoar-extract/test-conflict-skip-file",

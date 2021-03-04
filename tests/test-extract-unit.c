@@ -697,7 +697,7 @@ test_multiple_files_different_name (void)
 }
 
 static void
-test_one_file_conflict_overwrite (void)
+test_conflict_overwrite (void)
 {
   /* arextract.zip
    * └── arextract.txt
@@ -718,7 +718,7 @@ test_one_file_conflict_overwrite (void)
   g_autoptr (GFile) reference_file = NULL;
   g_autoptr (AutoarExtractor) extractor = NULL;
 
-  extract_test = extract_test_new ("test-one-file-conflict-overwrite");
+  extract_test = extract_test_new ("test-conflict-overwrite");
 
   if (!extract_test) {
     g_assert_nonnull (extract_test);
@@ -750,7 +750,7 @@ test_one_file_conflict_overwrite (void)
 }
 
 static void
-test_one_file_conflict_new_destination (void)
+test_conflict_new_destination (void)
 {
   /* arextract.zip
    * └── arextract.txt
@@ -772,7 +772,7 @@ test_one_file_conflict_new_destination (void)
   g_autoptr (GFile) reference_file = NULL;
   g_autoptr (AutoarExtractor) extractor = NULL;
 
-  extract_test = extract_test_new ("test-one-file-conflict-new-destination");
+  extract_test = extract_test_new ("test-conflict-new-destination");
 
   if (!extract_test) {
     g_assert_nonnull (extract_test);
@@ -813,7 +813,7 @@ test_one_file_conflict_new_destination (void)
 }
 
 static void
-test_one_file_conflict_skip_file (void)
+test_conflict_skip_file (void)
 {
   /* arextract.zip
    * └── arextract.txt
@@ -834,7 +834,7 @@ test_one_file_conflict_skip_file (void)
   g_autoptr (GFile) reference_file = NULL;
   g_autoptr (AutoarExtractor) extractor = NULL;
 
-  extract_test = extract_test_new ("test-one-file-conflict-skip-file");
+  extract_test = extract_test_new ("test-conflict-skip-file");
 
   if (!extract_test) {
     g_assert_nonnull (extract_test);
@@ -991,12 +991,12 @@ setup_test_suite (void)
   g_test_add_func ("/autoar-extract/test-multiple-files-different-name",
                    test_multiple_files_different_name);
 
-  g_test_add_func ("/autoar-extract/test-one-file-conflict-overwrite",
-                   test_one_file_conflict_overwrite);
-  g_test_add_func ("/autoar-extract/test-one-file-conflict-new-destination",
-                   test_one_file_conflict_new_destination);
-  g_test_add_func ("/autoar-extract/test-one-file-conflict-skip-file",
-                   test_one_file_conflict_skip_file);
+  g_test_add_func ("/autoar-extract/test-conflict-overwrite",
+                   test_conflict_overwrite);
+  g_test_add_func ("/autoar-extract/test-conflict-new-destination",
+                   test_conflict_new_destination);
+  g_test_add_func ("/autoar-extract/test-conflict-skip-file",
+                   test_conflict_skip_file);
 
   g_test_add_func ("/autoar-extract/test-one-file-error-file-over-directory",
                    test_one_file_error_file_over_directory);

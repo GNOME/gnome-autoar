@@ -198,7 +198,7 @@ conflict_handler (AutoarExtractor *extractor,
                   gpointer user_data)
 {
   ExtractTestData *data = user_data;
-  AutoarConflictAction action = AUTOAR_CONFLICT_SKIP;
+  AutoarConflictAction action = AUTOAR_CONFLICT_UNHANDLED;
   gpointer value;
   gboolean key_found;
 
@@ -393,7 +393,8 @@ scan_directory (GFile *directory,
     if (g_file_info_get_file_type (file_info) == G_FILE_TYPE_DIRECTORY) {
       enumerator = g_file_enumerate_children (file,
                                               G_FILE_ATTRIBUTE_STANDARD_NAME","
-                                              G_FILE_ATTRIBUTE_STANDARD_TYPE,
+                                              G_FILE_ATTRIBUTE_STANDARD_TYPE","
+                                              G_FILE_ATTRIBUTE_STANDARD_SIZE,
                                               G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
                                               NULL, NULL);
 
@@ -459,7 +460,9 @@ reference_file_scanned (GFile *scanned_file,
     g_assert_cmpuint (g_file_info_get_file_type (scanned_file_info),
                       ==,
                       g_file_info_get_file_type (corresponding_file_info));
-
+    g_assert_cmpuint (g_file_info_get_size (scanned_file_info),
+                      ==,
+                      g_file_info_get_size (corresponding_file_info));
     g_hash_table_remove (extract_test->unmatched_files, relative_path);
   }
 }
@@ -730,14 +733,18 @@ test_conflict_overwrite (void)
   conflict_file = g_file_get_child (extract_test->output,
                                     "arextract.txt");
 
-  g_file_copy (reference_file, conflict_file, G_FILE_COPY_NONE,
-               NULL, NULL, NULL, NULL);
+  g_file_replace_contents (conflict_file, "this file should be overwritten", 31,
+                           NULL, FALSE, G_FILE_CREATE_NONE, NULL, NULL, NULL);
 
   archive = g_file_get_child (extract_test->input, "arextract.zip");
 
   extractor = autoar_extractor_new (archive, extract_test->output);
 
   data = extract_test_data_new_for_extract (extractor);
+
+  g_hash_table_insert (data->conflict_files_actions,
+                       g_object_ref (conflict_file),
+                       GUINT_TO_POINTER (AUTOAR_CONFLICT_OVERWRITE));
 
   autoar_extractor_start (extractor, data->cancellable);
 

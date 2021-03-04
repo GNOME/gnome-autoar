@@ -556,6 +556,49 @@ test_one_file_different_name (void)
   assert_reference_and_output_match (extract_test);
 }
 
+/* Be sure that extra folder is not created in case of output-is-dest. */
+static void
+test_one_file_different_name_output_is_dest (void)
+{
+  /* arextract.zip
+   * └── arextractdifferent.txt
+   *
+   * 0 directories, 1 file
+   *
+   *
+   * ref
+   * └── arextractdifferent.txt
+   *
+   * 0 directory, 1 file
+   */
+
+  g_autoptr (ExtractTest) extract_test = NULL;
+  g_autoptr (ExtractTestData) data = NULL;
+  g_autoptr (GFile) archive = NULL;
+  g_autoptr (AutoarExtractor) extractor = NULL;
+
+  extract_test = extract_test_new ("test-one-file-different-name-output-is-dest");
+
+  if (!extract_test) {
+    g_assert_nonnull (extract_test);
+    return;
+  }
+
+  archive = g_file_get_child (extract_test->input, "arextract.zip");
+
+  extractor = autoar_extractor_new (archive, extract_test->output);
+  autoar_extractor_set_output_is_dest (extractor, TRUE);
+
+  data = extract_test_data_new_for_extract (extractor);
+
+  autoar_extractor_start (extractor, data->cancellable);
+
+  g_assert_cmpuint (data->number_of_files, ==, 1);
+  g_assert_no_error (data->error);
+  g_assert_true (data->completed_signalled);
+  assert_reference_and_output_match (extract_test);
+}
+
 static void
 test_multiple_files_same_name (void)
 {
@@ -941,6 +984,8 @@ setup_test_suite (void)
                    test_one_file_same_name);
   g_test_add_func ("/autoar-extract/test-one-file-different-name",
                    test_one_file_different_name);
+  g_test_add_func ("/autoar-extract/test-one-file-different-name-output-is-dest",
+                   test_one_file_different_name_output_is_dest);
   g_test_add_func ("/autoar-extract/test-multiple-files-same-name",
                    test_multiple_files_same_name);
   g_test_add_func ("/autoar-extract/test-multiple-files-different-name",

@@ -756,6 +756,67 @@ test_conflict_overwrite (void)
   assert_reference_and_output_match (extract_test);
 }
 
+/* Be sure that nonempty directories are not replaced to prevent data-loss. */
+static void
+test_conflict_overwrite_nonempty_directory (void)
+{
+  /* arextract.zip
+   * └── arextract
+   *
+   * 0 directories, 1 file
+   *
+   *
+   * ref
+   * └── arextract
+   *     └── dummy
+   *
+   * 1 directory, 1 files
+   */
+
+  g_autoptr (ExtractTest) extract_test = NULL;
+  g_autoptr (ExtractTestData) data = NULL;
+  g_autoptr (GFile) archive = NULL;
+  g_autoptr (GFile) conflict_directory = NULL;
+  g_autoptr (GFile) dummy_file = NULL;
+  g_autoptr (GFileOutputStream) out = NULL;
+  g_autoptr (AutoarExtractor) extractor = NULL;
+
+  extract_test = extract_test_new ("test-conflict-overwrite-nonempty-directory");
+
+  if (!extract_test) {
+    g_assert_nonnull (extract_test);
+    return;
+  }
+
+  conflict_directory = g_file_get_child (extract_test->output,
+                                         "arextract");
+  dummy_file = g_file_get_child (conflict_directory, "dummy");
+
+  g_file_make_directory (conflict_directory, NULL, NULL);
+
+  out = g_file_create (dummy_file, G_FILE_CREATE_NONE, NULL, NULL);
+  g_output_stream_close (G_OUTPUT_STREAM (out), NULL, NULL);
+
+  archive = g_file_get_child (extract_test->input, "arextract.zip");
+
+  extractor = autoar_extractor_new (archive, extract_test->output);
+
+  data = extract_test_data_new_for_extract (extractor);
+
+  g_hash_table_insert (data->conflict_files_actions,
+                       g_object_ref (conflict_directory),
+                       GUINT_TO_POINTER (AUTOAR_CONFLICT_OVERWRITE));
+
+  autoar_extractor_start (extractor, data->cancellable);
+
+  g_assert_cmpuint (data->number_of_files, ==, 1);
+  g_assert_true (g_hash_table_contains (data->conflict_files,
+                                        conflict_directory));
+  g_assert_error (data->error, G_IO_ERROR, G_IO_ERROR_NOT_EMPTY);
+  g_assert_false (data->completed_signalled);
+  assert_reference_and_output_match (extract_test);
+}
+
 static void
 test_conflict_new_destination (void)
 {
@@ -935,65 +996,6 @@ test_conflict_skip_file_default (void)
 }
 
 static void
-test_one_file_error_file_over_directory (void)
-{
-  /* The dummy file in this test is not relevant to the test itself, but it
-   * was required in order to add the directory to the .git repo
-   *
-   * arextract.zip
-   * └── arextract
-   *
-   * 0 directories, 1 file
-   *
-   *
-   * ref
-   * └── arextract
-   *     └── dummy
-   *
-   * 1 directory, 1 files
-   */
-
-  g_autoptr (ExtractTest) extract_test = NULL;
-  g_autoptr (ExtractTestData) data = NULL;
-  g_autoptr (GFile) archive = NULL;
-  g_autoptr (GFile) conflict_directory = NULL;
-  g_autoptr (GFile) dummy_file = NULL;
-  g_autoptr (GFileOutputStream) out = NULL;
-  g_autoptr (AutoarExtractor) extractor = NULL;
-
-  extract_test = extract_test_new ("test-one-file-error-file-over-directory");
-
-  if (!extract_test) {
-    g_assert_nonnull (extract_test);
-    return;
-  }
-
-  conflict_directory = g_file_get_child (extract_test->output,
-                                         "arextract");
-  dummy_file = g_file_get_child (conflict_directory, "dummy");
-
-  g_file_make_directory (conflict_directory, NULL, NULL);
-
-  out = g_file_create (dummy_file, G_FILE_CREATE_NONE, NULL, NULL);
-  g_output_stream_close (G_OUTPUT_STREAM (out), NULL, NULL);
-
-  archive = g_file_get_child (extract_test->input, "arextract.zip");
-
-  extractor = autoar_extractor_new (archive, extract_test->output);
-
-  data = extract_test_data_new_for_extract (extractor);
-
-  autoar_extractor_start (extractor, data->cancellable);
-
-  g_assert_cmpuint (data->number_of_files, ==, 1);
-  g_assert_true (g_hash_table_contains (data->conflict_files,
-                                        conflict_directory));
-  g_assert_null (data->error);
-  g_assert_true (data->completed_signalled);
-  assert_reference_and_output_match (extract_test);
-}
-
-static void
 test_change_extract_destination (void)
 {
   /* arextract.zip
@@ -1058,15 +1060,14 @@ setup_test_suite (void)
 
   g_test_add_func ("/autoar-extract/test-conflict-overwrite",
                    test_conflict_overwrite);
+  g_test_add_func ("/autoar-extract/test-conflict-overwrite-nonempty-directory",
+                   test_conflict_overwrite_nonempty_directory);
   g_test_add_func ("/autoar-extract/test-conflict-new-destination",
                    test_conflict_new_destination);
   g_test_add_func ("/autoar-extract/test-conflict-skip-file",
                    test_conflict_skip_file);
   g_test_add_func ("/autoar-extract/test-conflict-skip-file-default",
                    test_conflict_skip_file_default);
-
-  g_test_add_func ("/autoar-extract/test-one-file-error-file-over-directory",
-                   test_one_file_error_file_over_directory);
 
   g_test_add_func ("/autoar-extract/test-change-extract-destination",
                    test_change_extract_destination);

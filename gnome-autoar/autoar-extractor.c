@@ -880,14 +880,18 @@ autoar_extractor_do_sanitize_pathname (AutoarExtractor *self,
   gboolean valid_filename;
   g_autofree char *sanitized_pathname;
   g_autofree char *utf8_pathname;
+  GFile *destination;
+
+  /* Use output_file when called from autoar_extractor_step_scan_toplevel(). */
+  destination = (self->destination_dir != NULL) ? self->destination_dir : self->output_file;
 
   utf8_pathname = autoar_common_get_utf8_pathname (pathname_bytes);
-  extracted_filename = g_file_get_child (self->destination_dir,
+  extracted_filename = g_file_get_child (destination,
                                          utf8_pathname ?  utf8_pathname : pathname_bytes);
 
   valid_filename =
-    g_file_equal (extracted_filename, self->destination_dir) ||
-    g_file_has_prefix (extracted_filename, self->destination_dir);
+    g_file_equal (extracted_filename, destination) ||
+    g_file_has_prefix (extracted_filename, destination);
 
   if (!valid_filename) {
     g_autofree char *basename;
@@ -896,8 +900,7 @@ autoar_extractor_do_sanitize_pathname (AutoarExtractor *self,
 
     g_object_unref (extracted_filename);
 
-    extracted_filename = g_file_get_child (self->destination_dir,
-                                           basename);
+    extracted_filename = g_file_get_child (destination, basename);
   }
 
   if (self->prefix != NULL && self->new_prefix != NULL) {
@@ -1691,8 +1694,8 @@ autoar_extractor_step_scan_toplevel (AutoarExtractor *self)
     }
     self->files_list =
       g_list_prepend (self->files_list,
-                      g_file_get_child (self->output_file,
-                                        utf8_pathname ? utf8_pathname : pathname));
+                      autoar_extractor_do_sanitize_pathname (self,
+                                                             utf8_pathname ? utf8_pathname : pathname));
     self->total_files++;
     self->total_size += archive_entry_size (entry);
     archive_read_data_skip (a);

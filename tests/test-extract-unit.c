@@ -1148,6 +1148,144 @@ test_change_extract_destination (void)
   assert_reference_and_output_match (extract_test);
 }
 
+/* Be sure that the files with symlinks in parents are refused completely for
+ * security reasons.
+ *
+ * If symlinks in parents will be allowed in the future, then the following
+ * cases need to be tested to be sure that nothing is written outside of the
+ * destination:
+ * 1) link -> .. ; link/arextract.txt
+ * 2) link -> /tmp ; link/arextract.txt
+ * 3) current -> . ; link -> current/.. ; link/arextract.txt
+ * 4) tmplink -> /tmp ; link -> tmplink/.. ; link/arextract.txt
+ */
+static void
+test_symlink_parent (void)
+{
+  /* arextract.tar
+   * ├── arextract -> /tmp
+   * └── arextract/arextract.txt
+   *
+   * 0 directories, 2 files
+   *
+   *
+   * ref
+   * └── arextract -> /tmp
+   *
+   * 0 directories, 1 file
+   */
+
+  g_autoptr (ExtractTest) extract_test = NULL;
+  g_autoptr (ExtractTestData) data = NULL;
+  g_autoptr (GFile) archive = NULL;
+  g_autoptr (AutoarExtractor) extractor = NULL;
+
+  extract_test = extract_test_new ("test-symlink-parent");
+
+  if (!extract_test) {
+    g_assert_nonnull (extract_test);
+    return;
+  }
+
+  archive = g_file_get_child (extract_test->input, "arextract.tar");
+
+  extractor = autoar_extractor_new (archive, extract_test->output);
+
+  data = extract_test_data_new_for_extract (extractor);
+
+  autoar_extractor_start (extractor, data->cancellable);
+
+  g_assert_cmpuint (data->number_of_files, ==, 2);
+  g_assert_error (data->error, G_IO_ERROR, G_IO_ERROR_NOT_DIRECTORY);
+  g_assert_false (data->completed_signalled);
+  assert_reference_and_output_match (extract_test);
+}
+
+/* Be sure that file with the ".." parent is written in the destination. */
+static void
+test_sanitize_dotdot_parent (void)
+{
+  /* arextract.tar
+   * └── ./../arextract.txt
+   *
+   * 0 directories, 1 file
+   *
+   *
+   * ref
+   * └── arextract.txt
+   *
+   * 0 directories, 1 file
+   */
+
+  g_autoptr (ExtractTest) extract_test = NULL;
+  g_autoptr (ExtractTestData) data = NULL;
+  g_autoptr (GFile) archive = NULL;
+  g_autoptr (AutoarExtractor) extractor = NULL;
+
+  extract_test = extract_test_new ("test-sanitize-dotdot-parent");
+
+  if (!extract_test) {
+    g_assert_nonnull (extract_test);
+    return;
+  }
+
+  archive = g_file_get_child (extract_test->input, "arextract.tar");
+
+  extractor = autoar_extractor_new (archive, extract_test->output);
+  autoar_extractor_set_output_is_dest (extractor, TRUE);
+
+  data = extract_test_data_new_for_extract (extractor);
+
+  autoar_extractor_start (extractor, data->cancellable);
+
+  g_assert_cmpuint (data->number_of_files, ==, 1);
+  g_assert_no_error (data->error);
+  g_assert_true (data->completed_signalled);
+  assert_reference_and_output_match (extract_test);
+}
+
+/* Be sure that the absolute paths are relative to the destination. */
+static void
+test_sanitize_absolute_path (void)
+{
+  /* arextract.tar
+   * └── /arextract.txt
+   *
+   * 0 directories, 1 file
+   *
+   *
+   * ref
+   * └── arextract.txt
+   *
+   * 0 directories, 1 file
+   */
+
+  g_autoptr (ExtractTest) extract_test = NULL;
+  g_autoptr (ExtractTestData) data = NULL;
+  g_autoptr (GFile) archive = NULL;
+  g_autoptr (AutoarExtractor) extractor = NULL;
+
+  extract_test = extract_test_new ("test-sanitize-absolute-path");
+
+  if (!extract_test) {
+    g_assert_nonnull (extract_test);
+    return;
+  }
+
+  archive = g_file_get_child (extract_test->input, "arextract.tar");
+
+  extractor = autoar_extractor_new (archive, extract_test->output);
+
+  data = extract_test_data_new_for_extract (extractor);
+
+  autoar_extractor_start (extractor, data->cancellable);
+
+  g_assert_cmpuint (data->number_of_files, ==, 1);
+  g_assert_no_error (data->error);
+  g_assert_true (data->completed_signalled);
+  assert_reference_and_output_match (extract_test);
+}
+
 static void
 setup_test_suite (void)
 {
@@ -1179,6 +1317,13 @@ setup_test_suite (void)
 
   g_test_add_func ("/autoar-extract/test-change-extract-destination",
                    test_change_extract_destination);
+
+  g_test_add_func ("/autoar-extract/test-symlink-parent",
+                   test_symlink_parent);
+  g_test_add_func ("/autoar-extract/test-sanitize-dotdot-parent",
+                   test_sanitize_dotdot_parent);
+  g_test_add_func ("/autoar-extract/test-sanitize-absolute-path",
+                   test_sanitize_absolute_path);
 }
 
 int

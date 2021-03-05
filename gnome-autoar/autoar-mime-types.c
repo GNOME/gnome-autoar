@@ -44,6 +44,7 @@ static gchar *supported_mime_types[] = {
   "application/zip",
   "application/gzip",
   "application/bzip2",
+  "application/vnd.rar",
   NULL
 };
 

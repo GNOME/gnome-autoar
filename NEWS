@@ -1,3 +1,9 @@
+Major changes in 0.3.1:
+* Disallow symlinks in parents completely when extracting (Ondrej Holy)
+* Make AutoarExtractor documentation clearer (Ondrej Holy)
+* Drop recursive delete on failure to prevent data loss (Ondrej Holy)
+* Add back RAR support (Matthias)
+
 Major changes in 0.3.0:
 * Recognize MIME type aliases of extractable archives (Hernawan Fa'iz Abdillah)
 * Add extraction support for password-protected archives (Felipe Borges)

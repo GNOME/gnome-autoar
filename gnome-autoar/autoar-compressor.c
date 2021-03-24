@@ -946,7 +946,18 @@ autoar_compressor_do_add_to_archive (AutoarCompressor *self,
     struct archive_entry *entry, *sparse;
 
     entry = self->entry;
-    archive_entry_linkify (self->resolver, &entry, &sparse);
+
+     /* Hardlinks are handled in different ways by the archive formats. The
+     * archive_entry_linkify function is a unified interface, which handling
+     * the complexity behind the scene. It assumes that archive_entry instances
+     * have valid nlinks, inode and device values. The inode and device value
+     * is used to match entries. The nlinks value is used to determined if all
+     * references have been found and if the internal references can be
+     * recycled. */
+    if (g_file_info_has_attribute (info, G_FILE_ATTRIBUTE_UNIX_DEVICE) &&
+        g_file_info_has_attribute (info, G_FILE_ATTRIBUTE_UNIX_INODE) &&
+        g_file_info_has_attribute (info, G_FILE_ATTRIBUTE_UNIX_NLINK))
+      archive_entry_linkify (self->resolver, &entry, &sparse);
 
     if (entry != NULL) {
       GFile *file_to_read;

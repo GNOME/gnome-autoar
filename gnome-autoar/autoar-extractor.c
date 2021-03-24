@@ -1204,8 +1204,12 @@ autoar_extractor_do_write_entry (AutoarExtractor      *self,
         }
 
         fileandinfo.file = g_object_ref (dest);
-        fileandinfo.info = g_object_ref (info);
+        fileandinfo.info = g_file_info_dup (info);
         g_array_append_val (self->extracted_dir_list, fileandinfo);
+
+        /* Unset folder permissions for now to be sure it is writable. */
+        g_file_info_set_attribute (info, G_FILE_ATTRIBUTE_UNIX_MODE,
+                                   G_FILE_ATTRIBUTE_TYPE_INVALID, NULL);
       }
       break;
     case AE_IFLNK:

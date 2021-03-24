@@ -1,5 +1,5 @@
 Major changes in 0.3.1:
-* Disallow symlinks in parents completely when extracting (Ondrej Holy)
+* CVE-2021-28650: Disallow symlinks in parents completely when extracting (Ondrej Holy)
 * Make AutoarExtractor documentation clearer (Ondrej Holy)
 * Drop recursive delete on failure to prevent data loss (Ondrej Holy)
 * Add back RAR support (Matthias)

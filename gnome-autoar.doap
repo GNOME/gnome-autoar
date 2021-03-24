@@ -6,7 +6,7 @@
          xmlns="http://usefulinc.com/ns/doap#">
   <name xml:lang="en">gnome-autoar</name>
   <shortdesc xml:lang="en">Automatic archives creating and extracting library</shortdesc>
-  <description>gnome-autoar provides functions, widgets, and gschemas for GNOME applications which want to use archives as a method to transfer directories over the Internet.</description>
+  <description>gnome-autoar provides functions and widgets for GNOME applications which want to use archives as a method to transfer directories over the Internet.</description>
 
   <category rdf:resource="http://api.gnome.org/doap-extensions#apps" />
   <programming-language>C</programming-language>

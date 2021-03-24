@@ -851,33 +851,53 @@ autoar_compressor_do_add_to_archive (AutoarCompressor *self,
     time_t atime, btime, ctime, mtime;
     long atimeu, btimeu, ctimeu, mtimeu;
 
-    atime = g_file_info_get_attribute_uint64 (info, G_FILE_ATTRIBUTE_TIME_ACCESS);
-    btime = g_file_info_get_attribute_uint64 (info, G_FILE_ATTRIBUTE_TIME_CREATED);
-    ctime = g_file_info_get_attribute_uint64 (info, G_FILE_ATTRIBUTE_TIME_CHANGED);
-    mtime = g_file_info_get_attribute_uint64 (info, G_FILE_ATTRIBUTE_TIME_MODIFIED);
+    if (g_file_info_has_attribute (info, G_FILE_ATTRIBUTE_TIME_ACCESS)) {
+      atime = g_file_info_get_attribute_uint64 (info, G_FILE_ATTRIBUTE_TIME_ACCESS);
+      atimeu = g_file_info_get_attribute_uint32 (info, G_FILE_ATTRIBUTE_TIME_ACCESS_USEC);
+      archive_entry_set_atime (self->entry, atime, atimeu * 1000);
+    }
 
-    atimeu = g_file_info_get_attribute_uint32 (info, G_FILE_ATTRIBUTE_TIME_ACCESS_USEC);
-    btimeu = g_file_info_get_attribute_uint32 (info, G_FILE_ATTRIBUTE_TIME_CREATED_USEC);
-    ctimeu = g_file_info_get_attribute_uint32 (info, G_FILE_ATTRIBUTE_TIME_CHANGED_USEC);
-    mtimeu = g_file_info_get_attribute_uint32 (info, G_FILE_ATTRIBUTE_TIME_MODIFIED_USEC);
+    if (g_file_info_has_attribute (info, G_FILE_ATTRIBUTE_TIME_CREATED)) {
+      btime = g_file_info_get_attribute_uint64 (info, G_FILE_ATTRIBUTE_TIME_CREATED);
+      btimeu = g_file_info_get_attribute_uint32 (info, G_FILE_ATTRIBUTE_TIME_CREATED_USEC);
+      archive_entry_set_birthtime (self->entry, btime, btimeu * 1000);
+    }
 
-    archive_entry_set_atime (self->entry, atime, atimeu * 1000);
-    archive_entry_set_birthtime (self->entry, btime, btimeu * 1000);
-    archive_entry_set_ctime (self->entry, ctime, ctimeu * 1000);
-    archive_entry_set_mtime (self->entry, mtime, mtimeu * 1000);
+    if (g_file_info_has_attribute (info, G_FILE_ATTRIBUTE_TIME_CHANGED)) {
+      ctime = g_file_info_get_attribute_uint64 (info, G_FILE_ATTRIBUTE_TIME_CHANGED);
+      ctimeu = g_file_info_get_attribute_uint32 (info, G_FILE_ATTRIBUTE_TIME_CHANGED_USEC);
+      archive_entry_set_ctime (self->entry, ctime, ctimeu * 1000);
+    }
 
-    archive_entry_set_uid (self->entry, g_file_info_get_attribute_uint32 (info, G_FILE_ATTRIBUTE_UNIX_UID));
-    archive_entry_set_gid (self->entry, g_file_info_get_attribute_uint32 (info, G_FILE_ATTRIBUTE_UNIX_GID));
-    archive_entry_set_uname (self->entry, g_file_info_get_attribute_string (info, G_FILE_ATTRIBUTE_OWNER_USER));
-    archive_entry_set_gname (self->entry, g_file_info_get_attribute_string (info, G_FILE_ATTRIBUTE_OWNER_GROUP));
-    archive_entry_set_mode (self->entry, g_file_info_get_attribute_uint32 (info, G_FILE_ATTRIBUTE_UNIX_MODE));
+    if (g_file_info_has_attribute (info, G_FILE_ATTRIBUTE_TIME_MODIFIED)) {
+      mtime = g_file_info_get_attribute_uint64 (info, G_FILE_ATTRIBUTE_TIME_MODIFIED);
+      mtimeu = g_file_info_get_attribute_uint32 (info, G_FILE_ATTRIBUTE_TIME_MODIFIED_USEC);
+      archive_entry_set_mtime (self->entry, mtime, mtimeu * 1000);
+    }
+
+    if (g_file_info_has_attribute (info, G_FILE_ATTRIBUTE_UNIX_UID))
+      archive_entry_set_uid (self->entry, g_file_info_get_attribute_uint32 (info, G_FILE_ATTRIBUTE_UNIX_UID));
+    if (g_file_info_has_attribute (info, G_FILE_ATTRIBUTE_UNIX_GID))
+      archive_entry_set_gid (self->entry, g_file_info_get_attribute_uint32 (info, G_FILE_ATTRIBUTE_UNIX_GID));
+    if (g_file_info_has_attribute (info, G_FILE_ATTRIBUTE_OWNER_USER))
+      archive_entry_set_uname (self->entry, g_file_info_get_attribute_string (info, G_FILE_ATTRIBUTE_OWNER_USER));
+    if (g_file_info_has_attribute (info, G_FILE_ATTRIBUTE_OWNER_GROUP))
+      archive_entry_set_gname (self->entry, g_file_info_get_attribute_string (info, G_FILE_ATTRIBUTE_OWNER_GROUP));
+    if (g_file_info_has_attribute (info, G_FILE_ATTRIBUTE_UNIX_MODE))
+      archive_entry_set_mode (self->entry, g_file_info_get_attribute_uint32 (info, G_FILE_ATTRIBUTE_UNIX_MODE));
   }
 
-  archive_entry_set_size (self->entry, g_file_info_get_attribute_uint64 (info, G_FILE_ATTRIBUTE_STANDARD_SIZE));
-  archive_entry_set_dev (self->entry, g_file_info_get_attribute_uint32 (info, G_FILE_ATTRIBUTE_UNIX_DEVICE));
-  archive_entry_set_ino64 (self->entry, g_file_info_get_attribute_uint64 (info, G_FILE_ATTRIBUTE_UNIX_INODE));
-  archive_entry_set_nlink (self->entry, g_file_info_get_attribute_uint32 (info, G_FILE_ATTRIBUTE_UNIX_NLINK));
-  archive_entry_set_rdev (self->entry, g_file_info_get_attribute_uint32 (info, G_FILE_ATTRIBUTE_UNIX_RDEV));
+  if (g_file_info_has_attribute (info, G_FILE_ATTRIBUTE_STANDARD_SIZE))
+    archive_entry_set_size (self->entry, g_file_info_get_attribute_uint64 (info, G_FILE_ATTRIBUTE_STANDARD_SIZE));
+
+  if (g_file_info_has_attribute (info, G_FILE_ATTRIBUTE_UNIX_DEVICE))
+    archive_entry_set_dev (self->entry, g_file_info_get_attribute_uint32 (info, G_FILE_ATTRIBUTE_UNIX_DEVICE));
+  if (g_file_info_has_attribute (info, G_FILE_ATTRIBUTE_UNIX_INODE))
+    archive_entry_set_ino64 (self->entry, g_file_info_get_attribute_uint64 (info, G_FILE_ATTRIBUTE_UNIX_INODE));
+  if (g_file_info_has_attribute (info, G_FILE_ATTRIBUTE_UNIX_NLINK))
+    archive_entry_set_nlink (self->entry, g_file_info_get_attribute_uint32 (info, G_FILE_ATTRIBUTE_UNIX_NLINK));
+  if (g_file_info_has_attribute (info, G_FILE_ATTRIBUTE_UNIX_RDEV))
+    archive_entry_set_rdev (self->entry, g_file_info_get_attribute_uint32 (info, G_FILE_ATTRIBUTE_UNIX_RDEV));
 
   switch (filetype) {
     case G_FILE_TYPE_DIRECTORY:

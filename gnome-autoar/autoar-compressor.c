@@ -963,9 +963,7 @@ autoar_compressor_do_add_to_archive (AutoarCompressor *self,
                        g_object_ref (file));
 
   {
-    struct archive_entry *entry, *sparse;
-
-    entry = self->entry;
+    struct archive_entry *sparse;
 
      /* Hardlinks are handled in different ways by the archive formats. The
      * archive_entry_linkify function is a unified interface, which handling
@@ -977,20 +975,20 @@ autoar_compressor_do_add_to_archive (AutoarCompressor *self,
     if (g_file_info_has_attribute (info, G_FILE_ATTRIBUTE_UNIX_DEVICE) &&
         g_file_info_has_attribute (info, G_FILE_ATTRIBUTE_UNIX_INODE) &&
         g_file_info_has_attribute (info, G_FILE_ATTRIBUTE_UNIX_NLINK))
-      archive_entry_linkify (self->resolver, &entry, &sparse);
+      archive_entry_linkify (self->resolver, &self->entry, &sparse);
 
-    if (entry != NULL) {
+    if (self->entry != NULL) {
       GFile *file_to_read;
       const char *pathname_in_entry;
-      pathname_in_entry = archive_entry_pathname (entry);
+      pathname_in_entry = archive_entry_pathname (self->entry);
       file_to_read = g_hash_table_lookup (self->pathname_to_g_file,
                                           pathname_in_entry);
-      autoar_compressor_do_write_data (self, entry, file_to_read);
+      autoar_compressor_do_write_data (self, self->entry, file_to_read);
       /* Entries for non-regular files might have their size attribute
        * different to their actual size on the disk
        */
-      if (archive_entry_filetype (entry) != AE_IFREG &&
-          archive_entry_size (entry) != g_file_info_get_size (info)) {
+      if (archive_entry_filetype (self->entry) != AE_IFREG &&
+          archive_entry_size (self->entry) != g_file_info_get_size (info)) {
         self->completed_size += g_file_info_get_size (info);
         autoar_compressor_signal_progress (self);
       }
@@ -998,12 +996,16 @@ autoar_compressor_do_add_to_archive (AutoarCompressor *self,
       g_hash_table_remove (self->pathname_to_g_file, pathname_in_entry);
       /* We have registered g_object_unref function to free the GFile object,
        * so we do not have to unref it here. */
+    } else {
+      /* The archive_entry_linkify function stole our entry, so new one has to
+       * be allocated here to not crash on the next file. */
+      self->entry = archive_entry_new ();
     }
 
     if (sparse != NULL) {
       GFile *file_to_read;
       const char *pathname_in_entry;
-      pathname_in_entry = archive_entry_pathname (entry);
+      pathname_in_entry = archive_entry_pathname (self->entry);
       file_to_read = g_hash_table_lookup (self->pathname_to_g_file,
                                           pathname_in_entry);
       autoar_compressor_do_write_data (self, sparse, file_to_read);
@@ -1515,14 +1517,19 @@ autoar_compressor_step_create (AutoarCompressor *self)
       return;
   }
 
-  /* Process the final entry */
+  /* Flush deferred entries, if any, by calling linkify with entry unset. */
   {
     struct archive_entry *entry, *sparse;
-    entry = NULL;
-    archive_entry_linkify (self->resolver, &entry, &sparse);
-    if (entry != NULL) {
-      GFile *file_to_read;
-      const char *pathname_in_entry;
+    GFile *file_to_read;
+    const char *pathname_in_entry;
+
+    while (TRUE) {
+      /* The archive_entry is freed by the archive_entry_linkify function. */
+      entry = NULL;
+      archive_entry_linkify (self->resolver, &entry, &sparse);
+      if (entry == NULL)
+        break;
+
       pathname_in_entry = archive_entry_pathname (entry);
       file_to_read = g_hash_table_lookup (self->pathname_to_g_file,
                                           pathname_in_entry);

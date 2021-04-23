@@ -1286,6 +1286,50 @@ test_sanitize_absolute_path (void)
   assert_reference_and_output_match (extract_test);
 }
 
+/* Be sure that extraction of children from a readonly directory doesn't fail. */
+static void
+test_readonly_directory (void)
+{
+  /* arextract.tar
+   * └── arextract
+   *     └── arextract.txt
+   *
+   * 1 directories, 1 files
+   *
+   *
+   * ref
+   * └── arextract
+   *     └── arextract.txt
+   *
+   * 1 directories, 1 files
+   */
+
+  g_autoptr (ExtractTest) extract_test = NULL;
+  g_autoptr (ExtractTestData) data = NULL;
+  g_autoptr (GFile) archive = NULL;
+  g_autoptr (AutoarExtractor) extractor = NULL;
+
+  extract_test = extract_test_new ("test-readonly-directory");
+
+  if (!extract_test) {
+    g_assert_nonnull (extract_test);
+    return;
+  }
+
+  archive = g_file_get_child (extract_test->input, "arextract.tar");
+
+  extractor = autoar_extractor_new (archive, extract_test->output);
+
+  data = extract_test_data_new_for_extract (extractor);
+
+  autoar_extractor_start (extractor, data->cancellable);
+
+  g_assert_cmpuint (data->number_of_files, ==, 2);
+  g_assert_no_error (data->error);
+  g_assert_true (data->completed_signalled);
+  assert_reference_and_output_match (extract_test);
+}
+
 static void
 setup_test_suite (void)
 {
@@ -1324,6 +1368,9 @@ setup_test_suite (void)
                    test_sanitize_dotdot_parent);
   g_test_add_func ("/autoar-extract/test-sanitize-absolute-path",
                    test_sanitize_absolute_path);
+
+  g_test_add_func ("/autoar-extract/test-readonly-directory",
+                   test_readonly_directory);
 }
 
 int

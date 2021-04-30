@@ -1,3 +1,8 @@
+Major changes in 0.3.2:
+* compressor: Fix hardlink handling for new cpio format (Ondrej Holy)
+* compressor: Fix hardlink detection for remote files (Ondrej Holy)
+* extractor: Fix extraction of readonly folders (Ondrej Holy)
+
 Major changes in 0.3.1:
 * CVE-2021-28650: Disallow symlinks in parents completely when extracting (Ondrej Holy)
 * Make AutoarExtractor documentation clearer (Ondrej Holy)

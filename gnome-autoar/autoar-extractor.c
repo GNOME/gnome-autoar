@@ -1832,27 +1832,10 @@ autoar_extractor_step_decide_destination (AutoarExtractor *self)
     }
   }
 
-  new_destination = (self->new_prefix != NULL) ? self->new_prefix : self->destination_dir;
-  destination_name = g_file_get_path (new_destination);
+  destination_name = g_file_get_path (self->new_prefix != NULL ?
+                                      self->new_prefix :
+                                      self->destination_dir);
   g_debug ("autoar_extractor_step_decide_destination: destination %s", destination_name);
-
-  g_file_make_directory_with_parents (new_destination,
-                                      self->cancellable,
-                                      &(self->error));
-
-  if (g_error_matches (self->error, G_IO_ERROR, G_IO_ERROR_EXISTS)) {
-    GFileType file_type;
-
-    file_type = g_file_query_file_type (new_destination,
-                                        G_FILE_QUERY_INFO_NONE,
-                                        NULL);
-
-    if (file_type == G_FILE_TYPE_DIRECTORY) {
-      /* FIXME: Implement a way to solve directory conflicts */
-      g_debug ("autoar_extractor_step_decide_destination: destination directory exists");
-      g_clear_error (&self->error);
-    }
-  }
 
   g_list_free_full (files, g_object_unref);
 }

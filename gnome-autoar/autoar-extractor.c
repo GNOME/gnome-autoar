@@ -1817,9 +1817,12 @@ autoar_extractor_step_decide_destination (AutoarExtractor *self)
     autoar_extractor_signal_decide_destination (self,
                                                 self->prefix,
                                                 files,
-                                                &new_destination);
+                                                &self->new_prefix);
 
-    self->new_prefix = new_destination;
+    if (self->new_prefix && g_file_equal (self->prefix, self->new_prefix)) {
+      /* This prevents redundant path name handling later. */
+      g_clear_object (&self->new_prefix);
+    }
   } else {
     autoar_extractor_signal_decide_destination (self,
                                                 self->destination_dir,

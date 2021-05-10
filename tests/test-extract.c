@@ -65,7 +65,7 @@ my_handler_conflict (AutoarExtractor *extractor,
 
   g_print ("Conflict on: %s\n", path);
 
-  return AUTOAR_CONFLICT_OVERWRITE;
+  return AUTOAR_CONFLICT_UNHANDLED;
 }
 
 static void

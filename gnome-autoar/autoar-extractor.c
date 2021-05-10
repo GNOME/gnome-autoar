@@ -1897,6 +1897,8 @@ autoar_extractor_step_extract (AutoarExtractor *self) {
     while (file_conflict) {
       GFile *new_extracted_filename = NULL;
 
+      g_debug ("autoar_extractor_step_extract: conflict detected");
+
       /* Do not try to solve any conflicts in parents for now. Especially
        * symlinks in parents are dangerous as it can easily happen that files
        * are written outside of the destination. The tar cmd fails to extract

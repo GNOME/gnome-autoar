@@ -963,7 +963,7 @@ autoar_compressor_do_add_to_archive (AutoarCompressor *self,
                        g_object_ref (file));
 
   {
-    struct archive_entry *sparse;
+    struct archive_entry *sparse = NULL;
 
      /* Hardlinks are handled in different ways by the archive formats. The
      * archive_entry_linkify function is a unified interface, which handling

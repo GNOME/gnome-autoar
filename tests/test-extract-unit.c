@@ -211,16 +211,9 @@ conflict_handler (AutoarExtractor *extractor,
 
   if (key_found) {
     action = GPOINTER_TO_UINT (value);
-
-    switch (action) {
-      case AUTOAR_CONFLICT_OVERWRITE:
-        break;
-      case AUTOAR_CONFLICT_CHANGE_DESTINATION:
-        *new_file = g_object_ref (g_hash_table_lookup (data->conflict_files_destinations,
-                                                       file));
-        break;
-      case AUTOAR_CONFLICT_SKIP:
-        break;
+    if (action == AUTOAR_CONFLICT_CHANGE_DESTINATION) {
+      *new_file = g_object_ref (g_hash_table_lookup (data->conflict_files_destinations,
+                                                     file));
     }
   }
 
@@ -718,7 +711,6 @@ test_conflict_overwrite (void)
   g_autoptr (ExtractTestData) data = NULL;
   g_autoptr (GFile) archive = NULL;
   g_autoptr (GFile) conflict_file = NULL;
-  g_autoptr (GFile) reference_file = NULL;
   g_autoptr (AutoarExtractor) extractor = NULL;
 
   extract_test = extract_test_new ("test-conflict-overwrite");
@@ -728,13 +720,13 @@ test_conflict_overwrite (void)
     return;
   }
 
-  reference_file = g_file_get_child (extract_test->reference,
-                                     "arextract.txt");
   conflict_file = g_file_get_child (extract_test->output,
                                     "arextract.txt");
 
-  g_file_replace_contents (conflict_file, "this file should be overwritten", 31,
-                           NULL, FALSE, G_FILE_CREATE_NONE, NULL, NULL, NULL);
+  g_assert_true (g_file_replace_contents (conflict_file,
+                                          "this file should be overwritten", 31,
+                                          NULL, FALSE, G_FILE_CREATE_NONE, NULL,
+                                          NULL, NULL));
 
   archive = g_file_get_child (extract_test->input, "arextract.zip");
 
@@ -956,8 +948,8 @@ test_conflict_new_destination (void)
   conflict_file = g_file_get_child (extract_test->output,
                                     "arextract.txt");
 
-  g_file_copy (reference_file, conflict_file, G_FILE_COPY_NONE,
-               NULL, NULL, NULL, NULL);
+  g_assert_true (g_file_copy (reference_file, conflict_file, G_FILE_COPY_NONE,
+                 NULL, NULL, NULL, NULL));
 
   archive = g_file_get_child (extract_test->input, "arextract.zip");
 
@@ -1018,8 +1010,8 @@ test_conflict_skip_file (void)
   conflict_file = g_file_get_child (extract_test->output,
                                     "arextract.txt");
 
-  g_file_copy (reference_file, conflict_file, G_FILE_COPY_NONE,
-               NULL, NULL, NULL, NULL);
+  g_assert_true (g_file_copy (reference_file, conflict_file, G_FILE_COPY_NONE,
+                 NULL, NULL, NULL, NULL));
 
   archive = g_file_get_child (extract_test->input, "arextract.zip");
 
@@ -1076,8 +1068,8 @@ test_conflict_skip_file_default (void)
   conflict_file = g_file_get_child (extract_test->output,
                                     "arextract.txt");
 
-  g_file_copy (reference_file, conflict_file, G_FILE_COPY_NONE,
-               NULL, NULL, NULL, NULL);
+  g_assert_true (g_file_copy (reference_file, conflict_file, G_FILE_COPY_NONE,
+                 NULL, NULL, NULL, NULL));
 
   archive = g_file_get_child (extract_test->input, "arextract.zip");
 

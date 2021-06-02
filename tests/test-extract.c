@@ -83,6 +83,17 @@ my_handler_completed (AutoarExtractor *extractor,
   g_print ("\nCompleted!\n");
 }
 
+static gchar *
+my_handler_request_passphrase (AutoarExtractor *extractor,
+                               gpointer data)
+{
+  const gchar *passphrase = data;
+
+  g_print ("Passphrase requested!\n");
+
+  return g_strdup (passphrase);
+}
+
 int
 main (int argc,
       char *argv[])
@@ -91,9 +102,10 @@ main (int argc,
   char *content;
   g_autoptr (GFile) source = NULL;
   g_autoptr (GFile) output = NULL;
+  g_autofree gchar *passphrase = NULL;
 
-  if (argc < 3) {
-    g_printerr ("Usage: %s archive_file output_dir\n",
+  if (argc < 3 || argc > 4) {
+    g_printerr ("Usage: %s archive_file output_dir passphrase\n",
                 argv[0]);
     return 255;
   }
@@ -104,6 +116,9 @@ main (int argc,
 
   source = g_file_new_for_commandline_arg (argv[1]);
   output = g_file_new_for_commandline_arg (argv[2]);
+  if (argc == 4 && argv[3][0] != '\0')
+    passphrase = g_strdup (argv[3]);
+
   extractor = autoar_extractor_new (source, output);
 
   autoar_extractor_set_delete_after_extraction (extractor, FALSE);
@@ -114,6 +129,7 @@ main (int argc,
   g_signal_connect (extractor, "conflict", G_CALLBACK (my_handler_conflict), NULL);
   g_signal_connect (extractor, "error", G_CALLBACK (my_handler_error), NULL);
   g_signal_connect (extractor, "completed", G_CALLBACK (my_handler_completed), NULL);
+  g_signal_connect (extractor, "request-passphrase", G_CALLBACK (my_handler_request_passphrase), passphrase);
 
   autoar_extractor_start (extractor, NULL);
 

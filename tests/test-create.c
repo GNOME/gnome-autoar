@@ -53,16 +53,16 @@ main (int argc,
   g_autoptr (GFile) output_file = NULL;
   int i;
 
-  if (argc < 5) {
-    g_printerr ("Usage: %s format filter output_dir source ...\n", argv[0]);
+  if (argc < 6) {
+    g_printerr ("Usage: %s format filter passphrase output_dir source ...\n", argv[0]);
     return 255;
   }
 
   setlocale (LC_ALL, "");
 
-  output_file = g_file_new_for_commandline_arg (argv[3]);
+  output_file = g_file_new_for_commandline_arg (argv[4]);
 
-  for (i = 4; i < argc; ++i) {
+  for (i = 5; i < argc; ++i) {
     source_files = g_list_prepend (source_files,
                                    g_file_new_for_commandline_arg (argv[i]));
   }
@@ -74,6 +74,9 @@ main (int argc,
                                       atoi (argv[1]),
                                       atoi (argv[2]),
                                       TRUE);
+  if (argv[3][0] != '\0')
+    autoar_compressor_set_passphrase (compressor, argv[3]);
+
   g_signal_connect (compressor, "decide-dest", G_CALLBACK (my_handler_decide_dest), NULL);
   g_signal_connect (compressor, "progress", G_CALLBACK (my_handler_progress), NULL);
   g_signal_connect (compressor, "error", G_CALLBACK (my_handler_error), NULL);

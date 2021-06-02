@@ -113,6 +113,8 @@ struct _AutoarCompressor
 
   int in_thread        : 1;
   gboolean create_top_level_directory;
+
+  gchar *passphrase;
 };
 
 G_DEFINE_TYPE (AutoarCompressor, autoar_compressor, G_TYPE_OBJECT)
@@ -455,6 +457,22 @@ autoar_compressor_set_notify_interval (AutoarCompressor *self,
   self->notify_interval = notify_interval;
 }
 
+/**
+ * autoar_compressor_set_passphrase:
+ * @self: an #AutoarCompressor
+ * @passphrase: the archive passphrase
+ *
+ * Sets the archive passphrase. It works only with %ARCHIVE_FORMAT_ZIP.
+ **/
+void
+autoar_compressor_set_passphrase (AutoarCompressor *self,
+                                  const gchar      *passphrase)
+{
+  g_return_if_fail (AUTOAR_IS_COMPRESSOR (self));
+
+  self->passphrase = g_strdup (passphrase);
+}
+
 static void
 autoar_compressor_dispose (GObject *object)
 {
@@ -487,6 +505,8 @@ autoar_compressor_dispose (GObject *object)
     g_list_free_full (self->source_files, g_object_unref);
     self->source_files = NULL;
   }
+
+  g_clear_pointer (&self->passphrase, g_free);
 
   G_OBJECT_CLASS (autoar_compressor_parent_class)->dispose (object);
 }
@@ -1292,6 +1312,7 @@ autoar_compressor_init (AutoarCompressor *self)
   self->extension = NULL;
 
   self->in_thread = FALSE;
+  self->passphrase = NULL;
 }
 
 /**
@@ -1372,6 +1393,20 @@ autoar_compressor_step_initialize_object (AutoarCompressor *self)
   if (r != ARCHIVE_OK) {
     self->error = autoar_common_g_error_new_a (self->a, NULL);
     return;
+  }
+
+  if (self->passphrase != NULL && self->format == AUTOAR_FORMAT_ZIP) {
+    r = archive_write_set_options (self->a, "zip:encryption=aes256");
+    if (r != ARCHIVE_OK) {
+      self->error = autoar_common_g_error_new_a (self->a, NULL);
+      return;
+    }
+
+    r = archive_write_set_passphrase (self->a, self->passphrase);
+    if (r != ARCHIVE_OK) {
+      self->error = autoar_common_g_error_new_a (self->a, NULL);
+      return;
+    }
   }
 }
 

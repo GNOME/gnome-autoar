@@ -75,6 +75,8 @@ void               autoar_compressor_set_output_is_dest             (AutoarCompr
                                                                      gboolean          output_is_dest);
 void               autoar_compressor_set_notify_interval            (AutoarCompressor *self,
                                                                      gint64            notify_interval);
+void               autoar_compressor_set_passphrase                 (AutoarCompressor *self,
+                                                                     const gchar      *passphrase);
 G_END_DECLS
 
 #endif /* AUTOAR_COMPRESSOR_H */

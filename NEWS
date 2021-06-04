@@ -1,3 +1,7 @@
+Major changes in 0.3.3:
+* extractor: Fix extraction of one file archives (Ondrej Holy)
+* compressor: Fix usage of uninitialized value (Ondrej Holy)
+
 Major changes in 0.3.2:
 * compressor: Fix hardlink handling for new cpio format (Ondrej Holy)
 * compressor: Fix hardlink detection for remote files (Ondrej Holy)

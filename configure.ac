@@ -6,7 +6,7 @@ AC_PREREQ([2.68])
 
 m4_define([major_version], [0])
 m4_define([minor_version], [3])
-m4_define([micro_version], [2])
+m4_define([micro_version], [3])
 
 AC_INIT([gnome-autoar],
         [major_version.minor_version.micro_version],

@@ -885,6 +885,10 @@ autoar_extractor_do_sanitize_pathname (AutoarExtractor *self,
   /* Use output_file when called from autoar_extractor_step_scan_toplevel(). */
   destination = (self->destination_dir != NULL) ? self->destination_dir : self->output_file;
 
+  /* Convert absolute paths to relative */
+  if (g_path_is_absolute (pathname_bytes))
+    pathname_bytes = g_path_skip_root (pathname_bytes);
+
   utf8_pathname = autoar_common_get_utf8_pathname (pathname_bytes);
   extracted_filename = g_file_get_child (destination,
                                          utf8_pathname ?  utf8_pathname : pathname_bytes);
@@ -1800,6 +1804,9 @@ autoar_extractor_step_decide_destination (AutoarExtractor *self)
     GFile *file;
 
     relative_path = g_file_get_relative_path (self->output_file, l->data);
+    if (relative_path == NULL)
+      relative_path = g_strdup ("");
+
     file = g_file_resolve_relative_path (self->destination_dir,
                                          relative_path);
     files = g_list_prepend (files, file);

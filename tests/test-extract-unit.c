@@ -1241,15 +1241,18 @@ static void
 test_sanitize_absolute_path (void)
 {
   /* arextract.tar
-   * └── /arextract.txt
+   * ├── /
+   * ├── /arextract.txt
+   * └── /arextract/arextract.txt
    *
-   * 0 directories, 1 file
+   * 1 directories, 2 file
    *
    *
    * ref
-   * └── arextract.txt
+   * ├── arextract.txt
+   * └── arextract/arextract.txt
    *
-   * 0 directories, 1 file
+   * 1 directories, 2 file
    */
 
   g_autoptr (ExtractTest) extract_test = NULL;
@@ -1267,12 +1270,13 @@ test_sanitize_absolute_path (void)
   archive = g_file_get_child (extract_test->input, "arextract.tar");
 
   extractor = autoar_extractor_new (archive, extract_test->output);
+  autoar_extractor_set_output_is_dest (extractor, TRUE);
 
   data = extract_test_data_new_for_extract (extractor);
 
   autoar_extractor_start (extractor, data->cancellable);
 
-  g_assert_cmpuint (data->number_of_files, ==, 1);
+  g_assert_cmpuint (data->number_of_files, ==, 3);
   g_assert_no_error (data->error);
   g_assert_true (data->completed_signalled);
   assert_reference_and_output_match (extract_test);

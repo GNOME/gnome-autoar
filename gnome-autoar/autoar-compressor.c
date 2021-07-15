@@ -166,7 +166,7 @@ autoar_compressor_get_property (GObject    *object,
       g_value_set_enum (value, self->format);
       break;
     case PROP_FILTER:
-      g_value_set_enum (value, self->format);
+      g_value_set_enum (value, self->filter);
       break;
     case PROP_CREATE_TOP_LEVEL_DIRECTORY:
       g_value_set_boolean (value, self->create_top_level_directory);

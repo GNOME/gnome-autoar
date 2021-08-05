@@ -7,13 +7,9 @@ fedora latest:
     tags:
         - x86_64
     script:
-        - ./autogen.sh
-        - make
-        - cd tests
-        - ./test-extract-unit
-        - cd ..
+        - meson setup _build --prefix=/usr -Dgtk_doc=false -Dintrospection=enabled -Dtests=true
+        - ninja -C _build test
         - check-abi $LAST_ABI_BREAK $(git rev-parse HEAD)
-
 update image:
     variables:
          STORAGE_DRIVER: vfs

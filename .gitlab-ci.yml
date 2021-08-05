@@ -1,4 +1,4 @@
-fedora rawhide:
+fedora latest:
     image:
         name: registry.gitlab.gnome.org/gnome/gnome-autoar:latest
         entrypoint: ["/bin/sh", "-c"]

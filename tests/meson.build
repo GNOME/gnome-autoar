@@ -23,7 +23,7 @@ foreach test_unit: test_units
     test(
       test_unit[0],
       exe,
-      should_fail: true,
+      env : [f'G_TEST_SRCDIR=@source_root@']
     )
   endif
 endforeach

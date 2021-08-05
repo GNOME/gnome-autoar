@@ -312,45 +312,6 @@ extract_test_data_free (ExtractTestData *data)
   g_free (data);
 }
 
-static gboolean
-setup_extract_tests_directory (const char *executable_path)
-{
-  g_autoptr (GFile) tests_dir = NULL;
-  gboolean found;
-
-  tests_dir = g_file_new_for_commandline_arg (executable_path);
-
-  found = FALSE;
-  while (!found && g_file_has_parent (tests_dir, NULL)) {
-    GFile *parent;
-    g_autofree gchar *parent_basename;
-
-    parent = g_file_get_parent (tests_dir);
-    parent_basename = g_file_get_basename (parent);
-
-    if (g_strcmp0 (parent_basename, TESTS_DIR_NAME) == 0) {
-      found = TRUE;
-    }
-
-    g_object_unref (tests_dir);
-    tests_dir = parent;
-  }
-
-  if (!found) {
-    g_printerr ("Tests directory not in executable path\n");
-    return FALSE;
-  }
-
-  extract_tests_dir = g_file_get_child (tests_dir, EXTRACT_TESTS_DIR_NAME);
-
-  if (!g_file_query_exists (extract_tests_dir, NULL)) {
-    g_printerr ("Extract tests directory does not exist in tests directory\n");
-    return FALSE;
-  }
-
-  return TRUE;
-}
-
 /* Asserts that all files in @included are also in @including */
 static void
 scan_directory (GFile *directory,
@@ -1374,13 +1335,20 @@ main (int argc,
       char *argv[])
 {
   int tests_result;
-
-  if (!setup_extract_tests_directory (argv[0])) {
-    return -1;
-  }
+  g_autofree gchar *extract_tests_dir_path = NULL;
 
   g_test_init (&argc, &argv, NULL);
   g_test_set_nonfatal_assertions ();
+
+  extract_tests_dir_path = g_test_build_filename (G_TEST_DIST,
+                                                  TESTS_DIR_NAME,
+                                                  EXTRACT_TESTS_DIR_NAME,
+                                                  NULL);
+  extract_tests_dir = g_file_new_for_path (extract_tests_dir_path);
+  if (!g_file_query_exists (extract_tests_dir, NULL)) {
+    g_printerr ("Extract tests directory not found\n");
+    return -1;
+  }
 
   setup_test_suite ();
 

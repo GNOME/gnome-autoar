@@ -5,10 +5,8 @@ fedora rawhide:
     tags:
         - x86_64
     script:
-        - ./autogen.sh
-        - make
-        - cd tests
-        - ./test-extract-unit
+        - meson setup _build --prefix=/usr -Dgtk_doc=false -Dintrospection=enabled -Dtests=true
+        - ninja -C _build test
     allow_failure: true
 
 update image:

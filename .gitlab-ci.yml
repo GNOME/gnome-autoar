@@ -1,4 +1,6 @@
 fedora latest:
+    variables:
+        LAST_ABI_BREAK: 87e278ef077b4952595cf9d6e973e6d8246f20b3
     image:
         name: registry.gitlab.gnome.org/gnome/gnome-autoar:latest
         entrypoint: ["/bin/sh", "-c"]
@@ -9,7 +11,8 @@ fedora latest:
         - make
         - cd tests
         - ./test-extract-unit
-    allow_failure: true
+        - cd ..
+        - check-abi $LAST_ABI_BREAK $(git rev-parse HEAD)
 
 update image:
     variables:

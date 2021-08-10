@@ -3,7 +3,7 @@
 
 project(
   'gnome-autoar', 'c',
-  version: '0.3.3',
+  version: '0.4.0',
   license: 'LGPL2.1+',
   default_options: 'buildtype=debugoptimized',
   meson_version: '>= 0.58.0',
@@ -25,7 +25,7 @@ gnome_autoar_micro_version = version_array[2].to_int()
 #
 # When bumping the first component version, set the second and third components
 # to 0. When bumping the second version, set the third one to zero.
-gnome_autoar_libversion = '0.0.0'
+gnome_autoar_libversion = '0.1.0'
 
 gnome_autoar_api_version = 0
 

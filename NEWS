@@ -1,3 +1,8 @@
+Major changes in 0.4.0:
+* Port to meson build system (Iñigo Martínez, Peter Keresztes Schmidt)
+* Add support for creation of password-protected archives (Ondrej Holy)
+* Fix extraction of archives with absolute paths (Ondrej Holy)
+
 Major changes in 0.3.3:
 * extractor: Fix extraction of one file archives (Ondrej Holy)
 * compressor: Fix usage of uninitialized value (Ondrej Holy)

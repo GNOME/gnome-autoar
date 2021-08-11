@@ -3,9 +3,9 @@
 
 ent_conf = {
   'PACKAGE': gnome_autoar_name,
-  'PACKAGE_BUGREPORT': f'https://gitlab.gnome.org/GNOME/@gnome_autoar_name@',
+  'PACKAGE_BUGREPORT': 'https://gitlab.gnome.org/GNOME/@0@'.format(gnome_autoar_name),
   'PACKAGE_NAME': gnome_autoar_name,
-  'PACKAGE_STRING': f'@gnome_autoar_name@ @gnome_autoar_version@',
+  'PACKAGE_STRING': '@0@ @1@'.format(gnome_autoar_name, gnome_autoar_version),
   'PACKAGE_TARNAME': gnome_autoar_name,
   'PACKAGE_URL': '',
   'PACKAGE_VERSION': gnome_autoar_version,

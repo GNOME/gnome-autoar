@@ -105,12 +105,6 @@ enable_introspection = dependency('gobject-introspection-1.0', version: '>= 1.30
 enable_vapi = get_option('vapi')
 assert(not enable_vapi or enable_introspection, 'GObject introspection support must be enabled to build VALA bindings')
 
-gio_schemasdir = gio_dep.get_variable(
-  'schemasdir',
-  pkgconfig_define: ['datadir', gnome_autoar_datadir],
-  default_value: gnome_autoar_datadir / 'glib-2.0/schemas',
-)
-
 subdir('gnome-autoar')
 
 enable_tests = get_option('tests')

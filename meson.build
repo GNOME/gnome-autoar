@@ -6,7 +6,7 @@ project(
   version: '0.4.0',
   license: 'LGPL2.1+',
   default_options: 'buildtype=debugoptimized',
-  meson_version: '>= 0.58.0',
+  meson_version: '>= 0.56.0',
 )
 
 gnome_autoar_name = meson.project_name()
@@ -96,7 +96,7 @@ gtk_dep = dependency(
   'gtk+-3.0',
   version: gtk_req_version,
   required: get_option('gtk'),
-  not_found_message: f'GTK+ support requested but gtk+-3.0 @gtk_req_version@ could not be found',
+  not_found_message: 'GTK+ support requested but gtk+-3.0 @0@ could not be found'.format(gtk_req_version),
 )
 enable_gtk = gtk_dep.found()
 

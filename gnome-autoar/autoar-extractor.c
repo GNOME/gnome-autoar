@@ -1676,6 +1676,10 @@ autoar_extractor_step_scan_toplevel (AutoarExtractor *self)
 
     if (archive_entry_is_encrypted (entry)) {
       autoar_extractor_request_passphrase (self);
+      if (g_cancellable_is_cancelled (self->cancellable)) {
+        archive_read_free (a);
+        return;
+      }
     }
 
     if (self->use_raw_format) {

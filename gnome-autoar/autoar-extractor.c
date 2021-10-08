@@ -907,7 +907,8 @@ autoar_extractor_do_sanitize_pathname (AutoarExtractor *self,
     extracted_filename = g_file_get_child (destination, basename);
   }
 
-  if (self->prefix != NULL && self->new_prefix != NULL) {
+  if (self->prefix != NULL && self->new_prefix != NULL &&
+      !g_file_equal (self->prefix, self->new_prefix)) {
     g_autofree char *relative_path;
     /* Replace the old prefix with the new one */
     relative_path = g_file_get_relative_path (self->prefix,
@@ -1829,11 +1830,6 @@ autoar_extractor_step_decide_destination (AutoarExtractor *self)
                                                 self->prefix,
                                                 files,
                                                 &self->new_prefix);
-
-    if (self->new_prefix && g_file_equal (self->prefix, self->new_prefix)) {
-      /* This prevents redundant path name handling later. */
-      g_clear_object (&self->new_prefix);
-    }
   } else {
     autoar_extractor_signal_decide_destination (self,
                                                 self->destination_dir,

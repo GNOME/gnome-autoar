@@ -1,3 +1,8 @@
+Major changes in 0.4.1:
+* Fix regression of extraction in symlinked locations (Ondrej Holy)
+* Handle passphrase prompt cancellation to prevent showing error dialogs (Ondrej Holy)
+* Downgrade meson dependency to 0.56.0 (Felipe Borges, Ondrej Holy)
+
 Major changes in 0.4.0:
 * Port to meson build system (Iñigo Martínez, Peter Keresztes Schmidt)
 * Add support for creation of password-protected archives (Ondrej Holy)

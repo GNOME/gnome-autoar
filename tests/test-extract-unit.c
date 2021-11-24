@@ -654,6 +654,90 @@ test_multiple_files_different_name (void)
 }
 
 static void
+test_raw_named (void)
+{
+  /* arextract.gz
+   * └── arextractdifferent
+   *
+   * 0 directories, 1 file
+   *
+   *
+   * ref
+   * └── arextractdifferent
+   *
+   * 0 directories, 1 file
+   */
+
+  g_autoptr (ExtractTest) extract_test = NULL;
+  g_autoptr (ExtractTestData) data = NULL;
+  g_autoptr (GFile) archive = NULL;
+  g_autoptr (AutoarExtractor) extractor = NULL;
+
+  extract_test = extract_test_new ("test-raw-named");
+
+  if (!extract_test) {
+    g_assert_nonnull (extract_test);
+    return;
+  }
+
+  archive = g_file_get_child (extract_test->input, "arextract.gz");
+
+  extractor = autoar_extractor_new (archive, extract_test->output);
+  autoar_extractor_set_output_is_dest (extractor, TRUE);
+
+  data = extract_test_data_new_for_extract (extractor);
+
+  autoar_extractor_start (extractor, data->cancellable);
+
+  g_assert_cmpuint (data->number_of_files, ==, 1);
+  g_assert_no_error (data->error);
+  g_assert_true (data->completed_signalled);
+  assert_reference_and_output_match (extract_test);
+}
+
+static void
+test_raw_unnamed (void)
+{
+  /* arextract.gz
+   * └── arextract
+   *
+   * 0 directories, 1 file
+   *
+   *
+   * ref
+   * └── arextract
+   *
+   * 0 directories, 1 file
+   */
+
+  g_autoptr (ExtractTest) extract_test = NULL;
+  g_autoptr (ExtractTestData) data = NULL;
+  g_autoptr (GFile) archive = NULL;
+  g_autoptr (AutoarExtractor) extractor = NULL;
+
+  extract_test = extract_test_new ("test-raw-unnamed");
+
+  if (!extract_test) {
+    g_assert_nonnull (extract_test);
+    return;
+  }
+
+  archive = g_file_get_child (extract_test->input, "arextract.gz");
+
+  extractor = autoar_extractor_new (archive, extract_test->output);
+  autoar_extractor_set_output_is_dest (extractor, TRUE);
+
+  data = extract_test_data_new_for_extract (extractor);
+
+  autoar_extractor_start (extractor, data->cancellable);
+
+  g_assert_cmpuint (data->number_of_files, ==, 1);
+  g_assert_no_error (data->error);
+  g_assert_true (data->completed_signalled);
+  assert_reference_and_output_match (extract_test);
+}
+
+static void
 test_conflict_overwrite (void)
 {
   /* arextract.zip
@@ -1300,6 +1384,11 @@ setup_test_suite (void)
                    test_multiple_files_same_name);
   g_test_add_func ("/autoar-extract/test-multiple-files-different-name",
                    test_multiple_files_different_name);
+
+  g_test_add_func ("/autoar-extract/test-raw-named",
+                   test_raw_named);
+  g_test_add_func ("/autoar-extract/test-raw-unnamed",
+                   test_raw_unnamed);
 
   g_test_add_func ("/autoar-extract/test-conflict-overwrite",
                    test_conflict_overwrite);

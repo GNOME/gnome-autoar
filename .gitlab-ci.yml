@@ -10,6 +10,10 @@ fedora latest:
         - meson setup _build --prefix=/usr -Dgtk_doc=false -Dintrospection=enabled -Dtests=true
         - ninja -C _build test
         - check-abi $LAST_ABI_BREAK $(git rev-parse HEAD)
+    artifacts:
+        paths:
+            - "_build/meson-logs"
+
 update image:
     variables:
          STORAGE_DRIVER: vfs

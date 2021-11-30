@@ -857,6 +857,14 @@ autoar_extractor_get_common_prefix (GList *files,
   while (!g_file_has_parent (prefix, root)) {
     file = g_file_get_parent (prefix);
     g_object_unref (prefix);
+
+    /* This can happen if the archive contains the "/" path and the destination
+     * is "/" as well.
+     */
+    if (file == NULL) {
+      return NULL;
+    }
+
     prefix = file;
   }
 
@@ -984,7 +992,7 @@ autoar_extractor_do_write_entry (AutoarExtractor      *self,
   {
     GFile *parent;
     parent = g_file_get_parent (dest);
-    if (!g_file_query_exists (parent, self->cancellable))
+    if (parent && !g_file_query_exists (parent, self->cancellable))
       g_file_make_directory_with_parents (parent,
                                           self->cancellable,
                                           NULL);

@@ -1264,6 +1264,7 @@ test_readonly_directory (void)
   g_autoptr (ExtractTest) extract_test = NULL;
   g_autoptr (ExtractTestData) data = NULL;
   g_autoptr (GFile) archive = NULL;
+  g_autoptr (GFile) readonly = NULL;
   g_autoptr (AutoarExtractor) extractor = NULL;
 
   extract_test = extract_test_new ("test-readonly-directory");
@@ -1285,6 +1286,11 @@ test_readonly_directory (void)
   g_assert_no_error (data->error);
   g_assert_true (data->completed_signalled);
   assert_reference_and_output_match (extract_test);
+
+  /* Make the directory writable again to avoid issues when deleting. */
+  readonly = g_file_get_child (extract_test->output, "arextract");
+  g_file_set_attribute_uint32 (readonly, G_FILE_ATTRIBUTE_UNIX_MODE, 0755,
+                               G_FILE_QUERY_INFO_NONE, NULL, NULL);
 }
 
 static void

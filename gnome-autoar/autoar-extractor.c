@@ -964,6 +964,7 @@ autoar_extractor_check_file_conflict (AutoarExtractor *self,
 
   /* Check also parents for conflict to be sure it is directory. */
   parent = g_file_get_parent (file);
+  g_return_val_if_fail (parent, NULL);
   return autoar_extractor_check_file_conflict (self, parent, AE_IFDIR);
 }
 
@@ -1664,11 +1665,15 @@ autoar_extractor_step_scan_toplevel (AutoarExtractor *self)
       return;
     }
     self->use_raw_format = TRUE;
+
+    g_debug ("autoar_extractor_step_scan_toplevel: using raw format");
   }
 
   while ((r = archive_read_next_header (a, &entry)) == ARCHIVE_OK) {
     const char *pathname;
     g_autofree char *utf8_pathname = NULL;
+    const char *symlink_pathname;
+    const char *hardlink_pathname;
 
     if (g_cancellable_is_cancelled (self->cancellable)) {
       archive_read_free (a);
@@ -1683,28 +1688,26 @@ autoar_extractor_step_scan_toplevel (AutoarExtractor *self)
       }
     }
 
-    if (self->use_raw_format) {
-      pathname = autoar_common_get_basename_remove_extension (g_file_peek_path (self->source_file));
-      g_debug ("autoar_extractor_step_scan_toplevel: %d: raw pathname = %s",
-               self->total_files, pathname);
-    } else {
-      const char *symlink_pathname;
-      const char *hardlink_pathname;
+    pathname = archive_entry_pathname (entry);
+    utf8_pathname = autoar_common_get_utf8_pathname (pathname);
+    symlink_pathname = archive_entry_symlink (entry);
+    hardlink_pathname = archive_entry_hardlink (entry);
 
-      pathname = archive_entry_pathname (entry);
-      utf8_pathname = autoar_common_get_utf8_pathname (pathname);
-      symlink_pathname = archive_entry_symlink (entry);
-      hardlink_pathname = archive_entry_hardlink (entry);
+    /* The raw format usually doesn't propagate file name and the generic "data"
+     * string is returned instead. Let's use source basename in that case.
+     */
+    if (self->use_raw_format && g_str_equal (pathname, "data"))
+      pathname = autoar_common_get_basename_remove_extension (self->source_basename);
 
-      g_debug ("autoar_extractor_step_scan_toplevel: %d: pathname = %s%s%s%s%s%s%s",
-               self->total_files, pathname,
-               utf8_pathname ? " utf8 pathname = " : "",
-               utf8_pathname ? utf8_pathname : "",
-               symlink_pathname ? " symlink = " : "",
-               symlink_pathname ? symlink_pathname : "",
-               hardlink_pathname ? " hardlink = " : "",
-               hardlink_pathname ? hardlink_pathname : "");
-    }
+    g_debug ("autoar_extractor_step_scan_toplevel: %d: pathname = %s%s%s%s%s%s%s",
+             self->total_files, pathname,
+             utf8_pathname ? " utf8 pathname = " : "",
+             utf8_pathname ? utf8_pathname : "",
+             symlink_pathname ? " symlink = " : "",
+             symlink_pathname ? symlink_pathname : "",
+             hardlink_pathname ? " hardlink = " : "",
+             hardlink_pathname ? hardlink_pathname : "");
+
     self->files_list =
       g_list_prepend (self->files_list,
                       autoar_extractor_do_sanitize_pathname (self,
@@ -1888,6 +1891,12 @@ autoar_extractor_step_extract (AutoarExtractor *self) {
 
     pathname = archive_entry_pathname (entry);
     hardlink = archive_entry_hardlink (entry);
+
+    /* The raw format usually doesn't propagate file name and the generic "data"
+     * string is returned instead. Let's use source basename in that case.
+     */
+    if (self->use_raw_format && g_str_equal (pathname, "data"))
+      pathname = autoar_common_get_basename_remove_extension (self->source_basename);
 
     extracted_filename =
       autoar_extractor_do_sanitize_pathname (self, pathname);

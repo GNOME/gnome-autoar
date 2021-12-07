@@ -64,7 +64,7 @@ remove_directory (GFile *directory)
     GFileInfo *info;
 
     while ((info = g_file_enumerator_next_file (enumerator, NULL, NULL)) != NULL) {
-      g_autoptr (GFile) child;
+      g_autoptr (GFile) child = NULL;
 
       child = g_file_get_child (directory, g_file_info_get_name (info));
 
@@ -334,8 +334,8 @@ scan_directory (GFile *directory,
                                         NULL, NULL));
 
   while (!g_queue_is_empty (files)) {
-    g_autoptr (GFile) file;
-    g_autoptr (GFileInfo) file_info;
+    g_autoptr (GFile) file = NULL;
+    g_autoptr (GFileInfo) file_info = NULL;
 
     file = g_queue_pop_tail (files);
     file_info = g_queue_pop_tail (file_infos);
@@ -398,7 +398,7 @@ reference_file_scanned (GFile *scanned_file,
                         gpointer user_data)
 {
   ExtractTest *extract_test = user_data;
-  g_autofree char *relative_path;
+  g_autofree char *relative_path = NULL;
   GFileInfo *corresponding_file_info;
 
   relative_path = scanned_file == extract_test->reference ?

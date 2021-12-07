@@ -791,8 +791,8 @@ autoar_extractor_signal_conflict (AutoarExtractor  *self,
     return AUTOAR_CONFLICT_SKIP;
 
   if (*new_file) {
-    g_autofree char *previous_path;
-    g_autofree char *new_path;
+    g_autofree char *previous_path = NULL;
+    g_autofree char *new_path = NULL;
 
     previous_path = g_file_get_path (file);
     new_path = g_file_get_path (*new_file);
@@ -886,8 +886,8 @@ autoar_extractor_do_sanitize_pathname (AutoarExtractor *self,
 {
   GFile *extracted_filename;
   gboolean valid_filename;
-  g_autofree char *sanitized_pathname;
-  g_autofree char *utf8_pathname;
+  g_autofree char *sanitized_pathname = NULL;
+  g_autofree char *utf8_pathname = NULL;
   GFile *destination;
 
   /* Use output_file when called from autoar_extractor_step_scan_toplevel(). */
@@ -906,7 +906,7 @@ autoar_extractor_do_sanitize_pathname (AutoarExtractor *self,
     g_file_has_prefix (extracted_filename, destination);
 
   if (!valid_filename) {
-    g_autofree char *basename;
+    g_autofree char *basename = NULL;
 
     basename = g_file_get_basename (extracted_filename);
 
@@ -917,7 +917,7 @@ autoar_extractor_do_sanitize_pathname (AutoarExtractor *self,
 
   if (self->prefix != NULL && self->new_prefix != NULL &&
       !g_file_equal (self->prefix, self->new_prefix)) {
-    g_autofree char *relative_path;
+    g_autofree char *relative_path = NULL;
     /* Replace the old prefix with the new one */
     relative_path = g_file_get_relative_path (self->prefix,
                                               extracted_filename);
@@ -1780,8 +1780,8 @@ autoar_extractor_step_set_destination (AutoarExtractor *self)
      * the extension). If they do, then the destination should be the output
      * directory itself.
      */
-    g_autofree char *prefix_name;
-    g_autofree char *prefix_name_no_ext;
+    g_autofree char *prefix_name = NULL;
+    g_autofree char *prefix_name_no_ext = NULL;
 
     g_debug ("autoar_extractor_step_set_destination: pathname_prefix = %s",
              g_file_peek_path (self->prefix));
@@ -1813,7 +1813,7 @@ autoar_extractor_step_decide_destination (AutoarExtractor *self)
   GList *files = NULL;
   GList *l;
   GFile *new_destination = NULL;
-  g_autofree char *destination_name;
+  g_autofree char *destination_name = NULL;
 
   for (l = self->files_list; l != NULL; l = l->next) {
     char *relative_path;

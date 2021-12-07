@@ -1521,7 +1521,7 @@ autoar_compressor_step_create (AutoarCompressor *self)
     GFile *file; /* Do not unref */
     GFileType filetype;
     GFileInfo *fileinfo;
-    g_autofree gchar *pathname;
+    g_autofree gchar *pathname = NULL;
 
     file = l->data;
 
@@ -1583,7 +1583,7 @@ autoar_compressor_step_cleanup (AutoarCompressor *self)
   self->notify_last = 0;
   autoar_compressor_signal_progress (self);
   if (archive_write_close (self->a) != ARCHIVE_OK) {
-    g_autofree gchar *output_name;
+    g_autofree gchar *output_name = NULL;
 
     output_name = autoar_common_g_file_get_name (self->output_file);
 

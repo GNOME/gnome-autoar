@@ -59,7 +59,7 @@ my_handler_conflict (AutoarExtractor *extractor,
                      GFile **new_file,
                      gpointer data)
 {
-  g_autofree char *path;
+  g_autofree char *path = NULL;
 
   path = g_file_get_path (file);
 

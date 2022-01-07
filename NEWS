@@ -1,3 +1,8 @@
+Major changes in 0.4.2:
+* Fix extraction to root directory (Ondrej Holy)
+* Fix extraction of raw format archives (Ondrej Holy)
+* Do not leave read-only directory in the tree after running tests (Ondrej Holy)
+
 Major changes in 0.4.1:
 * Fix regression of extraction in symlinked locations (Ondrej Holy)
 * Handle passphrase prompt cancellation to prevent showing error dialogs (Ondrej Holy)

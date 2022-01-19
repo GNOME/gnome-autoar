@@ -35,6 +35,7 @@ gnome_autoar_api_ns_version = '0.1'
 gnome_autoar_prefix = get_option('prefix')
 gnome_autoar_datadir = get_option('datadir')
 gnome_autoar_includedir = get_option('includedir')
+gnome_autoar_docdir = gnome_autoar_datadir / 'doc'
 
 gnome = import('gnome')
 pkg = import('pkgconfig')

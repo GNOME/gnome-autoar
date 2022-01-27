@@ -1684,7 +1684,8 @@ autoar_extractor_step_scan_toplevel (AutoarExtractor *self)
       return;
     }
 
-    if (archive_entry_is_encrypted (entry)) {
+    if (archive_entry_is_encrypted (entry) &&
+        archive_format (a) == ARCHIVE_FORMAT_ZIP) {
       autoar_extractor_request_passphrase (self);
       if (g_cancellable_is_cancelled (self->cancellable)) {
         archive_read_free (a);

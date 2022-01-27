@@ -1725,6 +1725,15 @@ autoar_extractor_step_scan_toplevel (AutoarExtractor *self)
     archive_read_data_skip (a);
   }
 
+  if (r != ARCHIVE_EOF) {
+    if (self->error == NULL) {
+      self->error =
+        autoar_common_g_error_new_a (a, self->source_basename);
+    }
+    archive_read_free (a);
+    return;
+  }
+
   if (self->files_list == NULL) {
     if (self->error == NULL) {
       self->error = g_error_new (AUTOAR_EXTRACTOR_ERROR,
@@ -1732,15 +1741,6 @@ autoar_extractor_step_scan_toplevel (AutoarExtractor *self)
                                       "\'%s\': %s",
                                       self->source_basename,
                                       "empty archive");
-    }
-    archive_read_free (a);
-    return;
-  }
-
-  if (r != ARCHIVE_EOF) {
-    if (self->error == NULL) {
-      self->error =
-        autoar_common_g_error_new_a (a, self->source_basename);
     }
     archive_read_free (a);
     return;

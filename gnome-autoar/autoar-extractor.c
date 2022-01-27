@@ -97,7 +97,6 @@ G_DEFINE_QUARK (autoar-extractor, autoar_extractor)
 #define BUFFER_SIZE (64 * 1024)
 #define NOT_AN_ARCHIVE_ERRNO 2013
 #define EMPTY_ARCHIVE_ERRNO 2014
-#define INCORRECT_PASSPHRASE_ERRNO 2015
 
 typedef struct _GFileAndInfo GFileAndInfo;
 
@@ -1172,12 +1171,9 @@ autoar_extractor_do_write_entry (AutoarExtractor      *self,
               autoar_extractor_signal_progress (self);
             }
 
-            if (r == ARCHIVE_FAILED) {
+            if (r != ARCHIVE_EOF) {
               if (self->error == NULL) {
-                self->error = g_error_new (AUTOAR_EXTRACTOR_ERROR,
-                                           INCORRECT_PASSPHRASE_ERRNO,
-                                           "%s",
-                                           archive_error_string (a));
+                self->error = autoar_common_g_error_new_a (a, NULL);
               }
               g_output_stream_close (ostream, self->cancellable, NULL);
               g_object_unref (ostream);

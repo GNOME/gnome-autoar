@@ -991,11 +991,13 @@ autoar_extractor_do_write_entry (AutoarExtractor      *self,
   {
     GFile *parent;
     parent = g_file_get_parent (dest);
-    if (parent && !g_file_query_exists (parent, self->cancellable))
-      g_file_make_directory_with_parents (parent,
-                                          self->cancellable,
-                                          NULL);
-    g_object_unref (parent);
+    if (parent) {
+      if (!g_file_query_exists (parent, self->cancellable))
+        g_file_make_directory_with_parents (parent,
+                                            self->cancellable,
+                                            NULL);
+      g_object_unref (parent);
+    }
   }
 
   info = g_file_info_new ();

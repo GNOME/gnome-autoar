@@ -1654,18 +1654,16 @@ autoar_extractor_step_scan_toplevel (AutoarExtractor *self)
     r = libarchive_create_read_object (TRUE, self, &a);
     if (r != ARCHIVE_OK) {
       if (self->error == NULL)
-        self->error = autoar_common_g_error_new_a (a, self->source_basename);
+        self->error = autoar_common_g_error_new_a (a, NULL);
       return;
     } else if (archive_filter_count (a) <= 1){
       /* If we only use raw format and filter count is one, libarchive will
        * not do anything except for just copying the source file. We do not
        * want this thing to happen because it does unnecesssary copying. */
       if (self->error == NULL)
-        self->error = g_error_new (AUTOAR_EXTRACTOR_ERROR,
-                                        NOT_AN_ARCHIVE_ERRNO,
-                                        "\'%s\': %s",
-                                        self->source_basename,
-                                        "not an archive");
+        self->error = g_error_new_literal (AUTOAR_EXTRACTOR_ERROR,
+                                           NOT_AN_ARCHIVE_ERRNO,
+                                           "not an archive");
       return;
     }
     self->use_raw_format = TRUE;
@@ -1730,8 +1728,7 @@ autoar_extractor_step_scan_toplevel (AutoarExtractor *self)
 
   if (r != ARCHIVE_EOF) {
     if (self->error == NULL) {
-      self->error =
-        autoar_common_g_error_new_a (a, self->source_basename);
+      self->error = autoar_common_g_error_new_a (a, NULL);
     }
     archive_read_free (a);
     return;
@@ -1739,11 +1736,9 @@ autoar_extractor_step_scan_toplevel (AutoarExtractor *self)
 
   if (self->files_list == NULL) {
     if (self->error == NULL) {
-      self->error = g_error_new (AUTOAR_EXTRACTOR_ERROR,
-                                      EMPTY_ARCHIVE_ERRNO,
-                                      "\'%s\': %s",
-                                      self->source_basename,
-                                      "empty archive");
+      self->error = g_error_new_literal (AUTOAR_EXTRACTOR_ERROR,
+                                         EMPTY_ARCHIVE_ERRNO,
+                                         "empty archive");
     }
     archive_read_free (a);
     return;
@@ -1880,8 +1875,7 @@ autoar_extractor_step_extract (AutoarExtractor *self) {
   r = libarchive_create_read_object (self->use_raw_format, self, &a);
   if (r != ARCHIVE_OK) {
     if (self->error == NULL) {
-      self->error =
-        autoar_common_g_error_new_a (a, self->source_basename);
+      self->error = autoar_common_g_error_new_a (a, NULL);
     }
     archive_read_free (a);
     return;
@@ -2002,8 +1996,7 @@ autoar_extractor_step_extract (AutoarExtractor *self) {
 
   if (r != ARCHIVE_EOF) {
     if (self->error == NULL) {
-      self->error =
-        autoar_common_g_error_new_a (a, self->source_basename);
+      self->error = autoar_common_g_error_new_a (a, NULL);
     }
     archive_read_free (a);
     return;

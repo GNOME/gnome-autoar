@@ -1684,6 +1684,12 @@ autoar_extractor_step_scan_toplevel (AutoarExtractor *self)
       return;
     }
 
+    /* The password is requested only for the ZIP format to avoid showing
+     * password prompt for 7ZIP/RAR, where archive_entry_is_encrypted resp.
+     * archive_entry_is_metadata_encrypted returns TRUE, but followup
+     * archive_read_data_block resp. archive_read_next_header call leads to
+     * an error. See https://github.com/libarchive/libarchive/issues/1662.
+     */
     if (archive_entry_is_encrypted (entry) &&
         archive_format (a) == ARCHIVE_FORMAT_ZIP) {
       autoar_extractor_request_passphrase (self);

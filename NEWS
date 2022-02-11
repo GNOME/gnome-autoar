@@ -1,3 +1,9 @@
+Major changes in 0.4.3:
+* Prevent NULL dereference when extracting to root (Ondrej Holy)
+* Do not include basename in error messages (Ondrej Holy)
+* Do not request password when encryption is unsupported (Ignacy Kuchciński)
+* Propagate libarchive errors when extraction failed (Ignacy Kuchciński)
+
 Major changes in 0.4.2:
 * Fix extraction to root directory (Ondrej Holy)
 * Fix extraction of raw format archives (Ondrej Holy)

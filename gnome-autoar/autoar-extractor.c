@@ -1694,6 +1694,12 @@ autoar_extractor_step_scan_toplevel (AutoarExtractor *self)
       if (g_cancellable_is_cancelled (self->cancellable)) {
         archive_read_free (a);
         return;
+      } else if (self->passphrase == NULL) {
+        self->error = g_error_new_literal (AUTOAR_EXTRACTOR_ERROR,
+                                           AUTOAR_PASSPHRASE_REQUIRED_ERRNO,
+                                           "A passphrase is required");
+        archive_read_free (a);
+        return;
       }
     }
 

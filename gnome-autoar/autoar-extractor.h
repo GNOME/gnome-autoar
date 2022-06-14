@@ -74,6 +74,8 @@ void             autoar_extractor_set_delete_after_extraction (AutoarExtractor *
                                                                gboolean         delete_after_extraction);
 void             autoar_extractor_set_notify_interval         (AutoarExtractor *self,
                                                                gint64           notify_interval);
+void             autoar_extractor_set_passphrase              (AutoarExtractor *self,
+                                                               const gchar     *passphrase);
 
 typedef enum {
     AUTOAR_CONFLICT_UNHANDLED = 0,

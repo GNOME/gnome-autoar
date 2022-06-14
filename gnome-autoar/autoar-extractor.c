@@ -2132,6 +2132,25 @@ autoar_extractor_start_async_thread (GTask        *task,
   g_object_unref (task);
 }
 
+/**
+ * autoar_extractor_set_passphrase:
+ * @self: an #AutoarExtractor object
+ * @password: a string with the passphrase to use
+ *
+ * Sets a passphrase to use if the file to decompress is passphrase-protected.
+ **/
+void
+autoar_extractor_set_passphrase (AutoarExtractor *self,
+                                 const gchar     *passphrase)
+{
+  g_return_if_fail (AUTOAR_IS_EXTRACTOR (self));
+  g_return_if_fail (passphrase != NULL);
+
+  self->passphrase_requested = TRUE;
+
+  g_free (self->passphrase);
+  self->passphrase = g_strdup (passphrase);
+}
 
 /**
  * autoar_extractor_start_async:

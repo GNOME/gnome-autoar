@@ -44,6 +44,9 @@ G_DECLARE_FINAL_TYPE (AutoarExtractor, autoar_extractor, AUTOAR, EXTRACTOR, GObj
  **/
 #define AUTOAR_EXTRACTOR_ERROR autoar_extractor_quark()
 
+#define AUTOAR_NOT_AN_ARCHIVE_ERRNO 2013
+#define AUTOAR_EMPTY_ARCHIVE_ERRNO 2014
+
 GQuark           autoar_extractor_quark                       (void);
 
 AutoarExtractor *autoar_extractor_new                         (GFile *source_file,

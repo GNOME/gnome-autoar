@@ -95,8 +95,6 @@
 G_DEFINE_QUARK (autoar-extractor, autoar_extractor)
 
 #define BUFFER_SIZE (64 * 1024)
-#define NOT_AN_ARCHIVE_ERRNO 2013
-#define EMPTY_ARCHIVE_ERRNO 2014
 
 typedef struct _GFileAndInfo GFileAndInfo;
 
@@ -1664,7 +1662,7 @@ autoar_extractor_step_scan_toplevel (AutoarExtractor *self)
        * want this thing to happen because it does unnecesssary copying. */
       if (self->error == NULL)
         self->error = g_error_new_literal (AUTOAR_EXTRACTOR_ERROR,
-                                           NOT_AN_ARCHIVE_ERRNO,
+                                           AUTOAR_NOT_AN_ARCHIVE_ERRNO,
                                            "not an archive");
       return;
     }
@@ -1739,7 +1737,7 @@ autoar_extractor_step_scan_toplevel (AutoarExtractor *self)
   if (self->files_list == NULL) {
     if (self->error == NULL) {
       self->error = g_error_new_literal (AUTOAR_EXTRACTOR_ERROR,
-                                         EMPTY_ARCHIVE_ERRNO,
+                                         AUTOAR_EMPTY_ARCHIVE_ERRNO,
                                          "empty archive");
     }
     archive_read_free (a);

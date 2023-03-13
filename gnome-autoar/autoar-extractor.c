@@ -2135,7 +2135,7 @@ autoar_extractor_start_async_thread (GTask        *task,
 /**
  * autoar_extractor_set_passphrase:
  * @self: an #AutoarExtractor object
- * @password: a string with the passphrase to use
+ * @passphrase: a string with the passphrase to use
  *
  * Sets a passphrase to use if the file to decompress is passphrase-protected.
  **/

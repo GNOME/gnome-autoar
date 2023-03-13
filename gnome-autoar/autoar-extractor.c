@@ -1218,8 +1218,7 @@ autoar_extractor_do_write_entry (AutoarExtractor      *self,
         g_array_append_val (self->extracted_dir_list, fileandinfo);
 
         /* Unset folder permissions for now to be sure it is writable. */
-        g_file_info_set_attribute (info, G_FILE_ATTRIBUTE_UNIX_MODE,
-                                   G_FILE_ATTRIBUTE_TYPE_INVALID, NULL);
+        g_file_info_remove_attribute (info, G_FILE_ATTRIBUTE_UNIX_MODE);
       }
       break;
     case AE_IFLNK:

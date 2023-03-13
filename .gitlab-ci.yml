@@ -1,4 +1,4 @@
-fedora latest:
+fedora:
     variables:
         LAST_ABI_BREAK: 87e278ef077b4952595cf9d6e973e6d8246f20b3
     image:

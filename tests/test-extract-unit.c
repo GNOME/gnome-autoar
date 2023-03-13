@@ -414,9 +414,11 @@ reference_file_scanned (GFile *scanned_file,
     g_assert_cmpuint (g_file_info_get_file_type (scanned_file_info),
                       ==,
                       g_file_info_get_file_type (corresponding_file_info));
-    g_assert_cmpuint (g_file_info_get_size (scanned_file_info),
-                      ==,
-                      g_file_info_get_size (corresponding_file_info));
+    if (g_file_info_get_file_type (scanned_file_info) != G_FILE_TYPE_DIRECTORY) {
+      g_assert_cmpuint (g_file_info_get_size (scanned_file_info),
+                        ==,
+                        g_file_info_get_size (corresponding_file_info));
+    }
     g_hash_table_remove (extract_test->unmatched_files, relative_path);
   }
 }

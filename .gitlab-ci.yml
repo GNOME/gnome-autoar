@@ -18,7 +18,7 @@ update image:
     image: registry.fedoraproject.org/fedora:latest
     script:
         - dnf install -y buildah runc
-        - buildah bud --tag $CI_REGISTRY_IMAGE -f .gitlab/Dockerfile
+        - buildah --storage-driver=vfs bud --tag $CI_REGISTRY_IMAGE -f .gitlab/Dockerfile
         - buildah tag $CI_REGISTRY_IMAGE "$CI_REGISTRY_IMAGE:v$CI_JOB_ID"
         - buildah login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
         - buildah push --creds $CI_REGISTRY_USER:$CI_REGISTRY_PASSWORD $CI_REGISTRY_IMAGE

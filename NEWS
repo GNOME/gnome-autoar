@@ -1,3 +1,8 @@
+Major changes in 0.4.4:
+* Add application/zstd to supported mime-types (Ondrej Holy)
+* Fix test suite failure with recent GLib version (Ondrej Holy)
+* Add autoar_extractor_set_passphrase function (Sergio Costas Rodriguez)
+
 Major changes in 0.4.3:
 * Prevent NULL dereference when extracting to root (Ondrej Holy)
 * Do not include basename in error messages (Ondrej Holy)

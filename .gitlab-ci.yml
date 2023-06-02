@@ -1,29 +1,43 @@
+include:
+    - remote: https://gitlab.freedesktop.org/freedesktop/ci-templates/-/raw/184ca628f89f3193c249b4e34e45afee2773a833/templates/fedora.yml
+
+stages:
+    - prepare
+    - test
+
+.gnome-autoar.fedora:
+    variables:
+        FDO_DISTRIBUTION_VERSION: 38
+        FDO_DISTRIBUTION_TAG: 2023-06-02.0
+        FDO_DISTRIBUTION_PACKAGES:
+            git
+            gcc
+            meson
+            gtk-doc
+            pkgconfig(gio-2.0)
+            pkgconfig(glib-2.0)
+            pkgconfig(gobject-2.0)
+            pkgconfig(gobject-introspection-1.0)
+            pkgconfig(gtk+-3.0)
+            pkgconfig(libarchive)
+            vala
+        FDO_DISTRIBUTION_EXEC: |
+            curl https://gitlab.freedesktop.org/hadess/check-abi/-/raw/main/contrib/check-abi-fedora.sh | bash
+
 fedora:
+    extends:
+        - .fdo.distribution-image@fedora
+        - .gnome-autoar.fedora
+    stage: test
     variables:
         LAST_ABI_BREAK: 87e278ef077b4952595cf9d6e973e6d8246f20b3
-    image:
-        name: registry.gitlab.gnome.org/gnome/gnome-autoar:latest
-        entrypoint: ["/bin/sh", "-c"]
-    tags:
-        - x86_64
     script:
         - meson setup _build --prefix=/usr -Dgtk_doc=false -Dintrospection=enabled -Dtests=true
         - ninja -C _build test
         - check-abi $LAST_ABI_BREAK $(git rev-parse HEAD)
-update image:
-    variables:
-         STORAGE_DRIVER: vfs
-         BUILDAH_FORMAT: docker
-         BUILDAH_ISOLATION: chroot
-    image: registry.fedoraproject.org/fedora:latest
-    script:
-        - dnf install -y buildah runc
-        - buildah --storage-driver=vfs bud --tag $CI_REGISTRY_IMAGE -f .gitlab/Dockerfile
-        - buildah tag $CI_REGISTRY_IMAGE "$CI_REGISTRY_IMAGE:v$CI_JOB_ID"
-        - buildah login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
-        - buildah push --creds $CI_REGISTRY_USER:$CI_REGISTRY_PASSWORD $CI_REGISTRY_IMAGE
-        - buildah push --creds $CI_REGISTRY_USER:$CI_REGISTRY_PASSWORD "$CI_REGISTRY_IMAGE:v$CI_JOB_ID"
-    when: manual
-    only:
-        variables:
-            - $CI_PROJECT_NAMESPACE == "GNOME"
+
+build container:
+    extends:
+        - .fdo.container-build@fedora
+        - .gnome-autoar.fedora
+    stage: prepare

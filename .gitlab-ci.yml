@@ -32,7 +32,7 @@ fedora:
     variables:
         LAST_ABI_BREAK: 87e278ef077b4952595cf9d6e973e6d8246f20b3
     script:
-        - meson setup _build --prefix=/usr -Dgtk_doc=false -Dintrospection=enabled -Dtests=true
+        - meson setup _build -Dgtk_doc=true -Dintrospection=enabled -Dtests=true -Dvapi=true
         - ninja -C _build test
         - check-abi $LAST_ABI_BREAK $(git rev-parse HEAD)
 

@@ -30,7 +30,7 @@ fedora:
         - .gnome-autoar.fedora
     stage: test
     variables:
-        LAST_ABI_BREAK: 87e278ef077b4952595cf9d6e973e6d8246f20b3
+        LAST_ABI_BREAK: ac21bd0c50584a1905a0da65d4bf9a6926ecd483
     script:
         - meson setup _build -Dgtk_doc=true -Dintrospection=enabled -Dtests=true -Dvapi=true
         - ninja -C _build test

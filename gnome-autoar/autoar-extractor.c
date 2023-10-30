@@ -515,9 +515,8 @@ autoar_extractor_dispose (GObject *object)
     self->extracted_dir_list = NULL;
   }
 
-  if (self->passphrase != NULL) {
-    g_free (self->passphrase);
-  }
+  g_clear_pointer (&self->passphrase, g_free);
+  g_clear_pointer (&self->source_basename, g_free);
 
   G_OBJECT_CLASS (autoar_extractor_parent_class)->dispose (object);
 }

@@ -36,6 +36,7 @@ typedef struct {
 
   gboolean cancelled_signalled;
   gboolean completed_signalled;
+  gboolean request_passphrase_signalled;
 } ExtractTestData;
 
 static void extract_test_data_free (ExtractTestData *data);
@@ -248,6 +249,17 @@ cancelled_handler (AutoarExtractor *extractor,
   data->cancelled_signalled = TRUE;
 }
 
+static gchar*
+request_passphrase_handler (AutoarExtractor *extractor,
+                            gpointer user_data)
+{
+  ExtractTestData *data = user_data;
+
+  data->request_passphrase_signalled = TRUE;
+
+  return NULL;
+}
+
 static ExtractTestData*
 extract_test_data_new_for_extract (AutoarExtractor *extractor)
 {
@@ -271,6 +283,8 @@ extract_test_data_new_for_extract (AutoarExtractor *extractor)
                     G_CALLBACK (error_handler), data);
   g_signal_connect (extractor, "cancelled",
                     G_CALLBACK (cancelled_handler), data);
+  g_signal_connect (extractor, "request-passphrase",
+                    G_CALLBACK (request_passphrase_handler), data);
 
   data->conflict_files = g_hash_table_new_full (g_file_hash,
                                                 (GEqualFunc) g_file_equal,
@@ -1380,6 +1394,139 @@ test_readonly_directory (void)
 }
 
 static void
+test_encrypted (void)
+{
+  /* arextract.zip
+   * └── arextract.txt
+   *
+   * 0 directories, 1 file
+   *
+   *
+   * ref
+   * └── arextract.txt
+   *
+   * 0 directories, 1 file
+   *
+   * passphrase is password123
+   */
+
+  g_autoptr (ExtractTest) extract_test = NULL;
+  g_autoptr (ExtractTestData) data = NULL;
+  g_autoptr (GFile) archive = NULL;
+  g_autoptr (AutoarExtractor) extractor = NULL;
+
+  extract_test = extract_test_new ("test-encrypted");
+
+  if (!extract_test) {
+    g_assert_nonnull (extract_test);
+    return;
+  }
+
+  archive = g_file_get_child (extract_test->input, "arextract.zip");
+
+  extractor = autoar_extractor_new (archive, extract_test->output);
+  autoar_extractor_set_passphrase (extractor, "password123");
+
+  data = extract_test_data_new_for_extract (extractor);
+
+  autoar_extractor_start (extractor, data->cancellable);
+
+  g_assert_cmpuint (data->number_of_files, ==, 1);
+  g_assert_no_error (data->error);
+  g_assert_true (data->completed_signalled);
+  assert_reference_and_output_match (extract_test);
+}
+
+static void
+test_encrypted_request_passphrase (void)
+{
+  /* arextract.zip
+   * └── arextract.txt
+   *
+   * 0 directories, 1 file
+   *
+   *
+   * ref
+   *
+   * 0 directories, 0 files
+   *
+   *
+   * passphrase is password123
+   */
+
+  g_autoptr (ExtractTest) extract_test = NULL;
+  g_autoptr (ExtractTestData) data = NULL;
+  g_autoptr (GFile) archive = NULL;
+  g_autoptr (AutoarExtractor) extractor = NULL;
+
+  extract_test = extract_test_new ("test-encrypted-request-passphrase");
+
+  if (!extract_test) {
+    g_assert_nonnull (extract_test);
+    return;
+  }
+
+  archive = g_file_get_child (extract_test->input, "arextract.zip");
+
+  extractor = autoar_extractor_new (archive, extract_test->output);
+
+  data = extract_test_data_new_for_extract (extractor);
+
+  autoar_extractor_start (extractor, data->cancellable);
+
+  g_assert_error (data->error, AUTOAR_EXTRACTOR_ERROR, AUTOAR_PASSPHRASE_REQUIRED_ERRNO);
+  g_assert_true (data->request_passphrase_signalled);
+  g_assert_false (data->completed_signalled);
+  assert_reference_and_output_match (extract_test);
+}
+
+static void
+test_encrypted_wrong_passphrase (void)
+{
+  /* arextract.zip
+   * └── arextract.txt
+   *
+   * 0 directories, 1 file
+   *
+   *
+   * ref
+   * └── arextract.txt
+   *
+   * 0 directories, 1 file
+   *
+   *
+   * passphrase is password123
+   */
+
+  g_autoptr (ExtractTest) extract_test = NULL;
+  g_autoptr (ExtractTestData) data = NULL;
+  g_autoptr (GFile) archive = NULL;
+  g_autoptr (AutoarExtractor) extractor = NULL;
+
+  extract_test = extract_test_new ("test-encrypted-wrong-passphrase");
+
+  if (!extract_test) {
+    g_assert_nonnull (extract_test);
+    return;
+  }
+
+  archive = g_file_get_child (extract_test->input, "arextract.zip");
+
+  extractor = autoar_extractor_new (archive, extract_test->output);
+  autoar_extractor_set_passphrase (extractor, "wrong");
+
+  data = extract_test_data_new_for_extract (extractor);
+
+  autoar_extractor_start (extractor, data->cancellable);
+
+  g_assert_cmpuint (data->number_of_files, ==, 1);
+  g_assert_error (data->error, AUTOAR_LIBARCHIVE_ERROR, -1);
+  g_assert_cmpstr (data->error->message, ==, "Incorrect passphrase");
+  g_assert_false (data->completed_signalled);
+  assert_reference_and_output_match (extract_test);
+}
+
+static void
 setup_test_suite (void)
 {
   g_test_add_func ("/autoar-extract/test-one-file-same-name",
@@ -1425,6 +1572,13 @@ setup_test_suite (void)
 
   g_test_add_func ("/autoar-extract/test-readonly-directory",
                    test_readonly_directory);
+
+  g_test_add_func ("/autoar-extract/test-encrypted",
+                   test_encrypted);
+  g_test_add_func ("/autoar-extract/test-encrypted-request-passphrase",
+                   test_encrypted_request_passphrase);
+  g_test_add_func ("/autoar-extract/test-encrypted-wrong-passphrase",
+                   test_encrypted_wrong_passphrase);
 }
 
 int

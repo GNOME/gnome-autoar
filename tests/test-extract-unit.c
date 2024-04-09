@@ -112,14 +112,16 @@ extract_test_new (const char *test_name)
   input = g_file_get_child (work_directory, "input");
   reference = g_file_get_child (work_directory, "reference");
 
-  if (g_file_query_file_type (input, G_FILE_QUERY_INFO_NONE, NULL) != G_FILE_TYPE_DIRECTORY ||
-      g_file_query_file_type (reference, G_FILE_QUERY_INFO_NONE, NULL) != G_FILE_TYPE_DIRECTORY) {
-    g_printerr ("%s: input or output directory does not exist\n", test_name);
+  if (g_file_query_file_type (input, G_FILE_QUERY_INFO_NONE, NULL) != G_FILE_TYPE_DIRECTORY) {
+    g_printerr ("%s: input directory does not exist\n", test_name);
 
     g_object_unref (input);
 
     return NULL;
   }
+
+  if (!g_file_query_exists (reference, NULL))
+    g_message ("%s: reference directory does not exist\n", test_name);
 
   output = g_file_get_child (work_directory, "output");
 
@@ -354,11 +356,11 @@ scan_directory (GFile *directory,
     file = g_queue_pop_tail (files);
     file_info = g_queue_pop_tail (file_infos);
 
-    if (scanned_callback) {
+    if (scanned_callback && file != directory) {
       scanned_callback (file, file_info, callback_data);
     }
 
-    if (g_file_info_get_file_type (file_info) == G_FILE_TYPE_DIRECTORY) {
+    if (file_info && g_file_info_get_file_type (file_info) == G_FILE_TYPE_DIRECTORY) {
       enumerator = g_file_enumerate_children (file,
                                               G_FILE_ATTRIBUTE_STANDARD_NAME","
                                               G_FILE_ATTRIBUTE_STANDARD_TYPE","

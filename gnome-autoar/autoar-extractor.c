@@ -146,8 +146,6 @@ struct _AutoarExtractor
 
   gchar *passphrase;
   gboolean passphrase_requested;
-
-  mode_t user_umask;
 };
 
 G_DEFINE_TYPE (AutoarExtractor, autoar_extractor, G_TYPE_OBJECT)
@@ -1036,22 +1034,69 @@ autoar_extractor_do_write_entry (AutoarExtractor      *self,
                                       archive_entry_mtime_nsec (entry) / 1000);
   }
 
-  /* permissions */
+  /* user */
   {
-    mode_t mode;
+    guint32 uid;
 
-    g_debug ("autoar_extractor_do_write_entry: permissions");
+    g_debug ("autoar_extractor_do_write_entry: user");
+#ifdef HAVE_GETPWNAM
+    const char *uname;
+    if ((uname = archive_entry_uname (entry)) != NULL) {
+      void *got_uid;
+      if (g_hash_table_lookup_extended (self->userhash, uname, NULL, &got_uid) == TRUE) {
+        uid = GPOINTER_TO_UINT (got_uid);
+      } else {
+        struct passwd *pwd = getpwnam (uname);
+        if (pwd == NULL) {
+          uid = archive_entry_uid (entry);
+        } else {
+          uid = pwd->pw_uid;
+          g_hash_table_insert (self->userhash, g_strdup (uname), GUINT_TO_POINTER (uid));
+        }
+      }
+      g_file_info_set_attribute_uint32 (info, G_FILE_ATTRIBUTE_UNIX_UID, uid);
+    } else
+#endif
 
-    mode = archive_entry_perm (entry);
-    mode &= ~S_ISUID;
-    mode &= ~S_ISGID;
-    mode &= ~S_ISVTX;
-    mode &= self->user_umask;
-
-    g_file_info_set_attribute_uint32 (info,
-                                      G_FILE_ATTRIBUTE_UNIX_MODE,
-                                      mode);
+    if ((uid = archive_entry_uid (entry)) != 0) {
+      g_file_info_set_attribute_uint32 (info, G_FILE_ATTRIBUTE_UNIX_UID, uid);
+    }
   }
+
+  /* group */
+  {
+    guint32 gid;
+
+    g_debug ("autoar_extractor_do_write_entry: group");
+#ifdef HAVE_GETGRNAM
+    const char *gname;
+    if ((gname = archive_entry_gname (entry)) != NULL) {
+      void *got_gid;
+      if (g_hash_table_lookup_extended (self->grouphash, gname, NULL, &got_gid) == TRUE) {
+        gid = GPOINTER_TO_UINT (got_gid);
+      } else {
+        struct group *grp = getgrnam (gname);
+        if (grp == NULL) {
+          gid = archive_entry_gid (entry);
+        } else {
+          gid = grp->gr_gid;
+          g_hash_table_insert (self->grouphash, g_strdup (gname), GUINT_TO_POINTER (gid));
+        }
+      }
+      g_file_info_set_attribute_uint32 (info, G_FILE_ATTRIBUTE_UNIX_GID, gid);
+    } else
+#endif
+
+    if ((gid = archive_entry_gid (entry)) != 0) {
+      g_file_info_set_attribute_uint32 (info, G_FILE_ATTRIBUTE_UNIX_GID, gid);
+    }
+  }
+
+  /* permissions */
+  g_debug ("autoar_extractor_do_write_entry: permissions");
+  g_file_info_set_attribute_uint32 (info,
+                                    G_FILE_ATTRIBUTE_UNIX_MODE,
+                                    archive_entry_perm (entry));
 
 #ifdef HAVE_LINK
   if (hardlink != NULL) {
@@ -1555,8 +1600,6 @@ autoar_extractor_init (AutoarExtractor *self)
 
   self->passphrase = NULL;
   self->passphrase_requested = FALSE;
-
-  umask (self->user_umask = umask (0));
 }
 
 /**

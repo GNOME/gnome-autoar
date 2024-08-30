@@ -1,3 +1,7 @@
+Major changes in 0.4.5:
+* mime-types: Add tar variant of bzip2 (Khalid Abu Shawarib)
+* extractor: Fix source string leak (Khalid Abu Shawarib)
+
 Major changes in 0.4.4:
 * Add application/zstd to supported mime-types (Ondrej Holy)
 * Fix test suite failure with recent GLib version (Ondrej Holy)

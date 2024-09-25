@@ -8,6 +8,22 @@ fedora:
         - meson setup _build --prefix=/usr -Dgtk_doc=false -Dintrospection=enabled -Dtests=true
         - ninja -C _build test
         - check-abi $LAST_ABI_BREAK $(git rev-parse HEAD)
+pages:
+    image: registry.gitlab.gnome.org/gnome/gnome-autoar:latest
+    stage: deploy
+    rules:
+        # https://docs.gitlab.com/ee/ci/jobs/job_control.html#avoid-duplicate-pipelines
+        - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+          when: never
+        - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PROJECT_NAMESPACE == "GNOME"
+    script:
+        - meson setup -Dgtk_doc=true -Dtests=false _build
+        - ninja -C _build
+        - mv _build/docs/reference/gnome-autoar/ public/
+    artifacts:
+        paths:
+            - public/
+        expire_in: 2 days
 update image:
     variables:
          STORAGE_DRIVER: vfs

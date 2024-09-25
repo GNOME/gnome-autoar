@@ -1436,12 +1436,12 @@ autoar_extractor_class_init (AutoarExtractorClass *klass)
  * @files: the list of #GFile objects to be extracted. All have @destination as
  *         their common prefix
  *
- * Returns: (transfer full): #GFile for location that will overwrite
- *                           @destination, or %NULL if this is not wanted
- *
  * This signal is emitted when the path of the destination is determined. It is
  * useful for solving name conflicts or for setting a new destination, based on
  * the contents of the archive.
+ *
+ * Returns: (transfer full): #GFile for location that will overwrite
+ *                           @destination, or %NULL if this is not wanted
  **/
   autoar_extractor_signals[DECIDE_DESTINATION] =
     g_signal_new ("decide-destination",
@@ -1479,11 +1479,11 @@ autoar_extractor_class_init (AutoarExtractorClass *klass)
  * @file: a #GFile for the file that caused a conflict
  * @new_file: a #GFile for the new destination of @file
  *
- * Returns: the #AutoarConflictAction to be performed by #AutoarExtractor
- *
  * This signal is used to report and offer the possibility to solve name
  * conflicts when extracting files. If it is not handled, the @file will be
  * skipped.
+ *
+ * Returns: the #AutoarConflictAction to be performed by #AutoarExtractor
  **/
   autoar_extractor_signals[CONFLICT] =
     g_signal_new ("conflict",

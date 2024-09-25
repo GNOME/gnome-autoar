@@ -9,6 +9,7 @@ variables:
 stages:
     - image
     - test
+    - deploy
 
 .vars-devel:
     rules:
@@ -91,3 +92,19 @@ fedora:
             - $MESON_BUILD_DIR
         reports:
             junit: $MESON_BUILD_DIR/meson-logs/testlog.junit.xml
+pages:
+    image: registry.gitlab.gnome.org/gnome/gnome-autoar:latest
+    stage: deploy
+    rules:
+        # https://docs.gitlab.com/ee/ci/jobs/job_control.html#avoid-duplicate-pipelines
+        - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+          when: never
+        - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PROJECT_NAMESPACE == "GNOME"
+    script:
+        - meson setup -Dgtk_doc=true -Dtests=false _build
+        - meson compile -C _build
+        - mv _build/docs/reference/gnome-autoar/ public/
+    artifacts:
+        paths:
+            - public/
+        expire_in: 2 days

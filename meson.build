@@ -35,6 +35,7 @@ gnome_autoar_api_ns_version = '0.1'
 gnome_autoar_prefix = get_option('prefix')
 gnome_autoar_datadir = get_option('datadir')
 gnome_autoar_includedir = get_option('includedir')
+gnome_autoar_docdir = gnome_autoar_datadir / 'doc'
 
 gnome = import('gnome')
 pkg = import('pkgconfig')
@@ -115,7 +116,10 @@ endif
 enable_gtk_doc = get_option('gtk_doc')
 if enable_gtk_doc
   assert(enable_gtk, 'GTK+ widgets support must be enabled to build API documentation.')
-  subdir('docs/reference')
+  gi_docgen = find_program('gi-docgen', required: get_option('gtk_doc'))
+  if gi_docgen.found()
+    subdir('docs/reference')
+  endif
 endif
 
 configure_file(

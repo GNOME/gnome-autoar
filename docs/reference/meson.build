@@ -1,22 +1,31 @@
-# SPDX-License-Identifier: LGPL-2.1-or-later
-# Copyright (C) 2021 Iñigo Martinez <inigomartinez@gmail.com>
+toml_data = configuration_data()
+toml_data.set('VERSION', meson.project_version())
 
-subdir('xml')
+gnome_autoar_toml = configure_file(
+  input: 'gnome-autoar.toml.in',
+  output: 'gnome-autoar.toml',
+  configuration: toml_data,
+)
 
-private_headers = [
-  'autoar-gtk.h',
-  'autoar-private.h',
-  'gnome-autoar.h',
-]
-
-gnome.gtkdoc(
-  gnome_autoar_name,
-  main_xml: '@0@-docs.xml'.format(gnome_autoar_name),
-  src_dir: src_inc,
-  dependencies: libgnome_autoar_dep,
-  scan_args: '--rebuild-types',
-  gobject_typesfile: '@0@.types'.format(gnome_autoar_name),
-  ignore_headers: private_headers,
-  fixxref_args: '--html-dir=' + (gnome_autoar_prefix / gnome.gtkdoc_html_dir(gnome_autoar_name)),
+custom_target(
+  'gnome-autoar-doc',
+  input: [
+    libgnome_autoar_gir[0],
+    gnome_autoar_toml,
+  ],
+  output: 'gnome-autoar',
+  command: [
+    gi_docgen,
+    'generate',
+    '--quiet',
+    '--add-include-path=@0@'.format(join_paths(meson.project_source_root(), 'gnome-autoar')),
+    '--config=@INPUT1@',
+    '--output-dir=@OUTPUT@',
+    '--no-namespace-dir',
+    '--content-dir=@0@'.format(meson.current_source_dir()),
+    '@INPUT0@',
+  ],
+  build_by_default: true,
   install: true,
+  install_dir: gnome_autoar_docdir,
 )

@@ -1,7 +1,7 @@
 FROM fedora:rawhide
 
-RUN dnf install --nogpg -y dnf-plugins-core git gnome-common gtk-doc meson gi-docgen \
- && dnf builddep --nogpg -y gnome-autoar \
+RUN dnf install -y dnf-plugins-core git gnome-common gtk-doc meson gi-docgen \
+ && dnf builddep -y gnome-autoar \
  && dnf clean all
 
 RUN curl https://gitlab.freedesktop.org/hadess/check-abi/-/raw/main/contrib/check-abi-fedora.sh | bash \

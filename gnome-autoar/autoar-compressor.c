@@ -793,6 +793,13 @@ autoar_compressor_do_add_to_archive (AutoarCompressor *self,
                                      GFile            *file)
 {
   GFileInfo *info;
+  const char *query_attributes = G_FILE_ATTRIBUTE_STANDARD_TYPE ","
+                                 G_FILE_ATTRIBUTE_STANDARD_SIZE ","
+                                 G_FILE_ATTRIBUTE_STANDARD_SYMLINK_TARGET ","
+                                 "time::*,"
+                                 "unix::*,"
+                                 G_FILE_ATTRIBUTE_OWNER_USER ","
+                                 G_FILE_ATTRIBUTE_OWNER_GROUP;
   GFileType  filetype;
 
   if (self->error != NULL)
@@ -802,7 +809,7 @@ autoar_compressor_do_add_to_archive (AutoarCompressor *self,
     return;
 
   archive_entry_clear (self->entry);
-  info = g_file_query_info (file, "*", G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
+  info = g_file_query_info (file, query_attributes, G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
                             self->cancellable, &(self->error));
   if (info == NULL)
     return;

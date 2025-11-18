@@ -43,6 +43,27 @@ deps = [
   libarchive_dep,
 ]
 
+config_h = configuration_data()
+
+# functions
+check_functions = [
+  'getgrnam',
+  'getpwnam',
+  'link',
+  'mkfifo',
+  'mknod',
+  'stat',
+]
+
+foreach func: check_functions
+  config_h.set('HAVE_' + func.to_upper(), cc.has_function(func))
+endforeach
+
+configure_file(
+  output: 'config.h',
+  configuration: config_h,
+)
+
 libgnome_autoar = shared_library(
   libname,
   version: gnome_autoar_libversion,
@@ -95,86 +116,6 @@ if enable_introspection
       libname,
       sources: libgnome_autoar_gir[0],
       packages: 'gio-2.0',
-      install: true,
-    )
-  endif
-endif
-
-if not enable_gtk
-  subdir_done()
-endif
-
-libname_gtk = '@0@-gtk-@1@'.format(gnome_autoar_name, gnome_autoar_api_version)
-
-headers = files(
-  'autoar-gtk-chooser.h',
-  'autoar-gtk.h',
-)
-
-install_headers(
-  headers,
-  install_dir: gnome_autoar_includedir / libname / gnome_autoar_name,
-)
-
-sources = files('autoar-gtk-chooser.c')
-
-deps = [gtk_dep]
-
-libgnome_autoar_gtk = shared_library(
-  libname_gtk,
-  version: gnome_autoar_libversion,
-  sources: sources,
-  include_directories: top_inc,
-  dependencies: deps + [libgnome_autoar_dep],
-  install: true,
-)
-
-libgnome_autoar_gtk_dep = declare_dependency(
-  include_directories: src_inc,
-  dependencies: deps + [libgnome_autoar_dep],
-  link_with: libgnome_autoar_gtk,
-)
-
-pkg.generate(
-  libraries: libgnome_autoar_gtk,
-  name: gnome_autoar_name,
-  description: 'GTK+ widgets for gnome-autoar library',
-  filebase: libname_gtk,
-  subdirs: libname,
-  requires: deps,
-  variables: 'exec_prefix=${prefix}',
-)
-
-if enable_introspection
-  api_ns = 'GnomeAutoarGtk'
-
-  incs = [
-    libgnome_autoar_gir[0],
-    'Gtk-3.0',
-  ]
-
-  libgnome_autoar_gtk_gir = gnome.generate_gir(
-    libgnome_autoar_gtk,
-    sources: sources + headers,
-    includes: incs,
-    header: 'gnome-autoar/autoar-gtk.h',
-    namespace: api_ns,
-    nsversion: gnome_autoar_api_ns_version,
-    identifier_prefix: 'AutoarGtk',
-    export_packages: '@0@-@1@'.format(api_ns, gnome_autoar_api_ns_version),
-    install: true,
-  )
-
-  if enable_vapi
-    packages = [
-      libgnome_autoar_vapi,
-      'gtk+-3.0',
-    ]
-
-    gnome.generate_vapi(
-      libname_gtk,
-      sources: libgnome_autoar_gtk_gir[0],
-      packages: packages,
       install: true,
     )
   endif

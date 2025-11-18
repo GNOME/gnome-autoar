@@ -2159,7 +2159,7 @@ autoar_extractor_set_passphrase (AutoarExtractor *self,
  * #AutoarExtractor::cancelled, #AutoarExtractor::error, and
  * #AutoarExtractor::completed signal to get notification when the work is
  * terminated. All callbacks will be called in the main thread, so you can
- * safely manipulate GTK+ widgets in the callbacks.
+ * safely manipulate GTK widgets in the callbacks.
  **/
 void
 autoar_extractor_start_async (AutoarExtractor *self,

@@ -83,7 +83,7 @@ fedora:
         - .vars-devel
     stage: test
     script:
-        - meson setup -Dgtk=false -Dgtk_doc=false -Dintrospection=enabled -Dtests=true $MESON_BUILD_DIR
+        - meson setup -Dgtk_doc=false -Dintrospection=enabled -Dtests=true $MESON_BUILD_DIR
         - meson test -C $MESON_BUILD_DIR
         - check-abi $LAST_ABI_BREAK $(git rev-parse HEAD)
     artifacts:

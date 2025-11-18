@@ -1690,7 +1690,7 @@ autoar_compressor_start_async_thread (GTask        *task,
  * #AutoarCompressor::cancelled, #AutoarCompressor::error, and
  * #AutoarCompressor::completed signal to get notification when the work is
  * terminated. All callbacks will be called in the main thread, so you can
- * safely manipulate GTK+ widgets in the callbacks.
+ * safely manipulate GTK widgets in the callbacks.
  **/
 void
 autoar_compressor_start_async (AutoarCompressor *self,

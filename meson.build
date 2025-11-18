@@ -3,10 +3,10 @@
 
 project(
   'gnome-autoar', 'c',
-  version: '0.4.5',
+  version: '0.5.0',
   license: 'LGPL2.1+',
-  default_options: 'buildtype=debugoptimized',
-  meson_version: '>= 0.56.0',
+  default_options: ['buildtype=debugoptimized'],
+  meson_version: '>= 1.8.0',
 )
 
 gnome_autoar_name = meson.project_name()
@@ -45,24 +45,6 @@ top_inc = include_directories('.')
 
 cc = meson.get_compiler('c')
 
-config_h = configuration_data()
-
-# functions
-check_functions = [
-  'getgrnam',
-  'getpwnam',
-  'link',
-  'mkfifo',
-  'mknod',
-  'stat',
-]
-
-foreach func: check_functions
-  config_h.set('HAVE_' + func.to_upper(), cc.has_function(func))
-endforeach
-
-common_flags = ['-DHAVE_CONFIG_H']
-
 compiler_flags = []
 if get_option('buildtype').contains('debug')
   compiler_flags += cc.get_supported_arguments([
@@ -78,7 +60,7 @@ if get_option('buildtype').contains('debug')
   ])
 endif
 
-add_project_arguments(common_flags + compiler_flags, language: 'c')
+add_project_arguments(compiler_flags, language: 'c')
 
 glib_req_version = '>= 2.35.6'
 gio_dep = dependency('gio-2.0', version: glib_req_version)
@@ -90,15 +72,6 @@ if not libarchive_dep.found()
   libarchive_dep = cc.find_library('archive')
   cc.has_function('archive_entry_is_encrypted', dependencies: libarchive_dep)
 endif
-
-gtk_req_version = '>= 3.2'
-gtk_dep = dependency(
-  'gtk-3.0',
-  version: gtk_req_version,
-  required: get_option('gtk'),
-  not_found_message: 'GTK support requested but gtk-3.0 @0@ could not be found'.format(gtk_req_version),
-)
-enable_gtk = gtk_dep.found()
 
 enable_introspection = dependency('gobject-introspection-1.0', version: '>= 1.30.0', required: get_option('introspection')).found()
 
@@ -112,16 +85,7 @@ if enable_tests
   subdir('tests')
 endif
 
-enable_gtk_doc = get_option('gtk_doc')
-if enable_gtk_doc
-  assert(enable_gtk, 'GTK widgets support must be enabled to build API documentation.')
-  subdir('docs/reference')
-endif
-
-configure_file(
-  output: 'config.h',
-  configuration: config_h,
-)
+subdir('docs/reference')
 
 summary(
   {
@@ -132,13 +96,14 @@ summary(
   },
   section: 'Configuration',
 )
+
 summary(
   {
     'Build API documentation': enable_gtk_doc,
-    'GTK widgets': enable_gtk,
     'Introspection': enable_introspection,
     'VALA bindings': enable_vapi,
     'Tests': enable_tests,
   },
   section: 'Optional features',
+  bool_yn: true,
 )

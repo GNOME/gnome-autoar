@@ -8,7 +8,7 @@
   <bookinfo>
     <title>gnome-autoar Reference Manual</title>
     <releaseinfo>
-        gnome-autoar provides functions and widgets for GNOME
+        gnome-autoar provides functions for GNOME
         applications which want to use archives as a convenient method
         to transfer directories over the internet.
     </releaseinfo>
@@ -23,10 +23,6 @@
     <title>gnome-autoar Utilities</title>
     <xi:include href="xml/autoar-format-filter.xml"/>
     <xi:include href="xml/autoar-misc.xml"/>
-  </chapter>
-  <chapter>
-    <title>gnome-autoar GTK+ Widgets</title>
-    <xi:include href="xml/autoar-gtk-chooser.xml"/>
   </chapter>
 
   <chapter id="object-tree">

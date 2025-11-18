@@ -7,10 +7,6 @@ test_units = [
   ['test-create', libgnome_autoar_dep, false],
 ]
 
-if enable_gtk
-  test_units += [['test-ui', libgnome_autoar_gtk_dep, false]]
-endif
-
 foreach test_unit: test_units
   exe = executable(
     test_unit[0],

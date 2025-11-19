@@ -76,7 +76,7 @@ update-fedora-image@x86_64:
 
 fedora:
     variables:
-        LAST_ABI_BREAK: cf254817a68f125992ac67b0e63296893abcc549
+        LAST_ABI_BREAK: dd5450425a5348e62dee9a48e872f7705b63b692
     extends:
         - .fdo.distribution-image@fedora
         - .fedora-x86_64

@@ -92,6 +92,7 @@ typedef enum {
  * @AUTOAR_FILTER_LZOP: %ARCHIVE_FILTER_LZOP: LZO
  * @AUTOAR_FILTER_GRZIP: %ARCHIVE_FILTER_GRZIP: GRZip
  * @AUTOAR_FILTER_LRZIP: %ARCHIVE_FILTER_LRZIP: Long Range ZIP (lrzip)
+ * @AUTOAR_FILTER_ZSTD: %ARCHIVE_FILTER_ZSTD: Zstandard
  *
  * This is a non-negative number which represents filters supported by
  * libarchive. A libarchive filter is a filter which can convert a
@@ -111,6 +112,7 @@ typedef enum {
   AUTOAR_FILTER_LZOP,      /* .lzo */
   AUTOAR_FILTER_GRZIP,     /* .grz */
   AUTOAR_FILTER_LRZIP,     /* .lrz */
+  AUTOAR_FILTER_ZSTD,      /* .zst */
   /*< private >*/
   AUTOAR_FILTER_LAST /*< skip >*/
 } AutoarFilter;

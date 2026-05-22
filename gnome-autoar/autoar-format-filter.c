@@ -179,7 +179,12 @@ static AutoarFilterDescription autoar_filter_description[] = {
   { AUTOAR_FILTER_LRZIP,     ARCHIVE_FILTER_LRZIP,               "lrz",  "lrzip",
     "application/x-lrzip",   "Long Range ZIP (lrzip)",
     archive_read_support_filter_lrzip,
-    archive_write_add_filter_lrzip }
+    archive_write_add_filter_lrzip },
+
+  { AUTOAR_FILTER_ZSTD,       ARCHIVE_FILTER_ZSTD,               "zst",  "zstd",
+    "application/zstd",      "Zstandard",
+    archive_read_support_filter_zstd,
+    archive_write_add_filter_zstd }
 };
 
 /**

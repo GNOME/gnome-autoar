@@ -93,10 +93,10 @@ endif
 
 gtk_req_version = '>= 3.2'
 gtk_dep = dependency(
-  'gtk+-3.0',
+  'gtk-3.0',
   version: gtk_req_version,
   required: get_option('gtk'),
-  not_found_message: 'GTK+ support requested but gtk+-3.0 @0@ could not be found'.format(gtk_req_version),
+  not_found_message: 'GTK support requested but gtk-3.0 @0@ could not be found'.format(gtk_req_version),
 )
 enable_gtk = gtk_dep.found()
 
@@ -114,7 +114,7 @@ endif
 
 enable_gtk_doc = get_option('gtk_doc')
 if enable_gtk_doc
-  assert(enable_gtk, 'GTK+ widgets support must be enabled to build API documentation.')
+  assert(enable_gtk, 'GTK widgets support must be enabled to build API documentation.')
   subdir('docs/reference')
 endif
 
@@ -135,7 +135,7 @@ summary(
 summary(
   {
     'Build API documentation': enable_gtk_doc,
-    'GTK+ widgets': enable_gtk,
+    'GTK widgets': enable_gtk,
     'Introspection': enable_introspection,
     'VALA bindings': enable_vapi,
     'Tests': enable_tests,

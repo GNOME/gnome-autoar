@@ -1,27 +1,93 @@
+include:
+    - project: "Infrastructure/freedesktop-ci-templates"
+      file: "templates/fedora.yml"
+
+variables:
+    MESON_BUILD_DIR: _build
+    CI_REGISTRY_IMAGE: registry.gitlab.gnome.org/gnome/gnome-autoar
+
+stages:
+    - image
+    - test
+
+.vars-devel:
+    rules:
+        # Disable tests for protected tags
+        - if: $CI_COMMIT_TAG && $CI_COMMIT_REF_PROTECTED
+          variables:
+              CONFIG_OPTS: '--libdir=/app/lib -Dprofile=Devel -Dtests=none'
+        - when: always
+
+workflow:
+    rules:
+        # Run merge request pipelines, for main or release branches, for
+        # manually triggered pipelines (source "web"), and tags, but not for
+        # translation updates
+        - if: ($CI_PIPELINE_SOURCE == "merge_request_event" ||
+               $CI_COMMIT_TAG && $CI_COMMIT_REF_PROTECTED ||
+               $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH ||
+               $CI_COMMIT_BRANCH =~ /^gnome-.*$/ ||
+               $CI_PIPELINE_SOURCE == "web") &&
+              $CI_COMMIT_TITLE !~ /^Update.*translation$/
+
+.fedora:
+    variables:
+        FDO_DISTRIBUTION_VERSION: 44
+        BASE_TAG: '2026-08-23.0'
+        FDO_DISTRIBUTION_COMPRESSION_FORMAT: zstd:chunked
+        FDO_DISTRIBUTION_PACKAGES:
+            git
+            gcc
+            gtk-doc
+            meson
+            glibc-devel
+            glib2-devel
+            glibc-langpack-en
+            gobject-introspection-devel
+            libarchive-devel
+            vala
+
+.fedora-x86_64:
+    extends:
+        - .fedora
+    variables:
+        FDO_DISTRIBUTION_TAG: "x86_64-$BASE_TAG"
+        FDO_UPSTREAM_REPO: gnome/gnome-autoar
+    needs:
+        - job: "update-fedora-image@x86_64"
+          optional: true
+
+update-fedora-image@x86_64:
+    extends:
+        - .fdo.container-build@fedora
+        - .fedora-x86_64
+    stage: image
+    needs: []
+    variables:
+        GIT_STRATEGY: none
+        FDO_DISTRIBUTION_EXEC: ".gitlab/image-script.sh"
+        CFLAGS: "-fno-omit-frame-pointer"
+    rules:
+        - changes:
+            - .gitlab-ci.yml
+            - .gitlab/**/*
+        - if: $CI_PROJECT_NAMESPACE != "GNOME"
+          when: never
+
 fedora:
     variables:
         LAST_ABI_BREAK: cf254817a68f125992ac67b0e63296893abcc549
-    image:
-        name: registry.gitlab.gnome.org/gnome/gnome-autoar:latest
-        entrypoint: ["/bin/sh", "-c"]
+    extends:
+        - .fdo.distribution-image@fedora
+        - .fedora-x86_64
+        - .vars-devel
+    stage: test
     script:
-        - meson setup _build --prefix=/usr -Dgtk_doc=false -Dintrospection=enabled -Dtests=true
-        - ninja -C _build test
+        - meson setup -Dgtk=false -Dgtk_doc=false -Dintrospection=enabled -Dtests=true $MESON_BUILD_DIR
+        - meson test -C $MESON_BUILD_DIR
         - check-abi $LAST_ABI_BREAK $(git rev-parse HEAD)
-update image:
-    variables:
-         STORAGE_DRIVER: vfs
-         BUILDAH_FORMAT: docker
-         BUILDAH_ISOLATION: chroot
-    image: registry.fedoraproject.org/fedora:latest
-    script:
-        - dnf install -y buildah runc
-        - buildah --storage-driver=vfs bud --tag $CI_REGISTRY_IMAGE -f .gitlab/Dockerfile
-        - buildah tag $CI_REGISTRY_IMAGE "$CI_REGISTRY_IMAGE:v$CI_JOB_ID"
-        - buildah login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
-        - buildah push --creds $CI_REGISTRY_USER:$CI_REGISTRY_PASSWORD $CI_REGISTRY_IMAGE
-        - buildah push --creds $CI_REGISTRY_USER:$CI_REGISTRY_PASSWORD "$CI_REGISTRY_IMAGE:v$CI_JOB_ID"
-    when: manual
-    only:
-        variables:
-            - $CI_PROJECT_NAMESPACE == "GNOME"
+    artifacts:
+        paths:
+            - $MESON_BUILD_DIR
+        reports:
+            junit: $MESON_BUILD_DIR/meson-logs/testlog.junit.xml

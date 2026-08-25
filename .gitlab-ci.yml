@@ -1,6 +1,6 @@
 fedora:
     variables:
-        LAST_ABI_BREAK: 45ca9e19242f6adca26d724b490dca1930724d69
+        LAST_ABI_BREAK: cf254817a68f125992ac67b0e63296893abcc549
     image:
         name: registry.gitlab.gnome.org/gnome/gnome-autoar:latest
         entrypoint: ["/bin/sh", "-c"]

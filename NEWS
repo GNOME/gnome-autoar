@@ -1,3 +1,15 @@
+Major changes in 0.5.0:
+* format-filter: Add zstd to supported formats (Balló György)
+* compressor: Don't use wildcard query string (Khalid Abu Shawarib)
+* Remove gnome-autoar-gtk (Emmanuele Bassi, Peter Eisenmann)
+* doc: migrate to gi-docgen (Iñigo Martínez, Corey Berla)
+* ci: Use CI Fedora template (Peter Eisenmann)
+* ci: Publish online documentation (Corey Berla)
+* build: Rename docs option (Peter Eisenmann)
+* Various CI fixes until it worked again (Peter Eisenmann)
+* Add release script (Peter Eisenmann)
+* ci: Use release-service (Peter Eisenmann)
+
 Major changes in 0.4.5:
 * mime-types: Add tar variant of bzip2 (Khalid Abu Shawarib)
 * extractor: Fix source string leak (Khalid Abu Shawarib)

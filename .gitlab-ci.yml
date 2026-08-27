@@ -104,9 +104,9 @@ pages:
           when: never
         - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PROJECT_NAMESPACE == "GNOME"
     script:
-        - meson setup -Ddocs=true -Dtests=false _build
-        - meson compile -C _build
-        - mv _build/docs/reference/gnome-autoar/ public/
+        - meson setup -Ddocs=true -Dtests=false $MESON_BUILD_DIR
+        - meson compile -C $MESON_BUILD_DIR
+        - mv $MESON_BUILD_DIR/docs/reference/gnome-autoar/ public/
     artifacts:
         paths:
             - public/

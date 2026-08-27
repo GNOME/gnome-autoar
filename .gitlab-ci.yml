@@ -1,6 +1,9 @@
 include:
     - project: "Infrastructure/freedesktop-ci-templates"
       file: "templates/fedora.yml"
+    - component: gitlab.gnome.org/GNOME/citemplates/release-service@master
+      inputs:
+          dist-job-name: "fedora"
 
 variables:
     MESON_BUILD_DIR: _build
@@ -87,6 +90,8 @@ fedora:
         - meson setup -Ddocs=false -Dintrospection=enabled -Dtests=true $MESON_BUILD_DIR
         - meson test -C $MESON_BUILD_DIR
         - check-abi $LAST_ABI_BREAK $(git rev-parse HEAD)
+        - meson dist -C $MESON_BUILD_DIR --no-tests
+        - cp -r "$MESON_BUILD_DIR/meson-dist/" "${CI_PROJECT_DIR}/public-dist/"
     artifacts:
         paths:
             - $MESON_BUILD_DIR

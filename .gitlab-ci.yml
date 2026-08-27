@@ -94,7 +94,9 @@ fedora:
             junit: $MESON_BUILD_DIR/meson-logs/testlog.junit.xml
 
 pages:
-    image: registry.gitlab.gnome.org/gnome/gnome-autoar:latest
+    extends:
+        - .fdo.distribution-image@fedora
+        - .fedora-x86_64
     stage: deploy
     rules:
         # https://docs.gitlab.com/ee/ci/jobs/job_control.html#avoid-duplicate-pipelines

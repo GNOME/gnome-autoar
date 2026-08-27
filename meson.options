@@ -3,4 +3,5 @@ option('vapi', type: 'boolean', value: false, description: 'build vala bindings'
 
 option('tests', type: 'boolean', value: false, description: 'build tests')
 
-option('gtk_doc', type: 'boolean', value: false, description: 'build GTK Doc reference')
+option('gtk_doc', type: 'boolean', deprecated: true)
+option('docs', type: 'boolean', value: false, description: 'build API reference')

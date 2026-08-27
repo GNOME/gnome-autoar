@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
 # Copyright (C) 2021, 2022 Iñigo Martinez <inigomartinez@gmail.com>
 
-enable_gtk_doc = get_option('gtk_doc')
-gi_docgen = find_program('gi-docgen', required: enable_gtk_doc)
+enable_docs = get_option('docs')
+gi_docgen = find_program('gi-docgen', required: enable_docs)
 
-if enable_gtk_doc and gi_docgen.found()
+if enable_docs and gi_docgen.found()
   toml_conf = {
     'license': ','.join(meson.project_license()),
     'version': gnome_autoar_version,

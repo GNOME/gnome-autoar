@@ -100,7 +100,7 @@ summary(
 
 summary(
   {
-    'Build API documentation': enable_gtk_doc,
+    'Build API documentation': enable_docs,
     'Introspection': enable_introspection,
     'VALA bindings': enable_vapi,
     'Tests': enable_tests,

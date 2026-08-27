@@ -27,4 +27,11 @@
       <gnome:userid>oholy</gnome:userid>
     </foaf:Person>
   </maintainer>
+  <maintainer>
+    <foaf:Person>
+      <foaf:name>Peter Eisenmann</foaf:name>
+      <foaf:mbox rdf:resource="mailto:p3732@getgoogleoff.me" />
+      <gnome:userid>peisen</gnome:userid>
+    </foaf:Person>
+  </maintainer>
 </Project>

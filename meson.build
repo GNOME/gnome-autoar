@@ -3,7 +3,7 @@
 
 project(
   'gnome-autoar', 'c',
-  version: '0.5.1',
+  version: '0.5.0',
   license: 'LGPL2.1+',
   default_options: ['buildtype=debugoptimized'],
   meson_version: '>= 1.8.0',

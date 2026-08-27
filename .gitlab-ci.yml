@@ -95,6 +95,7 @@ fedora:
     artifacts:
         paths:
             - $MESON_BUILD_DIR
+            - public-dist
         reports:
             junit: $MESON_BUILD_DIR/meson-logs/testlog.junit.xml
 

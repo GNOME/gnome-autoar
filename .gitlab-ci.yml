@@ -84,7 +84,7 @@ fedora:
         - .vars-devel
     stage: test
     script:
-        - meson setup -Ddocs=false -Dintrospection=enabled -Dtests=true $MESON_BUILD_DIR
+        - meson setup -Ddocs=true -Dintrospection=enabled -Dtests=true $MESON_BUILD_DIR
         - meson test -C $MESON_BUILD_DIR
         - check-abi $LAST_ABI_BREAK $(git rev-parse HEAD)
     artifacts:
@@ -102,7 +102,6 @@ pages:
           when: never
         - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PROJECT_NAMESPACE == "GNOME"
     script:
-        - meson setup -Ddocs=true -Dtests=false _build
         - meson compile -C _build
         - mv _build/docs/reference/gnome-autoar/ public/
     artifacts:

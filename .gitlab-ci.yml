@@ -39,7 +39,7 @@ workflow:
         FDO_DISTRIBUTION_PACKAGES:
             git
             gcc
-            gtk-doc
+            gi-docgen
             meson
             glibc-devel
             glib2-devel

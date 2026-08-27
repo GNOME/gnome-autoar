@@ -3,7 +3,7 @@
 
 src_inc = include_directories('.')
 
-libname= '@0@-@1@'.format(gnome_autoar_name, gnome_autoar_api_version)
+libname = f'@gnome_autoar_name@-@gnome_autoar_api_version@'
 
 headers = files(
   'autoar-compressor.h',
@@ -31,8 +31,8 @@ enum_types = 'autoar-enum-types'
 enum_sources = gnome.mkenums(
   enum_types,
   sources: headers,
-  h_template: '@0@.h.template'.format(enum_types),
-  c_template: '@0@.c.template'.format(enum_types),
+  h_template: f'@enum_types@.h.template',
+  c_template: f'@enum_types@.c.template',
   install_header: true,
   install_dir: gnome_autoar_includedir / libname / gnome_autoar_name,
 )
@@ -107,7 +107,7 @@ if enable_introspection
     namespace: api_ns,
     nsversion: gnome_autoar_api_ns_version,
     identifier_prefix: gnome_autoar_api_prefix,
-    export_packages: '@0@-@1@'.format(api_ns, gnome_autoar_api_ns_version),
+    export_packages: f'@api_ns@-@gnome_autoar_api_ns_version@',
     install: true,
   )
 

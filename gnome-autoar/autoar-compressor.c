@@ -91,6 +91,7 @@ struct _AutoarCompressor
 
   guint64 size; /* This field is currently unused */
   guint64 completed_size;
+  gssize accumulated_write_size;
 
   guint files;
   guint completed_files;
@@ -626,8 +627,6 @@ libarchive_write_write_cb (struct archive *ar_write,
   AutoarCompressor *self;
   gssize write_size;
 
-  g_debug ("libarchive_write_write_cb: called");
-
   self = AUTOAR_COMPRESSOR (client_data);
   if (self->error != NULL || self->ostream == NULL) {
     return -1;
@@ -641,7 +640,8 @@ libarchive_write_write_cb (struct archive *ar_write,
   if (self->error != NULL)
     return -1;
 
-  g_debug ("libarchive_write_write_cb: %" G_GSSIZE_FORMAT, write_size);
+  self->accumulated_write_size += write_size;
+
   return write_size;
 }
 
@@ -781,7 +781,7 @@ autoar_compressor_do_write_data (AutoarCompressor     *self,
           autoar_common_g_error_new_a_entry (self->a, entry);
       return;
     }
-    g_debug ("autoar_compressor_do_write_data: write data OK");
+    g_debug ("autoar_compressor_do_write_data: compressor wrote %"G_GUINT64_FORMAT, self->accumulated_write_size);
   } else {
     g_debug ("autoar_compressor_do_write_data: no data, return now!");
     self->completed_files++;

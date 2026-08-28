@@ -235,15 +235,13 @@ G_GNUC_INTERNAL GError*
 autoar_common_g_error_new_a (struct archive *a,
                              const char *pathname)
 {
-  GError *newerror;
-  newerror = g_error_new (AUTOAR_LIBARCHIVE_ERROR,
-                          archive_errno (a),
-                          "%s%s%s%s",
-                          pathname != NULL ? "\'" : "",
-                          pathname != NULL ? pathname : "",
-                          pathname != NULL ? "\': " : "",
-                          archive_error_string (a));
-  return newerror;
+  return g_error_new (AUTOAR_LIBARCHIVE_ERROR,
+                      archive_errno (a),
+                      "%s%s%s%s",
+                      pathname != NULL ? "\'" : "",
+                      pathname != NULL ? pathname : "",
+                      pathname != NULL ? "\': " : "",
+                      archive_error_string (a));
 }
 
 /**

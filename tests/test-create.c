@@ -50,10 +50,8 @@ int
 main (int argc,
       char* argv[])
 {
-  AutoarCompressor *compressor;
-  GList *source_files = NULL;
+  g_autolist (GFile) source_files = NULL;
   g_autoptr (GFile) output_file = NULL;
-  int i;
 
   if (argc < 6) {
     g_printerr ("Usage: %s format filter passphrase output_dir source ...\n", argv[0]);
@@ -64,18 +62,18 @@ main (int argc,
 
   output_file = g_file_new_for_commandline_arg (argv[4]);
 
-  for (i = 5; i < argc; ++i) {
+  for (int i = 5; i < argc; ++i) {
     source_files = g_list_prepend (source_files,
                                    g_file_new_for_commandline_arg (argv[i]));
   }
 
   source_files = g_list_reverse (source_files);
 
-  compressor = autoar_compressor_new (source_files,
-                                      output_file,
-                                      atoi (argv[1]),
-                                      atoi (argv[2]),
-                                      TRUE);
+  g_autoptr (AutoarCompressor) compressor = autoar_compressor_new (source_files,
+                                                                   output_file,
+                                                                   atoi (argv[1]),
+                                                                   atoi (argv[2]),
+                                                                   TRUE);
   if (argv[3][0] != '\0')
     autoar_compressor_set_passphrase (compressor, argv[3]);
 
@@ -85,9 +83,6 @@ main (int argc,
   g_signal_connect (compressor, "completed", G_CALLBACK (my_handler_completed), NULL);
 
   autoar_compressor_start (compressor, NULL);
-
-  g_list_free_full (source_files, g_object_unref);
-  g_object_unref (compressor);
 
   return 0;
 }

@@ -523,11 +523,7 @@ autoar_compressor_dispose (GObject *object)
   g_clear_object (&(self->output_file));
 
   g_clear_pointer (&self->pathname_to_g_file, g_hash_table_unref);
-
-  if (self->source_files != NULL) {
-    g_list_free_full (self->source_files, g_object_unref);
-    self->source_files = NULL;
-  }
+  g_clear_list (&self->source_files, g_object_unref);
 
   G_OBJECT_CLASS (autoar_compressor_parent_class)->dispose (object);
 }
@@ -550,30 +546,12 @@ autoar_compressor_finalize (GObject *object)
    * freeing self->error in order to prevent libarchive callbacks from
    * accessing freed private objects and buffers.
    */
-  if (self->a != NULL) {
-    archive_write_free (self->a);
-    self->a = NULL;
-  }
-
-  if (self->entry != NULL) {
-    archive_entry_free (self->entry);
-    self->entry = NULL;
-  }
-
-  if (self->resolver != NULL) {
-    archive_entry_linkresolver_free (self->resolver);
-    self->resolver = NULL;
-  }
-
-  if (self->error != NULL) {
-    g_error_free (self->error);
-    self->error = NULL;
-  }
-
+  g_clear_pointer (&self->a, archive_write_free);
+  g_clear_pointer (&self->entry, archive_entry_free);
+  g_clear_pointer (&self->resolver, archive_entry_linkresolver_free);
+  g_clear_error (&self->error);
   g_clear_pointer (&self->source_basename_noext, g_free);
-
   g_clear_pointer (&self->extension, g_free);
-
   g_clear_pointer (&self->passphrase, g_free);
 
   G_OBJECT_CLASS (autoar_compressor_parent_class)->finalize (object);
@@ -704,8 +682,7 @@ autoar_compressor_signal_error (AutoarCompressor *self)
   if (self->error != NULL) {
     if (self->error->domain == G_IO_ERROR &&
         self->error->code == G_IO_ERROR_CANCELLED) {
-      g_error_free (self->error);
-      self->error = NULL;
+      g_clear_error (&self->error);
       autoar_compressor_signal_cancelled (self);
     } else {
       autoar_common_g_signal_emit (self, self->in_thread,
@@ -857,35 +834,30 @@ autoar_compressor_do_add_to_archive (AutoarCompressor *self,
   }
 
   {
-    char *root_basename;
-    char *pathname_relative;
-    char *pathname;
-
     switch (archive_format (self->a)) {
       /* ar format does not support directories */
       case ARCHIVE_FORMAT_AR:
       case ARCHIVE_FORMAT_AR_GNU:
-      case ARCHIVE_FORMAT_AR_BSD:
-        pathname = g_file_get_basename (file);
+      case ARCHIVE_FORMAT_AR_BSD: {
+        g_autofree char *pathname = g_file_get_basename (file);
+        
         archive_entry_set_pathname (self->entry, pathname);
-        g_free (pathname);
-        break;
+      }
+      break;
 
-      default:
-        root_basename = g_file_get_basename (root);
-        pathname_relative = g_file_get_relative_path (root, file);
-        pathname =
-          g_strconcat (self->create_top_level_directory ?
-                       self->source_basename_noext : "",
+      default: {
+        g_autofree char *root_basename = g_file_get_basename (root);
+        g_autofree char *pathname_relative = g_file_get_relative_path (root, file);
+        g_autofree char *pathname_concat =
+          g_strconcat (self->create_top_level_directory ? self->source_basename_noext : "",
                        self->create_top_level_directory ? "/" : "",
                        root_basename,
                        pathname_relative != NULL ? "/" : "",
                        pathname_relative != NULL ? pathname_relative : "",
                        NULL);
-        archive_entry_set_pathname (self->entry, pathname);
-        g_free (root_basename);
-        g_free (pathname_relative);
-        g_free (pathname);
+
+        archive_entry_set_pathname (self->entry, pathname_concat); 
+      }
     }
   }
 
@@ -1459,55 +1431,45 @@ autoar_compressor_step_decide_dest (AutoarCompressor *self)
   g_debug ("autoar_compressor_step_decide_dest: called");
 
   {
-    GFile *file_source; /* Do not unref */
-    GFileInfo *source_info;
-    char *source_basename;
+    GFile *file_source = self->source_files->data;
+    g_autoptr (GFileInfo) source_info = g_file_query_info (file_source,
+                                                           G_FILE_ATTRIBUTE_STANDARD_TYPE,
+                                                           G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
+                                                           self->cancellable,
+                                                           &(self->error));
 
-    file_source = self->source_files->data;
-    source_info = g_file_query_info (file_source,
-                                     G_FILE_ATTRIBUTE_STANDARD_TYPE,
-                                     G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
-                                     self->cancellable,
-                                     &(self->error));
     if (source_info == NULL)
       return;
 
-    source_basename = g_file_get_basename (file_source);
+    g_autofree char *source_basename = g_file_get_basename (file_source);
+
     if (g_file_info_get_file_type (source_info) == G_FILE_TYPE_REGULAR)
       self->source_basename_noext =
         autoar_common_get_basename_remove_extension (source_basename);
     else
       self->source_basename_noext = g_strdup (source_basename);
-
-    g_object_unref (source_info);
-    g_free (source_basename);
   }
 
   {
-    char *dest_basename;
-    int i;
+    g_autofree char *dest_basename = g_strconcat (self->source_basename_noext,
+                                                  self->extension, NULL);
 
-    dest_basename = g_strconcat (self->source_basename_noext,
-                                 self->extension, NULL);
     self->dest = g_file_get_child (self->output_file, dest_basename);
 
-    for (i = 1;
+    for (int i = 1;
          g_file_query_exists (self->dest, self->cancellable);
          i++) {
-      g_free (dest_basename);
       g_object_unref (self->dest);
 
       if (g_cancellable_is_cancelled (self->cancellable))
         return;
 
-      dest_basename = g_strdup_printf ("%s(%d)%s",
-                                       self->source_basename_noext,
-                                       i, self->extension);
-      self->dest = g_file_get_child (self->output_file,
-                                     dest_basename);
-    }
+      g_autofree char *conflict_basename = g_strdup_printf ("%s(%d)%s",
+                                                            self->source_basename_noext,
+                                                            i, self->extension);
 
-    g_free (dest_basename);
+      self->dest = g_file_get_child (self->output_file, conflict_basename);
+    }
   }
 
   if (!g_file_query_exists (self->output_file, self->cancellable)) {

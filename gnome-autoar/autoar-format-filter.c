@@ -33,6 +33,9 @@
 #include <gio/gio.h>
 #include <glib.h>
 
+typedef struct archive archive_t;
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(archive_t, archive_write_free);
+
 /**
  * SECTION:autoar-format-filter
  * @Short_description: Utilities for handling archive formats and filters
@@ -295,17 +298,13 @@ autoar_format_get_format_libarchive (AutoarFormat format)
 gchar*
 autoar_format_get_description_libarchive (AutoarFormat format)
 {
-  struct archive* a;
-  gchar *str;
-
   g_return_val_if_fail (autoar_format_is_valid (format), NULL);
 
-  a = archive_write_new ();
-  archive_write_set_format (a, autoar_format_description[format - 1].libarchive_format);
-  str = g_strdup (archive_format_name (a));
-  archive_write_free (a);
+  g_autoptr (archive_t) a = archive_write_new ();
 
-  return str;
+  archive_write_set_format (a, autoar_format_description[format - 1].libarchive_format);
+
+  return g_strdup (archive_format_name (a));
 }
 
 /**
@@ -441,17 +440,13 @@ autoar_filter_get_filter_libarchive (AutoarFilter filter)
 gchar*
 autoar_filter_get_description_libarchive (AutoarFilter filter)
 {
-  struct archive *a;
-  gchar *str;
-
   g_return_val_if_fail (autoar_filter_is_valid (filter), NULL);
 
-  a = archive_write_new ();
-  archive_write_add_filter (a, autoar_filter_description[filter - 1].libarchive_filter);
-  str = g_strdup (archive_filter_name (a, 0));
-  archive_write_free (a);
+  g_autoptr (archive_t) a = archive_write_new ();
 
-  return str;
+  archive_write_add_filter (a, autoar_filter_description[filter - 1].libarchive_filter);
+
+  return g_strdup (archive_filter_name (a, 0));
 }
 
 /**
@@ -568,15 +563,10 @@ gchar*
 autoar_format_filter_get_description (AutoarFormat format,
                                       AutoarFilter filter)
 {
-  gchar *mime_type;
-  gchar *description;
-
   g_return_val_if_fail (autoar_format_is_valid (format), NULL);
   g_return_val_if_fail (autoar_filter_is_valid (filter), NULL);
 
-  mime_type = autoar_format_filter_get_mime_type (format, filter);
-  description = g_content_type_get_description (mime_type);
-  g_free (mime_type);
+  g_autofree char *mime_type = autoar_format_filter_get_mime_type (format, filter);
 
-  return description;
+  return g_content_type_get_description (mime_type);
 }

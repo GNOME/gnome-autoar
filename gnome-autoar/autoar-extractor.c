@@ -498,15 +498,10 @@ autoar_extractor_dispose (GObject *object)
   g_clear_object (&(self->cancellable));
   g_clear_object (&(self->prefix));
   g_clear_object (&(self->new_prefix));
-
-  g_list_free_full (self->files_list, g_object_unref);
-  self->files_list = NULL;
-
+  g_clear_list (&self->files_list, g_object_unref);
   g_clear_pointer (&self->userhash, g_hash_table_unref);
   g_clear_pointer (&self->grouphash, g_hash_table_unref);
-
   g_clear_pointer (&self->extracted_dir_list, g_array_unref);
-
   g_clear_pointer (&self->passphrase, g_free);
   g_clear_pointer (&self->source_basename, g_free);
 
@@ -523,12 +518,7 @@ autoar_extractor_finalize (GObject *object)
   g_debug ("AutoarExtractor: finalize");
 
   g_clear_pointer (&self->buffer, g_free);
-
-  if (self->error != NULL) {
-    g_error_free (self->error);
-    self->error = NULL;
-  }
-
+  g_clear_error (&self->error);
   g_clear_pointer (&self->suggested_destname, g_free);
 
   G_OBJECT_CLASS (autoar_extractor_parent_class)->finalize (object);
@@ -806,8 +796,7 @@ autoar_extractor_signal_error (AutoarExtractor *self)
   if (self->error != NULL) {
     if (self->error->domain == G_IO_ERROR &&
         self->error->code == G_IO_ERROR_CANCELLED) {
-      g_error_free (self->error);
-      self->error = NULL;
+      g_clear_error (&self->error);
       autoar_extractor_signal_cancelled (self);
     } else {
       autoar_common_g_signal_emit (self, self->in_thread,
@@ -963,25 +952,23 @@ autoar_extractor_do_write_entry (AutoarExtractor      *self,
                                  GFile                *dest,
                                  GFile                *hardlink)
 {
-  GFileInfo *info;
   mode_t filetype;
 #if defined HAVE_LINK || defined HAVE_MKNOD || defined HAVE_MKFIFO
   int r;
 #endif
 
   {
-    GFile *parent;
-    parent = g_file_get_parent (dest);
+    g_autoptr (GFile) parent = g_file_get_parent (dest);
+
     if (parent) {
       if (!g_file_query_exists (parent, self->cancellable))
         g_file_make_directory_with_parents (parent,
                                             self->cancellable,
                                             NULL);
-      g_object_unref (parent);
     }
   }
 
-  info = g_file_info_new ();
+  g_autoptr (GFileInfo) info = g_file_info_new ();
 
   /* time */
   g_debug ("autoar_extractor_do_write_entry: time");
@@ -1119,7 +1106,6 @@ autoar_extractor_do_write_entry (AutoarExtractor      *self,
                                                  self->cancellable,
                                                  &(self->error));
         if (self->error != NULL) {
-          g_object_unref (info);
           return;
         }
 
@@ -1141,13 +1127,11 @@ autoar_extractor_do_write_entry (AutoarExtractor      *self,
               if (self->error != NULL) {
                 g_output_stream_close (ostream, self->cancellable, NULL);
                 g_object_unref (ostream);
-                g_object_unref (info);
                 return;
               }
               if (g_cancellable_is_cancelled (self->cancellable)) {
                 g_output_stream_close (ostream, self->cancellable, NULL);
                 g_object_unref (ostream);
-                g_object_unref (info);
                 return;
               }
               self->completed_size += written;
@@ -1191,7 +1175,6 @@ autoar_extractor_do_write_entry (AutoarExtractor      *self,
               file_type == G_FILE_TYPE_DIRECTORY) {
             g_clear_error (&self->error);
           } else {
-            g_object_unref (info);
             return;
           }
         }
@@ -1296,11 +1279,8 @@ applyinfo:
 
   if (self->error != NULL) {
     g_debug ("autoar_extractor_do_write_entry: %s\n", self->error->message);
-    g_error_free (self->error);
-    self->error = NULL;
+    g_clear_error (&self->error);
   }
-
-  g_object_unref (info);
 }
 
 static void
@@ -1798,24 +1778,20 @@ autoar_extractor_step_decide_destination (AutoarExtractor *self)
 {
   /* Step 2: Decide destination */
 
-  GList *files = NULL;
+  g_autolist (GFile) files = NULL;
   GList *l;
   GFile *new_destination = NULL;
   g_autofree char *destination_name = NULL;
 
   for (l = self->files_list; l != NULL; l = l->next) {
-    char *relative_path;
-    GFile *file;
+    g_autofree char *relative_path = g_file_get_relative_path (self->output_file, l->data);
 
-    relative_path = g_file_get_relative_path (self->output_file, l->data);
     if (relative_path == NULL)
       relative_path = g_strdup ("");
 
-    file = g_file_resolve_relative_path (self->destination_dir,
-                                         relative_path);
-    files = g_list_prepend (files, file);
+    GFile *file = g_file_resolve_relative_path (self->destination_dir, relative_path);
 
-    g_free (relative_path);
+    files = g_list_prepend (files, file);
   }
 
   files = g_list_reverse (files);
@@ -1845,8 +1821,6 @@ autoar_extractor_step_decide_destination (AutoarExtractor *self)
                                       self->new_prefix :
                                       self->destination_dir);
   g_debug ("autoar_extractor_step_decide_destination: destination %s", destination_name);
-
-  g_list_free_full (files, g_object_unref);
 }
 
 static void

@@ -55,7 +55,7 @@ static gboolean
 remove_directory (GFile *directory)
 {
   gboolean success = TRUE;
-  GError *error = NULL;
+  g_autoptr(GError) error = NULL;
   g_autoptr (GFileEnumerator) enumerator = NULL;
 
   enumerator = g_file_enumerate_children (directory,
@@ -87,12 +87,7 @@ remove_directory (GFile *directory)
 
   g_file_delete (directory, NULL, &error);
 
-  if (error) {
-    success = FALSE;
-    g_error_free (error);
-  }
-
-  return success;
+  return error == NULL;
 }
 
 static ExtractTest*

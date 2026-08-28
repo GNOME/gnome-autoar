@@ -119,6 +119,8 @@ struct _AutoarExtractor
   /* Variables used to show progess */
   guint64 total_size;
   guint64 completed_size;
+  gssize accumulated_read_size;
+  goffset accumulated_seek_offset;
 
   guint total_files;
   guint completed_files;
@@ -576,11 +578,9 @@ static int
 libarchive_read_close_cb (struct archive *ar_read,
                           void           *client_data)
 {
-  AutoarExtractor *self;
+  AutoarExtractor *self = AUTOAR_EXTRACTOR (client_data);
 
-  g_debug ("libarchive_read_close_cb: called");
-
-  self = AUTOAR_EXTRACTOR (client_data);
+  g_debug ("extractor read %" G_GSSIZE_FORMAT, self->accumulated_read_size);
 
   if (self->error != NULL)
     return ARCHIVE_FATAL;
@@ -603,8 +603,6 @@ libarchive_read_read_cb (struct archive  *ar_read,
   AutoarExtractor *self;
   gssize read_size;
 
-  g_debug ("libarchive_read_read_cb: called");
-
   self = AUTOAR_EXTRACTOR (client_data);
 
   if (self->error != NULL || self->istream == NULL)
@@ -619,7 +617,8 @@ libarchive_read_read_cb (struct archive  *ar_read,
   if (self->error != NULL)
     return -1;
 
-  g_debug ("libarchive_read_read_cb: %" G_GSSIZE_FORMAT, read_size);
+  self->accumulated_read_size += read_size;
+
   return read_size;
 }
 
@@ -633,8 +632,6 @@ libarchive_read_seek_cb (struct archive *ar_read,
   GSeekable *seekable;
   GSeekType  seektype;
   off_t new_offset;
-
-  g_debug ("libarchive_read_seek_cb: called");
 
   self = AUTOAR_EXTRACTOR (client_data);
   seekable = (GSeekable*)(self->istream);
@@ -664,7 +661,13 @@ libarchive_read_seek_cb (struct archive *ar_read,
   if (self->error != NULL)
     return -1;
 
-  g_debug ("libarchive_read_seek_cb: %"G_GOFFSET_FORMAT, (goffset)new_offset);
+  if (new_offset == 0) {
+    g_debug ("libarchive_read_seek_cb: %"G_GOFFSET_FORMAT, self->accumulated_seek_offset);
+    self->accumulated_seek_offset = 0;
+  } else {
+    self->accumulated_seek_offset += (goffset) new_offset;
+  }
+
   return new_offset;
 }
 
@@ -676,8 +679,6 @@ libarchive_read_skip_cb (struct archive *ar_read,
   AutoarExtractor *self;
   GSeekable *seekable;
   off_t old_offset, new_offset;
-
-  g_debug ("libarchive_read_skip_cb: called");
 
   self = AUTOAR_EXTRACTOR (client_data);
   seekable = (GSeekable*)(self->istream);

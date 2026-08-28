@@ -120,7 +120,7 @@ struct _AutoarCompressor
   gchar *passphrase;
 };
 
-G_DEFINE_TYPE (AutoarCompressor, autoar_compressor, G_TYPE_OBJECT)
+G_DEFINE_FINAL_TYPE (AutoarCompressor, autoar_compressor, G_TYPE_OBJECT)
 
 enum
 {

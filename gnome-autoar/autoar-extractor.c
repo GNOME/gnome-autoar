@@ -152,7 +152,7 @@ struct _AutoarExtractor
   gboolean passphrase_requested;
 };
 
-G_DEFINE_TYPE (AutoarExtractor, autoar_extractor, G_TYPE_OBJECT)
+G_DEFINE_FINAL_TYPE (AutoarExtractor, autoar_extractor, G_TYPE_OBJECT)
 
 struct _GFileAndInfo
 {

@@ -124,6 +124,8 @@ autoar_common_signal_data_free (AutoarCommonSignalData *signal_data)
   g_free (signal_data);
 }
 
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(AutoarCommonSignalData, autoar_common_signal_data_free);
+
 static gboolean
 autoar_common_g_signal_emit_main_context (void *data)
 {
@@ -162,13 +164,10 @@ autoar_common_g_signal_emit (gpointer instance,
 
   va_start (ap, detail);
   if (in_thread) {
-    int i;
-    gchar *error;
+    g_autofree char *error = NULL;
     GSignalQuery query;
-    AutoarCommonSignalData *data;
+    g_autoptr (AutoarCommonSignalData) data = g_new0 (AutoarCommonSignalData, 1);
 
-    error = NULL;
-    data = g_new0 (AutoarCommonSignalData, 1);
     data->signal_id = signal_id;
     data->detail = detail;
     data->used_values = 1;
@@ -177,12 +176,11 @@ autoar_common_g_signal_emit (gpointer instance,
 
     g_signal_query (signal_id, &query);
     if (query.signal_id == 0) {
-      autoar_common_signal_data_free (data);
       va_end (ap);
       return;
     }
 
-    for (i = 0; i < query.n_params; i++) {
+    for (int i = 0; i < query.n_params; i++) {
       G_VALUE_COLLECT_INIT (data->instance_and_params + i + 1,
                             query.param_types[i],
                             ap,
@@ -194,11 +192,10 @@ autoar_common_g_signal_emit (gpointer instance,
     }
 
     if (error == NULL) {
-      g_main_context_invoke (NULL, autoar_common_g_signal_emit_main_context, data);
+      g_main_context_invoke (NULL, autoar_common_g_signal_emit_main_context,
+                             g_steal_pointer (&data));
     } else {
-      autoar_common_signal_data_free (data);
       g_debug ("G_VALUE_COLLECT_INIT: Error: %s", error);
-      g_free (error);
       va_end (ap);
       return;
     }

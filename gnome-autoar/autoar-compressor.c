@@ -1423,55 +1423,45 @@ autoar_compressor_step_decide_dest (AutoarCompressor *self)
   g_debug ("autoar_compressor_step_decide_dest: called");
 
   {
-    GFile *file_source; /* Do not unref */
-    GFileInfo *source_info;
-    char *source_basename;
+    GFile *file_source = self->source_files->data;
+    g_autoptr (GFileInfo) source_info = g_file_query_info (file_source,
+                                                           G_FILE_ATTRIBUTE_STANDARD_TYPE,
+                                                           G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
+                                                           self->cancellable,
+                                                           &(self->error));
 
-    file_source = self->source_files->data;
-    source_info = g_file_query_info (file_source,
-                                     G_FILE_ATTRIBUTE_STANDARD_TYPE,
-                                     G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
-                                     self->cancellable,
-                                     &(self->error));
     if (source_info == NULL)
       return;
 
-    source_basename = g_file_get_basename (file_source);
+    g_autofree char *source_basename = g_file_get_basename (file_source);
+
     if (g_file_info_get_file_type (source_info) == G_FILE_TYPE_REGULAR)
       self->source_basename_noext =
         autoar_common_get_basename_remove_extension (source_basename);
     else
       self->source_basename_noext = g_strdup (source_basename);
-
-    g_object_unref (source_info);
-    g_free (source_basename);
   }
 
   {
-    char *dest_basename;
-    int i;
+    g_autofree char *dest_basename = g_strconcat (self->source_basename_noext,
+                                                  self->extension, NULL);
 
-    dest_basename = g_strconcat (self->source_basename_noext,
-                                 self->extension, NULL);
     self->dest = g_file_get_child (self->output_file, dest_basename);
 
-    for (i = 1;
+    for (int i = 1;
          g_file_query_exists (self->dest, self->cancellable);
          i++) {
-      g_free (dest_basename);
       g_object_unref (self->dest);
 
       if (g_cancellable_is_cancelled (self->cancellable))
         return;
 
-      dest_basename = g_strdup_printf ("%s(%d)%s",
-                                       self->source_basename_noext,
-                                       i, self->extension);
-      self->dest = g_file_get_child (self->output_file,
-                                     dest_basename);
-    }
+      g_autofree char *conflict_basename = g_strdup_printf ("%s(%d)%s",
+                                                            self->source_basename_noext,
+                                                            i, self->extension);
 
-    g_free (dest_basename);
+      self->dest = g_file_get_child (self->output_file, conflict_basename);
+    }
   }
 
   if (!g_file_query_exists (self->output_file, self->cancellable)) {

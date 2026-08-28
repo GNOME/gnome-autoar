@@ -968,25 +968,23 @@ autoar_extractor_do_write_entry (AutoarExtractor      *self,
                                  GFile                *dest,
                                  GFile                *hardlink)
 {
-  GFileInfo *info;
   mode_t filetype;
 #if defined HAVE_LINK || defined HAVE_MKNOD || defined HAVE_MKFIFO
   int r;
 #endif
 
   {
-    GFile *parent;
-    parent = g_file_get_parent (dest);
+    g_autoptr (GFile) parent = g_file_get_parent (dest);
+
     if (parent) {
       if (!g_file_query_exists (parent, self->cancellable))
         g_file_make_directory_with_parents (parent,
                                             self->cancellable,
                                             NULL);
-      g_object_unref (parent);
     }
   }
 
-  info = g_file_info_new ();
+  g_autoptr (GFileInfo) info = g_file_info_new ();
 
   /* time */
   g_debug ("autoar_extractor_do_write_entry: time");
@@ -1124,7 +1122,6 @@ autoar_extractor_do_write_entry (AutoarExtractor      *self,
                                                  self->cancellable,
                                                  &(self->error));
         if (self->error != NULL) {
-          g_object_unref (info);
           return;
         }
 
@@ -1146,13 +1143,11 @@ autoar_extractor_do_write_entry (AutoarExtractor      *self,
               if (self->error != NULL) {
                 g_output_stream_close (ostream, self->cancellable, NULL);
                 g_object_unref (ostream);
-                g_object_unref (info);
                 return;
               }
               if (g_cancellable_is_cancelled (self->cancellable)) {
                 g_output_stream_close (ostream, self->cancellable, NULL);
                 g_object_unref (ostream);
-                g_object_unref (info);
                 return;
               }
               self->completed_size += written;
@@ -1196,7 +1191,6 @@ autoar_extractor_do_write_entry (AutoarExtractor      *self,
               file_type == G_FILE_TYPE_DIRECTORY) {
             g_clear_error (&self->error);
           } else {
-            g_object_unref (info);
             return;
           }
         }
@@ -1304,8 +1298,6 @@ applyinfo:
     g_error_free (self->error);
     self->error = NULL;
   }
-
-  g_object_unref (info);
 }
 
 static void
@@ -1803,24 +1795,20 @@ autoar_extractor_step_decide_destination (AutoarExtractor *self)
 {
   /* Step 2: Decide destination */
 
-  GList *files = NULL;
+  g_autolist (GFile) files = NULL;
   GList *l;
   GFile *new_destination = NULL;
   g_autofree char *destination_name = NULL;
 
   for (l = self->files_list; l != NULL; l = l->next) {
-    char *relative_path;
-    GFile *file;
+    g_autofree char *relative_path = g_file_get_relative_path (self->output_file, l->data);
 
-    relative_path = g_file_get_relative_path (self->output_file, l->data);
     if (relative_path == NULL)
       relative_path = g_strdup ("");
 
-    file = g_file_resolve_relative_path (self->destination_dir,
-                                         relative_path);
-    files = g_list_prepend (files, file);
+    GFile *file = g_file_resolve_relative_path (self->destination_dir, relative_path);
 
-    g_free (relative_path);
+    files = g_list_prepend (files, file);
   }
 
   files = g_list_reverse (files);
@@ -1850,8 +1838,6 @@ autoar_extractor_step_decide_destination (AutoarExtractor *self)
                                       self->new_prefix :
                                       self->destination_dir);
   g_debug ("autoar_extractor_step_decide_destination: destination %s", destination_name);
-
-  g_list_free_full (files, g_object_unref);
 }
 
 static void

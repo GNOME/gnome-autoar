@@ -100,7 +100,6 @@ int
 main (int argc,
       char *argv[])
 {
-  AutoarExtractor *extractor;
   char *content;
   g_autoptr (GFile) source = NULL;
   g_autoptr (GFile) output = NULL;
@@ -121,7 +120,7 @@ main (int argc,
   if (argc == 4 && argv[3][0] != '\0')
     passphrase = g_strdup (argv[3]);
 
-  extractor = autoar_extractor_new (source, output);
+  g_autoptr (AutoarExtractor) extractor = autoar_extractor_new (source, output);
 
   autoar_extractor_set_delete_after_extraction (extractor, FALSE);
 
@@ -135,7 +134,6 @@ main (int argc,
 
   autoar_extractor_start (extractor, NULL);
 
-  g_object_unref (extractor);
   g_free (content);
 
   return 0;

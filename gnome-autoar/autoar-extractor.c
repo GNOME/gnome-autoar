@@ -2150,6 +2150,7 @@ autoar_extractor_start_async (AutoarExtractor *self,
   self->in_thread = TRUE;
 
   task = g_task_new (self, NULL, NULL, NULL);
+  g_task_set_source_tag (task, autoar_extractor_start_async);
   g_task_set_task_data (task, NULL, NULL);
   g_task_run_in_thread (task, autoar_extractor_start_async_thread);
 }

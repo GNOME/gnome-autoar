@@ -1,3 +1,5 @@
+#define G_LOG_DOMAIN "gnome-autoar-test"
+
 #include <gnome-autoar/gnome-autoar.h>
 #include <gio/gio.h>
 

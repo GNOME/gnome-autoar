@@ -21,6 +21,8 @@
  *
  */
 
+#define G_LOG_DOMAIN "gnome-autoar"
+
 #include "autoar-mime-types.h"
 
 static gchar *supported_mime_types[] = {

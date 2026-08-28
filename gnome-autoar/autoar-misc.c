@@ -23,6 +23,8 @@
  *
  */
 
+#define G_LOG_DOMAIN "gnome-autoar"
+
 #include "config.h"
 #include "autoar-misc.h"
 

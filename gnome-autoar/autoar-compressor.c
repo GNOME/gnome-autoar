@@ -134,8 +134,7 @@ enum
 
 enum
 {
-  PROP_0,
-  PROP_SOURCE_FILES,
+  PROP_SOURCE_FILES = 1,
   PROP_OUTPUT_FILE,
   PROP_FORMAT,
   PROP_FILTER,
@@ -145,8 +144,11 @@ enum
   PROP_FILES,
   PROP_COMPLETED_FILES,
   PROP_OUTPUT_IS_DEST,
-  PROP_NOTIFY_INTERVAL
+  PROP_NOTIFY_INTERVAL,
+  NUM_PROPERTIES
 };
+
+static GParamSpec *properties[NUM_PROPERTIES] = { NULL, };
 
 static guint autoar_compressor_signals[LAST_SIGNAL] = { 0 };
 
@@ -1104,102 +1106,104 @@ autoar_compressor_class_init (AutoarCompressorClass *klass)
   object_class->dispose = autoar_compressor_dispose;
   object_class->finalize = autoar_compressor_finalize;
 
-  g_object_class_install_property (object_class, PROP_SOURCE_FILES,
-                                   g_param_spec_pointer ("source-files",
-                                                         "Source files list",
-                                                         "The list of GFiles to be archived",
-                                                         G_PARAM_READWRITE |
-                                                         G_PARAM_CONSTRUCT_ONLY |
-                                                         G_PARAM_STATIC_STRINGS));
+  properties[PROP_SOURCE_FILES] =
+    g_param_spec_pointer ("source-files",
+                          "Source files list",
+                          "The list of GFiles to be archived",
+                          G_PARAM_READWRITE |
+                          G_PARAM_CONSTRUCT_ONLY |
+                          G_PARAM_STATIC_STRINGS);
 
-  g_object_class_install_property (object_class, PROP_OUTPUT_FILE,
-                                   g_param_spec_object ("output-file",
-                                                        "Output directory GFile",
-                                                        "Output directory (GFile) of created archive",
-                                                        G_TYPE_FILE,
-                                                        G_PARAM_READWRITE |
-                                                        G_PARAM_CONSTRUCT_ONLY |
-                                                        G_PARAM_STATIC_STRINGS));
+  properties[PROP_OUTPUT_FILE] =
+    g_param_spec_object ("output-file",
+                         "Output directory GFile",
+                         "Output directory (GFile) of created archive",
+                         G_TYPE_FILE,
+                         G_PARAM_READWRITE |
+                         G_PARAM_CONSTRUCT_ONLY |
+                         G_PARAM_STATIC_STRINGS);
 
-  g_object_class_install_property (object_class, PROP_FORMAT,
-                                   g_param_spec_enum ("format",
-                                                      "Compression format",
-                                                      "The compression format that will be used",
-                                                      AUTOAR_TYPE_FORMAT,
-                                                      AUTOAR_FORMAT_ZIP,
-                                                      G_PARAM_READWRITE |
-                                                      G_PARAM_CONSTRUCT_ONLY |
-                                                      G_PARAM_STATIC_STRINGS));
+  properties[PROP_FORMAT] =
+    g_param_spec_enum ("format",
+                       "Compression format",
+                       "The compression format that will be used",
+                       AUTOAR_TYPE_FORMAT,
+                       AUTOAR_FORMAT_ZIP,
+                       G_PARAM_READWRITE |
+                       G_PARAM_CONSTRUCT_ONLY |
+                       G_PARAM_STATIC_STRINGS);
 
-  g_object_class_install_property (object_class, PROP_FILTER,
-                                   g_param_spec_enum ("filter",
-                                                      "Compression filter",
-                                                      "The compression filter that will be used",
-                                                      AUTOAR_TYPE_FILTER,
-                                                      AUTOAR_FILTER_NONE,
-                                                      G_PARAM_READWRITE |
-                                                      G_PARAM_CONSTRUCT_ONLY |
-                                                      G_PARAM_STATIC_STRINGS));
+  properties[PROP_FILTER] =
+    g_param_spec_enum ("filter",
+                       "Compression filter",
+                       "The compression filter that will be used",
+                       AUTOAR_TYPE_FILTER,
+                       AUTOAR_FILTER_NONE,
+                       G_PARAM_READWRITE |
+                       G_PARAM_CONSTRUCT_ONLY |
+                       G_PARAM_STATIC_STRINGS);
 
-  g_object_class_install_property (object_class, PROP_CREATE_TOP_LEVEL_DIRECTORY,
-                                   g_param_spec_boolean ("create-top-level-directory",
-                                                         "Create top level directory",
-                                                         "Whether to create a top level directory",
-                                                         FALSE,
-                                                         G_PARAM_READWRITE |
-                                                         G_PARAM_CONSTRUCT |
-                                                         G_PARAM_STATIC_STRINGS));
+  properties[PROP_CREATE_TOP_LEVEL_DIRECTORY] =
+    g_param_spec_boolean ("create-top-level-directory",
+                          "Create top level directory",
+                          "Whether to create a top level directory",
+                          FALSE,
+                          G_PARAM_READWRITE |
+                          G_PARAM_CONSTRUCT |
+                          G_PARAM_STATIC_STRINGS);
 
+  /* This propery is unused! */
+  properties[PROP_SIZE] =
+    g_param_spec_uint64 ("size",
+                         "Size",
+                         "Total bytes will be read from disk",
+                         0, G_MAXUINT64, 0,
+                         G_PARAM_READABLE |
+                         G_PARAM_STATIC_STRINGS);
 
-  g_object_class_install_property (object_class, PROP_SIZE, /* This propery is unused! */
-                                   g_param_spec_uint64 ("size",
-                                                        "Size",
-                                                        "Total bytes will be read from disk",
-                                                        0, G_MAXUINT64, 0,
-                                                        G_PARAM_READABLE |
-                                                        G_PARAM_STATIC_STRINGS));
+  properties[PROP_COMPLETED_SIZE] =
+    g_param_spec_uint64 ("completed-size",
+                         "Read file size",
+                         "Bytes has read from disk",
+                         0, G_MAXUINT64, 0,
+                         G_PARAM_READABLE |
+                         G_PARAM_STATIC_STRINGS  )  ;
 
-  g_object_class_install_property (object_class, PROP_COMPLETED_SIZE,
-                                   g_param_spec_uint64 ("completed-size",
-                                                        "Read file size",
-                                                        "Bytes has read from disk",
-                                                        0, G_MAXUINT64, 0,
-                                                        G_PARAM_READABLE |
-                                                        G_PARAM_STATIC_STRINGS));
+  properties[PROP_FILES] =
+    g_param_spec_uint ("files",
+                       "Files",
+                       "Number of files will be compressed",
+                       0, G_MAXUINT32, 0,
+                       G_PARAM_READABLE |
+                       G_PARAM_STATIC_STRINGS);
 
-  g_object_class_install_property (object_class, PROP_FILES,
-                                   g_param_spec_uint ("files",
-                                                      "Files",
-                                                      "Number of files will be compressed",
-                                                      0, G_MAXUINT32, 0,
-                                                      G_PARAM_READABLE |
-                                                      G_PARAM_STATIC_STRINGS));
+  properties[PROP_COMPLETED_FILES] =
+    g_param_spec_uint ("completed-files",
+                       "Read files",
+                       "Number of files has been read",
+                       0, G_MAXUINT32, 0,
+                       G_PARAM_READABLE |
+                       G_PARAM_STATIC_STRINGS);
 
-  g_object_class_install_property (object_class, PROP_COMPLETED_FILES,
-                                   g_param_spec_uint ("completed-files",
-                                                      "Read files",
-                                                      "Number of files has been read",
-                                                      0, G_MAXUINT32, 0,
-                                                      G_PARAM_READABLE |
-                                                      G_PARAM_STATIC_STRINGS));
+  properties[PROP_OUTPUT_IS_DEST] =
+    g_param_spec_boolean ("output-is-dest",
+                          "Output is destination",
+                          "Whether output file is used as destination",
+                          FALSE,
+                          G_PARAM_READWRITE |
+                          G_PARAM_CONSTRUCT |
+                          G_PARAM_STATIC_STRINGS);
 
-  g_object_class_install_property (object_class, PROP_OUTPUT_IS_DEST,
-                                   g_param_spec_boolean ("output-is-dest",
-                                                         "Output is destination",
-                                                         "Whether output file is used as destination",
-                                                         FALSE,
-                                                         G_PARAM_READWRITE |
-                                                         G_PARAM_CONSTRUCT |
-                                                         G_PARAM_STATIC_STRINGS));
+  properties[PROP_NOTIFY_INTERVAL] =
+    g_param_spec_int64 ("notify-interval",
+                        "Notify interval",
+                        "Minimal time interval between progress signal",
+                        0, G_MAXINT64, 100000,
+                        G_PARAM_READWRITE |
+                        G_PARAM_CONSTRUCT |
+                        G_PARAM_STATIC_STRINGS);
 
-  g_object_class_install_property (object_class, PROP_NOTIFY_INTERVAL,
-                                   g_param_spec_int64 ("notify-interval",
-                                                       "Notify interval",
-                                                       "Minimal time interval between progress signal",
-                                                       0, G_MAXINT64, 100000,
-                                                       G_PARAM_READWRITE |
-                                                       G_PARAM_CONSTRUCT |
-                                                       G_PARAM_STATIC_STRINGS));
+  g_object_class_install_properties (object_class, NUM_PROPERTIES, properties);
 
 /**
  * AutoarCompressor::decide-dest:

@@ -247,12 +247,10 @@ autoar_extractor_set_property (GObject      *object,
 
   switch (property_id) {
     case PROP_SOURCE_FILE:
-      g_clear_object (&(self->source_file));
-      self->source_file = g_object_ref (g_value_get_object (value));
+      g_set_object (&self->source_file, g_value_get_object(value));
       break;
     case PROP_OUTPUT_FILE:
-      g_clear_object (&(self->output_file));
-      self->output_file = g_object_ref (g_value_get_object (value));
+      g_set_object (&self->output_file, g_value_get_object(value));
       break;
     case PROP_OUTPUT_IS_DEST:
       autoar_extractor_set_output_is_dest (self,
@@ -492,8 +490,7 @@ autoar_extractor_dispose (GObject *object)
     if (!g_input_stream_is_closed (self->istream)) {
       g_input_stream_close (self->istream, self->cancellable, NULL);
     }
-    g_object_unref (self->istream);
-    self->istream = NULL;
+    g_clear_object (&self->istream);
   }
 
   g_clear_object (&(self->source_file));
@@ -506,20 +503,10 @@ autoar_extractor_dispose (GObject *object)
   g_list_free_full (self->files_list, g_object_unref);
   self->files_list = NULL;
 
-  if (self->userhash != NULL) {
-    g_hash_table_unref (self->userhash);
-    self->userhash = NULL;
-  }
+  g_clear_pointer (&self->userhash, g_hash_table_unref);
+  g_clear_pointer (&self->grouphash, g_hash_table_unref);
 
-  if (self->grouphash != NULL) {
-    g_hash_table_unref (self->grouphash);
-    self->grouphash = NULL;
-  }
-
-  if (self->extracted_dir_list != NULL) {
-    g_array_unref (self->extracted_dir_list);
-    self->extracted_dir_list = NULL;
-  }
+  g_clear_pointer (&self->extracted_dir_list, g_array_unref);
 
   g_clear_pointer (&self->passphrase, g_free);
   g_clear_pointer (&self->source_basename, g_free);
@@ -536,16 +523,14 @@ autoar_extractor_finalize (GObject *object)
 
   g_debug ("AutoarExtractor: finalize");
 
-  g_free (self->buffer);
-  self->buffer = NULL;
+  g_clear_pointer (&self->buffer, g_free);
 
   if (self->error != NULL) {
     g_error_free (self->error);
     self->error = NULL;
   }
 
-  g_free (self->suggested_destname);
-  self->suggested_destname = NULL;
+  g_clear_pointer (&self->suggested_destname, g_free);
 
   G_OBJECT_CLASS (autoar_extractor_parent_class)->finalize (object);
 }
@@ -589,8 +574,7 @@ libarchive_read_close_cb (struct archive *ar_read,
 
   if (self->istream != NULL) {
     g_input_stream_close (self->istream, self->cancellable, NULL);
-    g_object_unref (self->istream);
-    self->istream = NULL;
+    g_clear_object (&self->istream);
   }
 
   g_debug ("libarchive_read_close_cb: ARCHIVE_OK");
@@ -2153,8 +2137,7 @@ autoar_extractor_set_passphrase (AutoarExtractor *self,
 
   self->passphrase_requested = TRUE;
 
-  g_free (self->passphrase);
-  self->passphrase = g_strdup (passphrase);
+  g_set_str (&self->passphrase, passphrase);
 }
 
 /**

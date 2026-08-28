@@ -494,18 +494,14 @@ autoar_compressor_dispose (GObject *object)
                              self->cancellable,
                              NULL);
     }
-    g_object_unref (self->ostream);
-    self->ostream = NULL;
+    g_clear_object (&self->ostream);
   }
 
   g_clear_object (&(self->dest));
   g_clear_object (&(self->cancellable));
   g_clear_object (&(self->output_file));
 
-  if (self->pathname_to_g_file != NULL) {
-    g_hash_table_unref (self->pathname_to_g_file);
-    self->pathname_to_g_file = NULL;
-  }
+  g_clear_pointer (&self->pathname_to_g_file, g_hash_table_unref);
 
   if (self->source_files != NULL) {
     g_list_free_full (self->source_files, g_object_unref);
@@ -524,8 +520,7 @@ autoar_compressor_finalize (GObject *object)
 
   g_debug ("AutoarCompressor: finalize");
 
-  g_free (self->buffer);
-  self->buffer = NULL;
+  g_clear_pointer (&self->buffer, g_free);
 
   /* If self->error == NULL, no errors occurs. Therefore, we can safely
    * free libarchive objects because it will not call the callbacks during the
@@ -554,11 +549,9 @@ autoar_compressor_finalize (GObject *object)
     self->error = NULL;
   }
 
-  g_free (self->source_basename_noext);
-  self->source_basename_noext = NULL;
+  g_clear_pointer (&self->source_basename_noext, g_free);
 
-  g_free (self->extension);
-  self->extension = NULL;
+  g_clear_pointer (&self->extension, g_free);
 
   g_clear_pointer (&self->passphrase, g_free);
 
@@ -607,8 +600,7 @@ libarchive_write_close_cb (struct archive *ar_write,
   if (self->ostream != NULL) {
     g_output_stream_close (self->ostream,
                            self->cancellable, &(self->error));
-    g_object_unref (self->ostream);
-    self->ostream = NULL;
+    g_clear_object (&self->ostream);
   }
 
   if (self->error != NULL) {

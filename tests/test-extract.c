@@ -100,7 +100,6 @@ int
 main (int argc,
       char *argv[])
 {
-  char *content;
   g_autoptr (GFile) source = NULL;
   g_autoptr (GFile) output = NULL;
   g_autofree gchar *passphrase = NULL;
@@ -112,8 +111,6 @@ main (int argc,
   }
 
   setlocale (LC_ALL, "");
-
-  content = NULL;
 
   source = g_file_new_for_commandline_arg (argv[1]);
   output = g_file_new_for_commandline_arg (argv[2]);
@@ -133,8 +130,6 @@ main (int argc,
   g_signal_connect (extractor, "request-passphrase", G_CALLBACK (my_handler_request_passphrase), passphrase);
 
   autoar_extractor_start (extractor, NULL);
-
-  g_free (content);
 
   return 0;
 }

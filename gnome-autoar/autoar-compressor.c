@@ -115,6 +115,7 @@ struct _AutoarCompressor
   gboolean create_top_level_directory;
 
   gchar *passphrase;
+  gboolean multithreaded;
 };
 
 G_DEFINE_TYPE (AutoarCompressor, autoar_compressor, G_TYPE_OBJECT)
@@ -472,6 +473,26 @@ autoar_compressor_set_passphrase (AutoarCompressor *self,
   g_return_if_fail (self->format == AUTOAR_FORMAT_ZIP);
 
   self->passphrase = g_strdup (passphrase);
+}
+
+/**
+ * autoar_compressor_set_multithreaded:
+ * @self: an #AutoarCompressor
+ * @multithreaded: whether to use multiple threads
+ *
+ * Sets whether to use multiple threads. Only works with %ARCHIVE_FORMAT_7ZIP,
+ * %AUTOAR_FILTER_XZ or %AUTOAR_FILTER_ZSTD.
+ **/
+void
+autoar_compressor_set_multithreaded (AutoarCompressor *self,
+                                     gboolean          multithreaded)
+{
+  g_return_if_fail (AUTOAR_IS_COMPRESSOR (self));
+  g_return_if_fail (self->filter == AUTOAR_FILTER_XZ ||
+                    self->filter == AUTOAR_FILTER_ZSTD ||
+                    self->format == AUTOAR_FORMAT_7ZIP);
+
+  self->multithreaded = multithreaded;
 }
 
 static void
@@ -1409,6 +1430,21 @@ autoar_compressor_step_initialize_object (AutoarCompressor *self)
     }
 
     r = archive_write_set_passphrase (self->a, self->passphrase);
+    if (r != ARCHIVE_OK) {
+      self->error = autoar_common_g_error_new_a (self->a, NULL);
+      return;
+    }
+  }
+
+  if (self->multithreaded) {
+    if (self->format == AUTOAR_FORMAT_7ZIP) {
+      r = archive_write_set_format_option (self->a, "7zip", "threads", "0");
+    } else if (self->filter == AUTOAR_FILTER_XZ) {
+      r = archive_write_set_filter_option (self->a, "xz", "threads", "0");
+    } else if (self->filter == AUTOAR_FILTER_ZSTD) {
+      r = archive_write_set_filter_option (self->a, "zstd", "threads", "0");
+    }
+
     if (r != ARCHIVE_OK) {
       self->error = autoar_common_g_error_new_a (self->a, NULL);
       return;

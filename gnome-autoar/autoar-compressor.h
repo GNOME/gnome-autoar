@@ -77,6 +77,8 @@ void               autoar_compressor_set_notify_interval            (AutoarCompr
                                                                      gint64            notify_interval);
 void               autoar_compressor_set_passphrase                 (AutoarCompressor *self,
                                                                      const gchar      *passphrase);
+void               autoar_compressor_set_multithreaded              (AutoarCompressor *self,
+                                                                     gboolean          multithreaded);
 G_END_DECLS
 
 #endif /* AUTOAR_COMPRESSOR_H */

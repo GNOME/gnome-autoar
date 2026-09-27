@@ -1299,77 +1299,56 @@ autoar_extractor_class_init (AutoarExtractorClass *klass)
 
   properties[PROP_SOURCE_FILE] =
     g_param_spec_object ("source-file",
-                         "Source archive",
-                         "The #GFile of the source archive that will be extracted",
+                         NULL, NULL,
                          G_TYPE_FILE,
-                         G_PARAM_READWRITE |
-                         G_PARAM_CONSTRUCT_ONLY |
-                         G_PARAM_STATIC_STRINGS);
+                         G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY | G_PARAM_STATIC_NAME);
 
   properties[PROP_OUTPUT_FILE] =
     g_param_spec_object ("output-file",
-                         "Output file",
-                         "The #GFile of the directory where the files will be extracted",
+                         NULL, NULL,
                          G_TYPE_FILE,
-                         G_PARAM_READWRITE |
-                         G_PARAM_CONSTRUCT_ONLY |
-                         G_PARAM_STATIC_STRINGS);
+                         G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY | G_PARAM_STATIC_NAME);
 
   properties[PROP_TOTAL_SIZE] =
     g_param_spec_uint64 ("total-size",
-                         "Total files size",
-                         "Total size of the extracted files",
+                         NULL, NULL,
                          0, G_MAXUINT64, 0,
-                         G_PARAM_READABLE |
-                         G_PARAM_STATIC_STRINGS);
+                         G_PARAM_READABLE | G_PARAM_STATIC_NAME);
 
   properties[PROP_COMPLETED_SIZE] =
     g_param_spec_uint64 ("completed-size",
-                         "Written file size",
-                         "Bytes written to disk",
+                         NULL, NULL,
                          0, G_MAXUINT64, 0,
-                         G_PARAM_READABLE |
-                         G_PARAM_STATIC_STRINGS);
+                         G_PARAM_READABLE | G_PARAM_STATIC_NAME);
 
   properties[PROP_TOTAL_FILES] =
     g_param_spec_uint ("total-files",
-                       "Total files",
-                       "Number of files in the archive",
+                       NULL, NULL,
                        0, G_MAXUINT32, 0,
-                       G_PARAM_READABLE |
-                       G_PARAM_STATIC_STRINGS);
+                       G_PARAM_READABLE | G_PARAM_STATIC_NAME);
 
   properties[PROP_COMPLETED_FILES] =
     g_param_spec_uint ("completed-files",
-                       "Written files",
-                       "Number of files has been written",
+                       NULL, NULL,
                        0, G_MAXUINT32, 0,
-                       G_PARAM_READABLE |
-                       G_PARAM_STATIC_STRINGS);
+                       G_PARAM_READABLE | G_PARAM_STATIC_NAME);
 
   properties[PROP_OUTPUT_IS_DEST] =
     g_param_spec_boolean ("output-is-dest",
-                          "Output is destination",
-                          "Whether #AutoarExtractor:output-file is used as destination",
+                          NULL, NULL,
                           FALSE,
-                          G_PARAM_READWRITE |
-                          G_PARAM_CONSTRUCT |
-                          G_PARAM_STATIC_STRINGS);
+                          G_PARAM_READWRITE | G_PARAM_CONSTRUCT | G_PARAM_STATIC_NAME);
 
   properties[PROP_DELETE_AFTER_EXTRACTION] =
     g_param_spec_boolean ("delete-after-extraction",
-                          "Delete after extraction",
-                          "Whether the source archive is deleted after "
-                          "a successful extraction",
+                          NULL, NULL,
                           FALSE,
-                          G_PARAM_READWRITE |
-                          G_PARAM_CONSTRUCT |
-                          G_PARAM_STATIC_STRINGS);
+                          G_PARAM_READWRITE | G_PARAM_CONSTRUCT | G_PARAM_STATIC_NAME);
 
   properties[PROP_NOTIFY_INTERVAL] =
     g_param_spec_int64 ("notify-interval",
-                        "Notify interval",
-                        "Minimal time interval between progress signal",
+                        NULL,
+                        NULL,
                         0, G_MAXINT64, 100000,
                         G_PARAM_READWRITE |
                         G_PARAM_CONSTRUCT |

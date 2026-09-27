@@ -11,6 +11,7 @@ variables:
 
 stages:
     - image
+    - review
     - test
     - deploy
 
@@ -77,6 +78,18 @@ update-fedora-image@x86_64:
             - .gitlab/**/*
         - if: $CI_PROJECT_NAMESPACE != "GNOME"
           when: never
+
+gobject-linter:
+    stage: review
+    image:
+        name: "ghcr.io/bilelmoussaoui/gobject-linter:latest"
+        entrypoint: [""]
+    script:
+        - gobject-linter -c build-aux/gobject-linter.toml --format gitlab-codequality > gobject-linter-codequality.json
+    artifacts:
+        expire_in: 14 days
+        reports:
+            codequality: gobject-linter-codequality.json
 
 fedora:
     variables:

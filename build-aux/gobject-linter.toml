@@ -1,0 +1,14 @@
+[rules.include_order]
+level = "ignore"
+
+[rules.type_style]
+level = "ignore"
+
+[rules.use_pragma_once]
+level = "ignore"
+
+[rules.property_enum_convention]
+level = "ignore"
+
+[rules.property_switch_exhaustiveness]
+level = "ignore"

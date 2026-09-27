@@ -53,6 +53,12 @@ struct _AutoarCommonSignalData
   gssize used_values; /* Number of GValues to be unset */
   guint signal_id;
   GQuark detail;
+
+  /* Used for synchronization of return values */
+  gboolean completed;
+  GValue return_value;
+  GMutex mutex;
+  GCond cond;
 };
 
 /**
@@ -117,6 +123,10 @@ autoar_common_signal_data_free (AutoarCommonSignalData *signal_data)
   for (i = 0; i < signal_data->used_values; i++)
     g_value_unset (signal_data->instance_and_params + i);
 
+  g_value_unset (&signal_data->return_value);
+  g_mutex_clear (&signal_data->mutex);
+  g_cond_clear (&signal_data->cond);
+
   g_free (signal_data);
 }
 
@@ -135,6 +145,24 @@ emit_signal (void *data)
   return G_SOURCE_REMOVE;
 }
 
+static gboolean
+emit_signal_with_return_value (AutoarCommonSignalData *signal_data)
+{
+  g_signal_emitv (signal_data->instance_and_params,
+                  signal_data->signal_id,
+                  signal_data->detail,
+                  &signal_data->return_value);
+
+  {
+    G_MUTEX_AUTO_LOCK (&signal_data->mutex, locker);
+    signal_data->completed = TRUE;
+  }
+
+  g_cond_signal (&signal_data->cond);
+
+  return G_SOURCE_REMOVE;
+}
+
 /**
  * autoar_common_g_signal_emit:
  * @instance: the instance the signal is being emitted on.
@@ -145,10 +173,9 @@ emit_signal (void *data)
  *
  * This is a wrapper for g_signal_emit(). If @in_thread is %FALSE, this
  * function is the same as g_signal_emit(). If @in_thread is %TRUE, the
- * signal will be emitted from the main thread. This function will send
- * the signal emission job via g_main_context_invoke(), but it does not
- * wait for the signal emission job to be completed. Hence, the signal
- * may emitted after autoar_common_g_signal_emit() is returned.
+ * signal will be emitted from the main thread. Signals are emitted in a
+ * synchronous manner, meaning this function waits for the main thread to emit
+ * the signal. This allows listeners to respond to signals.
  **/
 G_GNUC_INTERNAL void
 autoar_common_g_signal_emit (gpointer instance,
@@ -200,7 +227,24 @@ autoar_common_g_signal_emit (gpointer instance,
     return;
   }
 
-  g_main_context_invoke (NULL, (GSourceFunc) emit_signal, g_steal_pointer (&data));
+  if (query.return_type == G_TYPE_NONE) {
+    g_main_context_invoke (NULL, (GSourceFunc) emit_signal, g_steal_pointer (&data));
+  } else {
+    G_MUTEX_AUTO_LOCK (&data->mutex, locker);
+
+    g_value_init (&data->return_value, query.return_type);
+    g_main_context_invoke (NULL, (GSourceFunc) emit_signal_with_return_value, data);
+
+    while (!data->completed)
+      g_cond_wait (&data->cond, &data->mutex);
+
+    g_autofree char *lvalue_error = NULL;
+
+    G_VALUE_LCOPY (&data->return_value, ap, 0, &lvalue_error);
+
+    if (lvalue_error != NULL)
+      g_debug ("G_VALUE_LCOPY: Error: %s", lvalue_error);
+  }
 
   va_end (ap);
 }

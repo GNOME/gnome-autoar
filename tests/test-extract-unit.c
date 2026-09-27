@@ -39,6 +39,7 @@ typedef struct {
   gboolean cancelled_signalled;
   gboolean completed_signalled;
   gboolean request_passphrase_signalled;
+  const gchar *passphrase_to_return;
 } ExtractTestData;
 
 static void extract_test_data_free (ExtractTestData *data);
@@ -256,7 +257,7 @@ request_passphrase_handler (AutoarExtractor *extractor,
 
   data->request_passphrase_signalled = TRUE;
 
-  return NULL;
+  return g_strdup (data->passphrase_to_return);
 }
 
 static ExtractTestData*
@@ -1480,6 +1481,40 @@ test_encrypted_request_passphrase (void)
 }
 
 static void
+set_timed_out (gpointer user_data)
+{
+  gboolean *timed_out = user_data;
+
+  *timed_out = TRUE;
+}
+
+static void
+test_async_encrypted_request_passphrase (void)
+{
+  g_autoptr (ExtractTest) extract_test = extract_test_new ("test-encrypted");
+  g_autoptr (GFile) archive = g_file_get_child (extract_test->input, "arextract.zip");
+  g_autoptr (AutoarExtractor) extractor = autoar_extractor_new (archive, extract_test->output);
+  g_autoptr (ExtractTestData) data = extract_test_data_new_for_extract (extractor);
+
+  data->passphrase_to_return = "password123";
+  autoar_extractor_start_async (extractor, data->cancellable);
+
+  gboolean timed_out = FALSE;
+  guint timeout_id = g_timeout_add_seconds_once (10, set_timed_out, &timed_out);
+
+  while (!data->completed_signalled && data->error == NULL && !timed_out)
+    g_main_context_iteration (NULL, TRUE);
+
+  g_clear_handle_id (&timeout_id, g_source_remove);
+
+  g_assert_false (timed_out);
+  g_assert_true (data->request_passphrase_signalled);
+  g_assert_no_error (data->error);
+  g_assert_true (data->completed_signalled);
+  assert_reference_and_output_match (extract_test);
+}
+
+static void
 test_encrypted_wrong_passphrase (void)
 {
   /* arextract.zip
@@ -1576,6 +1611,8 @@ setup_test_suite (void)
                    test_encrypted);
   g_test_add_func ("/autoar-extract/test-encrypted-request-passphrase",
                    test_encrypted_request_passphrase);
+  g_test_add_func ("/autoar-extract/test-async-encrypted-request-passphrase",
+                   test_async_encrypted_request_passphrase);
   g_test_add_func ("/autoar-extract/test-encrypted-wrong-passphrase",
                    test_encrypted_wrong_passphrase);
 }

@@ -40,7 +40,6 @@
 G_BEGIN_DECLS
 
 char*     autoar_common_get_basename_remove_extension  (const char *filename);
-char*     autoar_common_get_filename_extension         (const char *filename);
 
 void      autoar_common_g_signal_emit                  (gpointer instance,
                                                         gboolean in_thread,

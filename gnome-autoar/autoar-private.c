@@ -63,22 +63,21 @@ struct _AutoarCommonSignalData
  *
  * Returns: (transfer none): a pointer to the extension of the filename
  **/
-G_GNUC_INTERNAL char*
+static const char*
 autoar_common_get_filename_extension (const char *filename)
 {
-  char *dot_location;
+  const char *dot_location = strrchr (filename, '.');
 
-  dot_location = strrchr (filename, '.');
   if (dot_location == NULL || dot_location == filename) {
-    return (char*)filename;
+    return filename;
   }
 
   if (dot_location - 4 > filename && strncmp (dot_location - 4, ".tar", 4) == 0)
-    dot_location -= 4;
+    return dot_location - 4;
   else if (dot_location - 5 > filename && strncmp (dot_location - 5, ".cpio", 5) == 0)
-    dot_location -= 5;
-
-  return dot_location;
+    return dot_location - 5;
+  else 
+    return dot_location;
 }
 
 /**
@@ -93,19 +92,16 @@ autoar_common_get_filename_extension (const char *filename)
 G_GNUC_INTERNAL char*
 autoar_common_get_basename_remove_extension (const char *filename)
 {
-  char *dot_location;
-  char *basename;
-
   if (filename == NULL) {
     return NULL;
   }
 
   /* filename must not be directory, so we do not get a bad basename. */
-  basename = g_path_get_basename (filename);
+  char *basename = g_path_get_basename (filename);
+  const char *dot_location = autoar_common_get_filename_extension (basename);
 
-  dot_location = autoar_common_get_filename_extension (basename);
   if (dot_location != basename)
-    *dot_location = '\0';
+    basename[dot_location - basename] = '\0';
 
   g_debug ("autoar_common_get_basename_remove_extension: %s => %s",
            filename,

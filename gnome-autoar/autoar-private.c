@@ -163,45 +163,49 @@ autoar_common_g_signal_emit (gpointer instance,
   va_list ap;
 
   va_start (ap, detail);
-  if (in_thread) {
-    g_autofree char *error = NULL;
-    GSignalQuery query;
-    g_autoptr (AutoarCommonSignalData) data = g_new0 (AutoarCommonSignalData, 1);
 
-    data->signal_id = signal_id;
-    data->detail = detail;
-    data->used_values = 1;
-    g_value_init (data->instance_and_params, G_TYPE_FROM_INSTANCE (instance));
-    g_value_set_instance (data->instance_and_params, instance);
-
-    g_signal_query (signal_id, &query);
-    if (query.signal_id == 0) {
-      va_end (ap);
-      return;
-    }
-
-    for (int i = 0; i < query.n_params; i++) {
-      G_VALUE_COLLECT_INIT (data->instance_and_params + i + 1,
-                            query.param_types[i],
-                            ap,
-                            0,
-                            &error);
-      if (error != NULL)
-        break;
-      data->used_values++;
-    }
-
-    if (error == NULL) {
-      g_main_context_invoke (NULL, autoar_common_g_signal_emit_main_context,
-                             g_steal_pointer (&data));
-    } else {
-      g_debug ("G_VALUE_COLLECT_INIT: Error: %s", error);
-      va_end (ap);
-      return;
-    }
-  } else {
+  if (!in_thread) {
     g_signal_emit_valist (instance, signal_id, detail, ap);
+    va_end (ap);
+    return;
   }
+
+  g_autofree char *error = NULL;
+  GSignalQuery query;
+  g_autoptr (AutoarCommonSignalData) data = g_new0 (AutoarCommonSignalData, 1);
+
+  data->signal_id = signal_id;
+  data->detail = detail;
+  data->used_values = 1;
+  g_value_init (data->instance_and_params, G_TYPE_FROM_INSTANCE (instance));
+  g_value_set_instance (data->instance_and_params, instance);
+
+  g_signal_query (signal_id, &query);
+  if (query.signal_id == 0) {
+    va_end (ap);
+    return;
+  }
+
+  for (int i = 0; i < query.n_params; i++) {
+    G_VALUE_COLLECT_INIT (data->instance_and_params + i + 1,
+                          query.param_types[i],
+                          ap,
+                          0,
+                          &error);
+    if (error != NULL)
+      break;
+    data->used_values++;
+  }
+
+  if (error != NULL) {
+    g_debug ("G_VALUE_COLLECT_INIT: Error: %s", error);
+    va_end (ap);
+    return;
+  }
+
+  g_main_context_invoke (NULL, autoar_common_g_signal_emit_main_context,
+                         g_steal_pointer (&data));
+
   va_end (ap);
 }
 

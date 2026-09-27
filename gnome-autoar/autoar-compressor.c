@@ -222,8 +222,7 @@ autoar_compressor_set_property (GObject      *object,
                                              NULL);
       break;
     case PROP_OUTPUT_FILE:
-      autoar_common_g_object_unref (self->output_file);
-      self->output_file = g_object_ref (g_value_get_object (value));
+      g_set_object (&self->output_file, g_value_get_object (value));
       break;
     case PROP_FORMAT:
       self->format = g_value_get_enum (value);

@@ -206,20 +206,6 @@ autoar_common_g_signal_emit (gpointer instance,
 }
 
 /**
- * autoar_common_g_object_unref:
- * @object: a #GObject
- *
- * This is a wrapper for g_object_unref(). If @object is %NULL, this function
- * does nothing. Otherwise, it will call g_object_unref() on the @object.
- **/
-G_GNUC_INTERNAL void
-autoar_common_g_object_unref (gpointer object)
-{
-  if (object != NULL)
-    g_object_unref (object);
-}
-
-/**
  * autoar_common_g_error_new_a:
  * @a: a archive object
  * @pathname: the file which causes error, or %NULL

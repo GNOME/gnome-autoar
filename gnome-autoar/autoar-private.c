@@ -127,15 +127,16 @@ autoar_common_signal_data_free (AutoarCommonSignalData *signal_data)
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(AutoarCommonSignalData, autoar_common_signal_data_free);
 
 static gboolean
-autoar_common_g_signal_emit_main_context (void *data)
+emit_signal (void *data)
 {
-  AutoarCommonSignalData *signal_data = data;
+  g_autoptr (AutoarCommonSignalData) signal_data = data;
+
   g_signal_emitv (signal_data->instance_and_params,
                   signal_data->signal_id,
                   signal_data->detail,
                   NULL);
-  autoar_common_signal_data_free (signal_data);
-  return FALSE;
+
+  return G_SOURCE_REMOVE;
 }
 
 /**
@@ -203,8 +204,7 @@ autoar_common_g_signal_emit (gpointer instance,
     return;
   }
 
-  g_main_context_invoke (NULL, autoar_common_g_signal_emit_main_context,
-                         g_steal_pointer (&data));
+  g_main_context_invoke (NULL, (GSourceFunc) emit_signal, g_steal_pointer (&data));
 
   va_end (ap);
 }

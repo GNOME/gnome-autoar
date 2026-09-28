@@ -21,24 +21,13 @@ my_handler_decide_destination (AutoarExtractor *extractor,
                                GList *files,
                                gpointer data)
 {
-  char *path, *uri;
-  GList *l;
+  g_autofree char *uri = g_file_get_uri (dest);
 
-  path = g_file_get_path (dest);
-  uri = g_file_get_uri (dest);
-  g_print ("Destination Path: %s\n", path);
+  g_print ("Destination Path: %s\n", g_file_peek_path (dest));
   g_print ("Destination URI: %s\n", uri);
-  g_free (path);
-  g_free (uri);
 
-
-  for (l = files; l != NULL; l = l->next) {
-    char *pathname;
-
-    pathname = g_file_get_path (l->data);
-    g_print ("File: %s\n", pathname);
-
-    g_free (pathname);
+  for (GList *l = files; l != NULL; l = l->next) {
+    g_print ("File: %s\n", g_file_peek_path (l->data));
   }
 
   return g_object_ref (dest);
@@ -61,11 +50,7 @@ my_handler_conflict (AutoarExtractor *extractor,
                      GFile **new_file,
                      gpointer data)
 {
-  g_autofree char *path = NULL;
-
-  path = g_file_get_path (file);
-
-  g_print ("Conflict on: %s\n", path);
+  g_print ("Conflict on: %s\n", g_file_peek_path (file));
 
   return AUTOAR_CONFLICT_UNHANDLED;
 }

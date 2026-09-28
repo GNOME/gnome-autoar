@@ -760,15 +760,10 @@ autoar_extractor_signal_conflict (AutoarExtractor  *self,
   if (action == AUTOAR_CONFLICT_UNHANDLED)
     return AUTOAR_CONFLICT_SKIP;
 
-  if (*new_file) {
-    g_autofree char *previous_path = NULL;
-    g_autofree char *new_path = NULL;
-
-    previous_path = g_file_get_path (file);
-    new_path = g_file_get_path (*new_file);
-
-    g_debug ("autoar_extractor_signal_conflict: %s => %s",
-             previous_path, new_path);
+  if (action == AUTOAR_CONFLICT_CHANGE_DESTINATION) {
+    g_debug ("autoar_extractor_signal_conflict changed destination: %s => %s",
+             g_file_peek_path (file),
+             g_file_peek_path (*new_file));
   }
 
   return action;
@@ -855,7 +850,6 @@ autoar_extractor_do_sanitize_pathname (AutoarExtractor *self,
 {
   GFile *extracted_filename;
   gboolean valid_filename;
-  g_autofree char *sanitized_pathname = NULL;
   g_autofree char *utf8_pathname = NULL;
   GFile *destination;
 
@@ -899,9 +893,7 @@ autoar_extractor_do_sanitize_pathname (AutoarExtractor *self,
                                            relative_path);
   }
 
-  sanitized_pathname = g_file_get_path (extracted_filename);
-
-  g_debug ("autoar_extractor_do_sanitize_pathname: %s", sanitized_pathname);
+  g_debug ("autoar_extractor_do_sanitize_pathname: %s", g_file_peek_path (extracted_filename));
 
   return extracted_filename;
 }
@@ -1071,13 +1063,12 @@ autoar_extractor_do_write_entry (AutoarExtractor      *self,
 
 #ifdef HAVE_LINK
   if (hardlink != NULL) {
-    char *hardlink_path, *dest_path;
-    r = link (hardlink_path = g_file_get_path (hardlink),
-              dest_path = g_file_get_path (dest));
+    const char *hardlink_path = g_file_peek_path (hardlink);
+    const char *dest_path = g_file_peek_path (dest);
+
+    r = link (hardlink_path, dest_path);
     g_debug ("autoar_extractor_do_write_entry: hard link, %s => %s, %d",
              dest_path, hardlink_path, r);
-    g_free (hardlink_path);
-    g_free (dest_path);
     if (r >= 0) {
       g_debug ("autoar_extractor_do_write_entry: skip file creation");
       goto applyinfo;
@@ -1205,48 +1196,48 @@ autoar_extractor_do_write_entry (AutoarExtractor      *self,
 #if defined HAVE_MKFIFO || defined HAVE_MKNOD
     case AE_IFIFO:
       {
-        char *path;
+        const char *path = g_file_peek_path (dest);
+
         g_debug ("autoar_extractor_do_write_entry: case FIFO");
 # ifdef HAVE_MKFIFO
-        r = mkfifo (path = g_file_get_path (dest), archive_entry_perm (entry));
+        r = mkfifo (path, archive_entry_perm (entry));
 # else
-        r = mknod (path = g_file_get_path (dest),
+        r = mknod (path,
                    S_IFIFO | archive_entry_perm (entry),
                    0);
 # endif
-        g_free (path);
       }
       break;
 #endif
 #ifdef HAVE_MKNOD
     case AE_IFSOCK:
       {
-        char *path;
+        const char *path = g_file_peek_path (dest);
+
         g_debug ("autoar_extractor_do_write_entry: case SOCK");
-        r = mknod (path = g_file_get_path (dest),
+        r = mknod (path,
                    S_IFSOCK | archive_entry_perm (entry),
                    0);
-        g_free (path);
       }
       break;
     case AE_IFBLK:
       {
-        char *path;
+        const char *path = g_file_peek_path (dest);
+
         g_debug ("autoar_extractor_do_write_entry: case BLK");
-        r = mknod (path = g_file_get_path (dest),
+        r = mknod (path,
                    S_IFBLK | archive_entry_perm (entry),
                    archive_entry_rdev (entry));
-        g_free (path);
       }
       break;
     case AE_IFCHR:
       {
-        char *path;
+        const char *path = g_file_peek_path (dest);
+
         g_debug ("autoar_extractor_do_write_entry: case CHR");
-        r = mknod (path = g_file_get_path (dest),
+        r = mknod (path,
                    S_IFCHR | archive_entry_perm (entry),
                    archive_entry_rdev (entry));
-        g_free (path);
       }
       break;
 #endif
@@ -1760,7 +1751,6 @@ autoar_extractor_step_decide_destination (AutoarExtractor *self)
   g_autolist (GFile) files = NULL;
   GList *l;
   GFile *new_destination = NULL;
-  g_autofree char *destination_name = NULL;
 
   for (l = self->files_list; l != NULL; l = l->next) {
     g_autofree char *relative_path = g_file_get_relative_path (self->output_file, l->data);
@@ -1796,10 +1786,10 @@ autoar_extractor_step_decide_destination (AutoarExtractor *self)
     }
   }
 
-  destination_name = g_file_get_path (self->new_prefix != NULL ?
-                                      self->new_prefix :
-                                      self->destination_dir);
-  g_debug ("autoar_extractor_step_decide_destination: destination %s", destination_name);
+  g_debug ("autoar_extractor_step_decide_destination: destination %s",
+           g_file_peek_path (self->new_prefix != NULL
+                             ? self->new_prefix
+                             : self->destination_dir));
 }
 
 static void

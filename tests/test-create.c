@@ -11,13 +11,10 @@ static void
 my_handler_decide_dest (AutoarCompressor *compressor,
                         GFile *dest)
 {
-  char *path, *uri;
-  path = g_file_get_path (dest);
-  uri = g_file_get_uri (dest);
-  g_print ("Destination Path: %s\n", path);
+  g_autofree char *uri = g_file_get_uri (dest);
+
+  g_print ("Destination Path: %s\n", g_file_peek_path (dest));
   g_print ("Destination URI: %s\n", uri);
-  g_free (path);
-  g_free (uri);
 }
 
 static void

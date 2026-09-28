@@ -935,9 +935,8 @@ autoar_compressor_do_add_to_archive (AutoarCompressor *self,
     (defined S_ISCHR) && (defined S_ISFIFO)
       {
         struct stat filestat;
-        char *local_pathname;
+        const char *local_pathname = g_file_peek_path (file);
 
-        local_pathname = g_file_get_path (file);
         if (local_pathname != NULL && stat (local_pathname, &filestat) >= 0) {
           if (S_ISBLK (filestat.st_mode)) {
             g_debug ("autoar_compressor_do_add_to_archive: file type set to BLOCK");
@@ -955,7 +954,6 @@ autoar_compressor_do_add_to_archive (AutoarCompressor *self,
             g_debug ("autoar_compressor_do_add_to_archive: file type set to REGULAR");
             archive_entry_set_filetype (self->entry, AE_IFREG);
           }
-          g_free (local_pathname);
         } else {
           g_debug ("autoar_compressor_do_add_to_archive: file type set to REGULAR");
           archive_entry_set_filetype (self->entry, AE_IFREG);
@@ -1491,15 +1489,11 @@ autoar_compressor_step_create (AutoarCompressor *self)
                                            archive_format (self->a));
 
   for (l = self->source_files; l != NULL; l = l->next) {
-    GFile *file; /* Do not unref */
+    GFile *file = l->data; /* Do not unref */
     GFileType filetype;
     GFileInfo *fileinfo;
-    g_autofree gchar *pathname = NULL;
 
-    file = l->data;
-
-    pathname = g_file_get_path (file);
-    g_debug ("autoar_compressor_step_create: %s", pathname);
+    g_debug ("autoar_compressor_step_create: %s", g_file_peek_path (file));
 
     fileinfo = g_file_query_info (file,
                                   G_FILE_ATTRIBUTE_STANDARD_TYPE,

@@ -1416,7 +1416,7 @@ autoar_extractor_class_init (AutoarExtractorClass *klass)
  * AutoarExtractor::conflict:
  * @self: the #AutoarExtractor
  * @file: a #GFile for the file that caused a conflict
- * @new_file: a #GFile for the new destination of @file
+ * @new_file: (out) (type GFile): a #GFile for the new destination of @file
  *
  * This signal is used to report and offer the possibility to solve name
  * conflicts when extracting files. If it is not handled, the @file will be

@@ -1548,14 +1548,7 @@ autoar_compressor_step_cleanup (AutoarCompressor *self)
 static void
 autoar_compressor_run (AutoarCompressor *self)
 {
-  /* Numbers of steps.
-   * The array size must be modified if more steps are added. */
-  void (*steps[5])(AutoarCompressor*);
-
-  int i;
-
   g_return_if_fail (AUTOAR_IS_COMPRESSOR (self));
-
   g_return_if_fail (self->source_files != NULL);
   g_return_if_fail (self->output_file != NULL);
 
@@ -1567,16 +1560,18 @@ autoar_compressor_run (AutoarCompressor *self)
     return;
   }
 
-  i = 0;
-  steps[i++] = autoar_compressor_step_initialize_object;
-  steps[i++] = self->output_is_dest ?
-               autoar_compressor_step_decide_dest_already :
-               autoar_compressor_step_decide_dest;
-  steps[i++] = autoar_compressor_step_create;
-  steps[i++] = autoar_compressor_step_cleanup;
-  steps[i++] = NULL;
+  /* Steps to go through to perform a compresison. */
+  void (*steps[])(AutoarCompressor*) = {
+    autoar_compressor_step_initialize_object,
+    self->output_is_dest
+    ? autoar_compressor_step_decide_dest_already
+    : autoar_compressor_step_decide_dest,
+    autoar_compressor_step_create,
+    autoar_compressor_step_cleanup,
+    NULL
+  };
 
-  for (i = 0; steps[i] != NULL; i++) {
+  for (int i = 0; steps[i] != NULL; i++) {
     g_debug ("autoar_compressor_run: Step %d Begin", i);
     (*steps[i])(self);
     g_debug ("autoar_compressor_run: Step %d End", i);

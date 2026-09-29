@@ -1254,19 +1254,8 @@ autoar_compressor_class_init (AutoarCompressorClass *klass)
 static void
 autoar_compressor_init (AutoarCompressor *self)
 {
-  self->size = 0;
-  self->completed_size = 0;
-  self->files = 0;
-  self->completed_files = 0;
-
-  self->notify_last = 0;
-
-  self->ostream = NULL;
   self->buffer_size = BUFFER_SIZE;
   self->buffer = g_new (char, self->buffer_size);
-  self->error = NULL;
-
-  self->cancellable = NULL;
 
   self->a = archive_write_new ();
   self->entry = archive_entry_new ();
@@ -1275,11 +1264,6 @@ autoar_compressor_init (AutoarCompressor *self)
                                                     g_str_equal,
                                                     g_free,
                                                     g_object_unref);
-  self->source_basename_noext = NULL;
-  self->extension = NULL;
-
-  self->in_thread = FALSE;
-  self->passphrase = NULL;
 }
 
 /**

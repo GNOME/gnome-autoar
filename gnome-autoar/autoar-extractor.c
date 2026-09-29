@@ -1945,14 +1945,7 @@ autoar_extractor_step_cleanup (AutoarExtractor *self) {
 static void
 autoar_extractor_run (AutoarExtractor *self)
 {
-  /* Numbers of steps.
-   * The array size must be modified if more steps are added. */
-  void (*steps[7])(AutoarExtractor*);
-
-  int i;
-
   g_return_if_fail (AUTOAR_IS_EXTRACTOR (self));
-
   g_return_if_fail (self->source_file != NULL);
   g_return_if_fail (self->output_file != NULL);
 
@@ -1961,16 +1954,18 @@ autoar_extractor_run (AutoarExtractor *self)
     return;
   }
 
-  i = 0;
-  steps[i++] = autoar_extractor_step_scan_toplevel;
-  steps[i++] = autoar_extractor_step_set_destination;
-  steps[i++] = autoar_extractor_step_decide_destination;
-  steps[i++] = autoar_extractor_step_extract;
-  steps[i++] = autoar_extractor_step_apply_dir_fileinfo;
-  steps[i++] = autoar_extractor_step_cleanup;
-  steps[i++] = NULL;
+  /* Steps to go through to perform an extraction. */
+  void (*steps[])(AutoarExtractor*) = {
+    autoar_extractor_step_scan_toplevel,
+    autoar_extractor_step_set_destination,
+    autoar_extractor_step_decide_destination,
+    autoar_extractor_step_extract,
+    autoar_extractor_step_apply_dir_fileinfo,
+    autoar_extractor_step_cleanup,
+    NULL
+  };
 
-  for (i = 0; steps[i] != NULL; i++) {
+  for (int i = 0; steps[i] != NULL; i++) {
     g_debug ("autoar_extractor_run: Step %d Begin", i);
     (*steps[i])(self);
     g_debug ("autoar_extractor_run: Step %d End", i);

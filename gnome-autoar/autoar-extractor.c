@@ -1508,37 +1508,13 @@ autoar_extractor_class_init (AutoarExtractorClass *klass)
 static void
 autoar_extractor_init (AutoarExtractor *self)
 {
-  self->cancellable = NULL;
-
-  self->total_size = 0;
-  self->completed_size = 0;
-
-  self->files_list = NULL;
-
-  self->total_files = 0;
-  self->completed_files = 0;
-
-  self->notify_last = 0;
-
-  self->istream = NULL;
   self->buffer_size = BUFFER_SIZE;
   self->buffer = g_new (char, self->buffer_size);
-  self->error = NULL;
 
   self->userhash = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
   self->grouphash = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
   self->extracted_dir_list = g_array_new (FALSE, FALSE, sizeof (GFileAndInfo));
   g_array_set_clear_func (self->extracted_dir_list, g_file_and_info_free);
-  self->destination_dir = NULL;
-  self->new_prefix = NULL;
-
-  self->suggested_destname = NULL;
-
-  self->in_thread = FALSE;
-  self->use_raw_format = FALSE;
-
-  self->passphrase = NULL;
-  self->passphrase_requested = FALSE;
 }
 
 /**

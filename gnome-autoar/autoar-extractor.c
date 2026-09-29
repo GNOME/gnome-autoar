@@ -159,6 +159,9 @@ struct _GFileAndInfo
   GFileInfo *info;
 };
 
+typedef struct archive archive_t;
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(archive_t, archive_read_free);
+
 enum
 {
   SCANNED,
@@ -1575,7 +1578,7 @@ autoar_extractor_step_scan_toplevel (AutoarExtractor *self)
    * before performing the extraction. We emit the "scanned" signal when
    * the checking is completed. */
 
-  struct archive *a;
+  g_autoptr (archive_t) a = archive_write_new ();
   struct archive_entry *entry;
 
   int r;
@@ -1611,10 +1614,8 @@ autoar_extractor_step_scan_toplevel (AutoarExtractor *self)
     const char *symlink_pathname;
     const char *hardlink_pathname;
 
-    if (g_cancellable_is_cancelled (self->cancellable)) {
-      archive_read_free (a);
+    if (g_cancellable_is_cancelled (self->cancellable))
       return;
-    }
 
     /* The password is requested only for the ZIP format to avoid showing
      * password prompt for 7ZIP/RAR, where archive_entry_is_encrypted resp.
@@ -1626,13 +1627,11 @@ autoar_extractor_step_scan_toplevel (AutoarExtractor *self)
         archive_format (a) == ARCHIVE_FORMAT_ZIP) {
       autoar_extractor_request_passphrase (self);
       if (g_cancellable_is_cancelled (self->cancellable)) {
-        archive_read_free (a);
         return;
       } else if (self->passphrase == NULL) {
         self->error = g_error_new_literal (AUTOAR_EXTRACTOR_ERROR,
                                            AUTOAR_PASSPHRASE_REQUIRED_ERRNO,
                                            "A passphrase is required");
-        archive_read_free (a);
         return;
       }
     }
@@ -1670,7 +1669,6 @@ autoar_extractor_step_scan_toplevel (AutoarExtractor *self)
     if (self->error == NULL) {
       self->error = autoar_common_g_error_new_a (a, NULL);
     }
-    archive_read_free (a);
     return;
   }
 
@@ -1680,7 +1678,6 @@ autoar_extractor_step_scan_toplevel (AutoarExtractor *self)
                                          AUTOAR_EMPTY_ARCHIVE_ERRNO,
                                          "empty archive");
     }
-    archive_read_free (a);
     return;
   }
 
@@ -1688,8 +1685,6 @@ autoar_extractor_step_scan_toplevel (AutoarExtractor *self)
    * number to prevent strange percentage. */
   if (self->total_size <= 0)
     self->total_size = G_MAXUINT64;
-
-  archive_read_free (a);
 
   g_debug ("autoar_extractor_step_scan_toplevel: files = %d",
            self->total_files);
@@ -1798,7 +1793,7 @@ autoar_extractor_step_extract (AutoarExtractor *self) {
    * We have to re-open the archive to extract files
    */
 
-  struct archive *a;
+  g_autoptr (archive_t) a = NULL;
   struct archive_entry *entry;
 
   int r;
@@ -1810,7 +1805,6 @@ autoar_extractor_step_extract (AutoarExtractor *self) {
     if (self->error == NULL) {
       self->error = autoar_common_g_error_new_a (a, NULL);
     }
-    archive_read_free (a);
     return;
   }
 
@@ -1822,10 +1816,8 @@ autoar_extractor_step_extract (AutoarExtractor *self) {
     AutoarConflictAction action;
     g_autoptr (GFile) file_conflict = NULL;
 
-    if (g_cancellable_is_cancelled (self->cancellable)) {
-      archive_read_free (a);
+    if (g_cancellable_is_cancelled (self->cancellable))
       return;
-    }
 
     pathname = archive_entry_pathname (entry);
     hardlink = archive_entry_hardlink (entry);
@@ -1864,7 +1856,6 @@ autoar_extractor_step_extract (AutoarExtractor *self) {
         self->error = g_error_new (G_IO_ERROR,
                                    G_IO_ERROR_NOT_DIRECTORY,
                                    "The file is not a directory");
-        archive_read_free (a);
         return;
       }
 
@@ -1878,10 +1869,8 @@ autoar_extractor_step_extract (AutoarExtractor *self) {
            * prevent data loss.
            */
           g_file_delete (extracted_filename, self->cancellable, &self->error);
-          if (self->error != NULL) {
-            archive_read_free (a);
+          if (self->error != NULL)
             return;
-          }
           break;
         case AUTOAR_CONFLICT_CHANGE_DESTINATION:
           /* FIXME: If the destination is changed for directory, it should be
@@ -1918,10 +1907,8 @@ autoar_extractor_step_extract (AutoarExtractor *self) {
     autoar_extractor_do_write_entry (self, a, entry,
                                      extracted_filename, hardlink_filename);
 
-    if (self->error != NULL) {
-      archive_read_free (a);
+    if (self->error != NULL)
       return;
-    }
 
     self->completed_files++;
     autoar_extractor_signal_progress (self);
@@ -1931,11 +1918,8 @@ autoar_extractor_step_extract (AutoarExtractor *self) {
     if (self->error == NULL) {
       self->error = autoar_common_g_error_new_a (a, NULL);
     }
-    archive_read_free (a);
     return;
   }
-
-  archive_read_free (a);
 }
 
 static void

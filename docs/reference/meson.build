@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
-# Copyright (C) 2021, 2022 Iñigo Martinez <inigomartinez@gmail.com>
+# SPDX-FileCopyrightText: 2021, 2022 Iñigo Martinez <inigomartinez@gmail.com>
 
 enable_docs = get_option('docs')
 gi_docgen = find_program('gi-docgen', required: enable_docs)

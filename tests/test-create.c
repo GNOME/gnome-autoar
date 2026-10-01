@@ -1,4 +1,7 @@
-/* vim: set sw=2 ts=2 sts=2 et: */
+/*
+ * SPDX-FileCopyrightText: 2013  Ting-Wei Lan
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ */
 
 #define G_LOG_DOMAIN "gnome-autoar-test"
 

@@ -1,3 +1,8 @@
+/*
+ * SPDX-FileCopyrightText: 2016  Razvan Chitu <razvan.ch95@gmail.com>
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ */
+
 #define G_LOG_DOMAIN "gnome-autoar-test"
 
 #include <gnome-autoar/gnome-autoar.h>

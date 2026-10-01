@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
-# Copyright (C) 2021 Iñigo Martinez <inigomartinez@gmail.com>
+# SPDX-FileCopyrightText: 2021 Iñigo Martinez <inigomartinez@gmail.com>
 
 project(
   'gnome-autoar', 'c',

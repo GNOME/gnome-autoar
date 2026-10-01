@@ -26,13 +26,9 @@ sources = files(
   'autoar-misc.c',
 )
 
-enum_types = 'autoar-enum-types'
-
-enum_sources = gnome.mkenums(
-  enum_types,
+enum_sources = gnome.mkenums_simple(
+  'autoar-enum-types',
   sources: headers,
-  h_template: f'@enum_types@.h.template',
-  c_template: f'@enum_types@.c.template',
   install_header: true,
   install_dir: gnome_autoar_includedir / libname / gnome_autoar_name,
 )

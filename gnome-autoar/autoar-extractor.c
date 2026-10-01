@@ -1473,6 +1473,8 @@ autoar_extractor_class_init (AutoarExtractorClass *klass)
  *
  * This signal is emitted when the archive extracting job needs a
  * passphrase.
+ *
+ * Returns: a passphrase string to be used by #AutoarExtractor
  **/
   autoar_extractor_signals[REQUEST_PASSPHRASE] =
     g_signal_new ("request-passphrase",

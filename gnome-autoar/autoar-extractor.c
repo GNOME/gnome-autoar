@@ -1568,6 +1568,7 @@ autoar_extractor_step_scan_toplevel (AutoarExtractor *self)
 
   while ((r = archive_read_next_header (a, &entry)) == ARCHIVE_OK) {
     const char *pathname;
+    g_autofree char *basename = NULL;
     g_autofree char *utf8_pathname = NULL;
     const char *symlink_pathname;
     const char *hardlink_pathname;
@@ -1602,8 +1603,10 @@ autoar_extractor_step_scan_toplevel (AutoarExtractor *self)
     /* The raw format usually doesn't propagate file name and the generic "data"
      * string is returned instead. Let's use source basename in that case.
      */
-    if (self->use_raw_format && g_str_equal (pathname, "data"))
-      pathname = autoar_common_get_basename_remove_extension (self->source_basename);
+    if (self->use_raw_format && g_str_equal (pathname, "data")) {
+      basename = autoar_common_get_basename_remove_extension (self->source_basename);
+      pathname = basename;
+    }
 
     g_debug ("autoar_extractor_step_scan_toplevel: %d: pathname = %s%s%s%s%s%s%s",
              self->total_files, pathname,
@@ -1768,6 +1771,7 @@ autoar_extractor_step_extract (AutoarExtractor *self) {
 
   while ((r = archive_read_next_header (a, &entry)) == ARCHIVE_OK) {
     const char *pathname;
+    g_autofree char *basename = NULL;
     const char *hardlink;
     g_autoptr (GFile) extracted_filename = NULL;
     g_autoptr (GFile) hardlink_filename = NULL;
@@ -1783,8 +1787,10 @@ autoar_extractor_step_extract (AutoarExtractor *self) {
     /* The raw format usually doesn't propagate file name and the generic "data"
      * string is returned instead. Let's use source basename in that case.
      */
-    if (self->use_raw_format && g_str_equal (pathname, "data"))
-      pathname = autoar_common_get_basename_remove_extension (self->source_basename);
+    if (self->use_raw_format && g_str_equal (pathname, "data")) {
+      basename = autoar_common_get_basename_remove_extension (self->source_basename);
+      pathname = basename;
+    }
 
     extracted_filename =
       autoar_extractor_do_sanitize_pathname (self, pathname);

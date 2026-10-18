@@ -1536,7 +1536,7 @@ autoar_extractor_step_scan_toplevel (AutoarExtractor *self)
    * before performing the extraction. We emit the "scanned" signal when
    * the checking is completed. */
 
-  g_autoptr (archive_t) a = archive_write_new ();
+  g_autoptr (archive_t) a = NULL;
   struct archive_entry *entry;
 
   int r;

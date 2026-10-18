@@ -1,34 +1,14 @@
 include:
-    - project: "Infrastructure/freedesktop-ci-templates"
-      file: "templates/fedora.yml"
     - component: gitlab.gnome.org/GNOME/citemplates/release-service@master
       inputs:
-          dist-job-name: "fedora"
+          dist-job-name: "build-gnomeos"
     - component: "gitlab.gnome.org/GNOME/citemplates/gnomeos-basic-ci@master"
       inputs:
-          meson-options: "-Ddocs=true"
+          meson-options: "-Ddocs=true -Dtests=true"
           job-stage: "test"
           gobject-linter: "enabled"
           gobject-linter-options: "-c build-aux/gobject-linter.toml"
     - component: "gitlab.gnome.org/GNOME/citemplates/basic-deploy-docs@master"
-
-variables:
-    MESON_BUILD_DIR: _build
-    CI_REGISTRY_IMAGE: registry.gitlab.gnome.org/gnome/gnome-autoar
-
-stages:
-    - image
-    - review
-    - test
-    - deploy
-
-.vars-devel:
-    rules:
-        # Disable tests for protected tags
-        - if: $CI_COMMIT_TAG && $CI_COMMIT_REF_PROTECTED
-          variables:
-              CONFIG_OPTS: '--libdir=/app/lib -Dprofile=Devel -Dtests=none'
-        - when: always
 
 workflow:
     rules:
@@ -41,68 +21,3 @@ workflow:
                $CI_COMMIT_BRANCH =~ /^gnome-.*$/ ||
                $CI_PIPELINE_SOURCE == "web") &&
               $CI_COMMIT_TITLE !~ /^Update.*translation$/
-
-.fedora:
-    variables:
-        FDO_DISTRIBUTION_VERSION: 44
-        BASE_TAG: '2026-08-23.0'
-        FDO_DISTRIBUTION_COMPRESSION_FORMAT: zstd:chunked
-        FDO_DISTRIBUTION_PACKAGES:
-            git
-            gcc
-            gi-docgen
-            meson
-            glibc-devel
-            glib2-devel
-            glibc-langpack-en
-            gobject-introspection-devel
-            libarchive-devel
-            vala
-
-.fedora-x86_64:
-    extends:
-        - .fedora
-    variables:
-        FDO_DISTRIBUTION_TAG: "x86_64-$BASE_TAG"
-        FDO_UPSTREAM_REPO: gnome/gnome-autoar
-    needs:
-        - job: "update-fedora-image@x86_64"
-          optional: true
-
-update-fedora-image@x86_64:
-    extends:
-        - .fdo.container-build@fedora
-        - .fedora-x86_64
-    stage: image
-    needs: []
-    variables:
-        GIT_STRATEGY: none
-        FDO_DISTRIBUTION_EXEC: ".gitlab/image-script.sh"
-        CFLAGS: "-fno-omit-frame-pointer"
-    rules:
-        - changes:
-            - .gitlab-ci.yml
-            - .gitlab/**/*
-        - if: $CI_PROJECT_NAMESPACE != "GNOME"
-          when: never
-
-fedora:
-    variables:
-        LAST_ABI_BREAK: dd5450425a5348e62dee9a48e872f7705b63b692
-    extends:
-        - .fdo.distribution-image@fedora
-        - .fedora-x86_64
-        - .vars-devel
-    stage: test
-    script:
-        - meson setup -Ddocs=false -Dintrospection=enabled -Dtests=true $MESON_BUILD_DIR
-        - meson test -C $MESON_BUILD_DIR
-        - check-abi $LAST_ABI_BREAK $(git rev-parse HEAD)
-        - meson dist -C $MESON_BUILD_DIR --no-tests
-        - cp -r "$MESON_BUILD_DIR/meson-dist/" "${CI_PROJECT_DIR}/public-dist/"
-    artifacts:
-        paths:
-            - $MESON_BUILD_DIR
-            - public-dist
-        reports:
-            junit: $MESON_BUILD_DIR/meson-logs/testlog.junit.xml
